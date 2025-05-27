@@ -1,0 +1,672 @@
+const std = @import("std");
+const builtin = @import("builtin");
+const interface = @import("interface.zig");
+const types = @import("../types.zig");
+
+const c = if (builtin.os.tag == .macos or builtin.os.tag == .ios) blk: {
+    break :blk @cImport({
+        if (builtin.os.tag == .macos or builtin.os.tag == .ios) {
+            @cInclude("Metal/Metal.h");
+            @cInclude("QuartzCore/CAMetalLayer.h");
+        }
+        if (builtin.os.tag == .macos) {
+            @cInclude("Cocoa/Cocoa.h");
+        } else if (builtin.os.tag == .ios) {
+            @cInclude("UIKit/UIKit.h");
+        }
+    });
+} else struct {};
+
+pub const MetalBackend = struct {
+    allocator: std.mem.Allocator,
+    device: ?*c.MTLDevice = null,
+    command_queue: ?*c.MTLCommandQueue = null,
+    layer: ?*c.CAMetalLayer = null,
+    current_drawable: ?*c.CAMetalDrawable = null,
+    depth_stencil_texture: ?*c.MTLTexture = null,
+    render_pass_descriptor: ?*c.MTLRenderPassDescriptor = null,
+    library: ?*c.MTLLibrary = null,
+    command_buffer: ?*c.MTLCommandBuffer = null,
+    render_encoder: ?*c.MTLRenderCommandEncoder = null,
+    compute_encoder: ?*c.MTLComputeCommandEncoder = null,
+    blit_encoder: ?*c.MTLBlitCommandEncoder = null,
+    width: u32 = 0,
+    height: u32 = 0,
+    pixel_format: c.MTLPixelFormat = c.MTLPixelFormatBGRA8Unorm,
+    sample_count: u32 = 1,
+    vsync: bool = true,
+    initialized: bool = false,
+
+    const Self = @This();
+
+    const vtable = interface.GraphicsBackend.VTable{
+        .deinit = deinitImpl,
+        .create_swap_chain = createSwapChainImpl,
+        .resize_swap_chain = resizeSwapChainImpl,
+        .present = presentImpl,
+        .get_current_back_buffer = getCurrentBackBufferImpl,
+        .create_texture = createTextureImpl,
+        .create_buffer = createBufferImpl,
+        .create_shader = createShaderImpl,
+        .create_pipeline = createPipelineImpl,
+        .create_render_target = createRenderTargetImpl,
+        .update_buffer = updateBufferImpl,
+        .update_texture = updateTextureImpl,
+        .destroy_texture = destroyTextureImpl,
+        .destroy_buffer = destroyBufferImpl,
+        .destroy_shader = destroyShaderImpl,
+        .destroy_render_target = destroyRenderTargetImpl,
+        .create_command_buffer = createCommandBufferImpl,
+        .begin_command_buffer = beginCommandBufferImpl,
+        .end_command_buffer = endCommandBufferImpl,
+        .submit_command_buffer = submitCommandBufferImpl,
+        .begin_render_pass = beginRenderPassImpl,
+        .end_render_pass = endRenderPassImpl,
+        .set_viewport = setViewportImpl,
+        .set_scissor = setScissorImpl,
+        .bind_pipeline = bindPipelineImpl,
+        .bind_vertex_buffer = bindVertexBufferImpl,
+        .bind_index_buffer = bindIndexBufferImpl,
+        .bind_texture = bindTextureImpl,
+        .bind_uniform_buffer = bindUniformBufferImpl,
+        .draw = drawImpl,
+        .draw_indexed = drawIndexedImpl,
+        .dispatch = dispatchImpl,
+        .copy_buffer = copyBufferImpl,
+        .copy_texture = copyTextureImpl,
+        .copy_buffer_to_texture = copyBufferToTextureImpl,
+        .copy_texture_to_buffer = copyTextureToBufferImpl,
+        .resource_barrier = resourceBarrierImpl,
+        .get_backend_info = getBackendInfoImpl,
+        .set_debug_name = setDebugNameImpl,
+        .begin_debug_group = beginDebugGroupImpl,
+        .end_debug_group = endDebugGroupImpl,
+    };
+
+    pub fn init(allocator: std.mem.Allocator) !*interface.GraphicsBackend {
+        if (builtin.os.tag != .macos and builtin.os.tag != .ios) {
+            return interface.GraphicsBackendError.BackendNotAvailable;
+        }
+
+        const backend = try allocator.create(Self);
+        errdefer allocator.destroy(backend);
+
+        backend.* = Self{
+            .allocator = allocator,
+        };
+
+        try backend.initializeDevice();
+
+        const graphics_backend = try allocator.create(interface.GraphicsBackend);
+        graphics_backend.* = interface.GraphicsBackend{
+            .allocator = allocator,
+            .backend_type = .metal,
+            .vtable = &vtable,
+            .impl_data = backend,
+            .initialized = true,
+        };
+
+        return graphics_backend;
+    }
+
+    fn initializeDevice(self: *Self) !void {
+        // Create Metal device
+        self.device = c.MTLCreateSystemDefaultDevice();
+        if (self.device == null) {
+            std.log.err("Failed to create Metal device - Metal may not be supported on this system", .{});
+            return interface.GraphicsBackendError.DeviceCreationFailed;
+        }
+
+        // Create command queue
+        self.command_queue = c.MTLDevice.newCommandQueue(self.device.?);
+        if (self.command_queue == null) {
+            std.log.err("Failed to create Metal command queue", .{});
+            return interface.GraphicsBackendError.InitializationFailed;
+        }
+
+        // Create default library
+        self.library = c.MTLDevice.newDefaultLibrary(self.device.?);
+
+        // Create render pass descriptor
+        self.render_pass_descriptor = c.MTLRenderPassDescriptor.renderPassDescriptor();
+        if (self.render_pass_descriptor == null) {
+            std.log.err("Failed to create Metal render pass descriptor", .{});
+            return interface.GraphicsBackendError.InitializationFailed;
+        }
+
+        self.initialized = true;
+        std.log.info("Metal backend initialized successfully", .{});
+
+        // Log device info
+        const device_name = c.MTLDevice.name(self.device.?);
+        if (device_name != null) {
+            std.log.info("Metal device: {s}", .{device_name});
+        }
+
+        // Log additional device capabilities
+        if (builtin.os.tag == .macos) {
+            const supports_unified_memory = c.MTLDevice.hasUnifiedMemory(self.device.?);
+            std.log.info("Unified memory support: {}", .{supports_unified_memory});
+        }
+    }
+
+    // Implementation functions
+    fn deinitImpl(impl: *anyopaque) void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        self.deinitInternal();
+    }
+
+    fn deinitInternal(self: *Self) void {
+        if (!self.initialized) return;
+
+        // End any active encoders
+        self.endAllEncoders();
+
+        // Clear all resources (Metal uses ARC for automatic cleanup)
+        self.command_buffer = null;
+        self.render_pass_descriptor = null;
+        self.depth_stencil_texture = null;
+        self.current_drawable = null;
+        self.library = null;
+        self.layer = null;
+        self.command_queue = null;
+        self.device = null;
+
+        self.initialized = false;
+        self.allocator.destroy(self);
+    }
+
+    fn endAllEncoders(self: *Self) void {
+        if (self.render_encoder != null) {
+            c.MTLRenderCommandEncoder.endEncoding(self.render_encoder.?);
+            self.render_encoder = null;
+        }
+
+        if (self.compute_encoder != null) {
+            c.MTLComputeCommandEncoder.endEncoding(self.compute_encoder.?);
+            self.compute_encoder = null;
+        }
+
+        if (self.blit_encoder != null) {
+            c.MTLBlitCommandEncoder.endEncoding(self.blit_encoder.?);
+            self.blit_encoder = null;
+        }
+    }
+
+    fn createSwapChainImpl(impl: *anyopaque, desc: *const interface.SwapChainDesc) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+
+        if (!self.initialized) {
+            return interface.GraphicsBackendError.InvalidOperation;
+        }
+
+        self.width = desc.width;
+        self.height = desc.height;
+        self.vsync = desc.vsync;
+        self.pixel_format = convertTextureFormat(desc.format);
+
+        // Create CAMetalLayer
+        self.layer = c.CAMetalLayer.layer();
+        if (self.layer == null) {
+            return interface.GraphicsBackendError.SwapChainCreationFailed;
+        }
+
+        c.CAMetalLayer.setDevice(self.layer.?, self.device.?);
+        c.CAMetalLayer.setPixelFormat(self.layer.?, self.pixel_format);
+        c.CAMetalLayer.setFramebufferOnly(self.layer.?, true);
+        c.CAMetalLayer.setDrawableSize(self.layer.?, c.CGSize{ .width = @floatFromInt(desc.width), .height = @floatFromInt(desc.height) });
+
+        if (builtin.os.tag == .macos) {
+            c.CAMetalLayer.setDisplaySyncEnabled(self.layer.?, desc.vsync);
+        }
+
+        try self.createDepthStencilTexture();
+    }
+
+    fn createDepthStencilTexture(self: *Self) !void {
+        if (self.width == 0 or self.height == 0) {
+            return interface.GraphicsBackendError.InvalidOperation;
+        }
+
+        const depth_texture_desc = c.MTLTextureDescriptor.texture2DDescriptorWithPixelFormat(c.MTLPixelFormatDepth32Float, self.width, self.height, false);
+
+        c.MTLTextureDescriptor.setUsage(depth_texture_desc, c.MTLTextureUsageRenderTarget);
+        c.MTLTextureDescriptor.setStorageMode(depth_texture_desc, c.MTLStorageModePrivate);
+
+        self.depth_stencil_texture = c.MTLDevice.newTextureWithDescriptor(self.device.?, depth_texture_desc);
+        if (self.depth_stencil_texture == null) {
+            return interface.GraphicsBackendError.ResourceCreationFailed;
+        }
+    }
+
+    fn resizeSwapChainImpl(impl: *anyopaque, width: u32, height: u32) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+
+        if (width == 0 or height == 0) {
+            return interface.GraphicsBackendError.InvalidOperation;
+        }
+
+        self.width = width;
+        self.height = height;
+
+        if (self.layer != null) {
+            c.CAMetalLayer.setDrawableSize(self.layer.?, c.CGSize{ .width = @floatFromInt(width), .height = @floatFromInt(height) });
+        }
+
+        // Recreate depth stencil texture with new dimensions
+        self.depth_stencil_texture = null;
+        try self.createDepthStencilTexture();
+    }
+
+    fn presentImpl(impl: *anyopaque) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+
+        if (self.current_drawable != null and self.command_buffer != null) {
+            c.MTLCommandBuffer.presentDrawable(self.command_buffer.?, self.current_drawable.?);
+            self.current_drawable = null;
+        }
+    }
+
+    fn getCurrentBackBufferImpl(impl: *anyopaque) interface.GraphicsBackendError!*types.Texture {
+        const self: *Self = @ptrCast(@alignCast(impl));
+
+        if (self.layer == null) {
+            return interface.GraphicsBackendError.InvalidOperation;
+        }
+
+        self.current_drawable = c.CAMetalLayer.nextDrawable(self.layer.?);
+        if (self.current_drawable == null) {
+            return interface.GraphicsBackendError.ResourceCreationFailed;
+        }
+
+        const metal_texture = c.CAMetalDrawable.texture(self.current_drawable.?);
+
+        const texture = try self.allocator.create(types.Texture);
+        texture.* = types.Texture{
+            .id = @intFromPtr(metal_texture),
+            .width = self.width,
+            .height = self.height,
+            .depth = 1,
+            .format = .bgra8,
+            .texture_type = .texture_2d,
+            .mip_levels = 1,
+            .allocator = self.allocator,
+        };
+
+        return texture;
+    }
+
+    fn createTextureImpl(impl: *anyopaque, texture: *types.Texture, data: ?[]const u8) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+
+        if (texture.width == 0 or texture.height == 0) {
+            return interface.GraphicsBackendError.InvalidOperation;
+        }
+
+        const texture_desc = c.MTLTextureDescriptor.texture2DDescriptorWithPixelFormat(convertTextureFormat(texture.format), texture.width, texture.height, texture.mip_levels > 1);
+
+        c.MTLTextureDescriptor.setMipmapLevelCount(texture_desc, texture.mip_levels);
+
+        switch (texture.texture_type) {
+            .texture_2d => c.MTLTextureDescriptor.setTextureType(texture_desc, c.MTLTextureType2D),
+            .texture_cube => c.MTLTextureDescriptor.setTextureType(texture_desc, c.MTLTextureTypeCube),
+            .texture_3d => c.MTLTextureDescriptor.setTextureType(texture_desc, c.MTLTextureType3D),
+            .texture_array => c.MTLTextureDescriptor.setTextureType(texture_desc, c.MTLTextureType2DArray),
+        }
+
+        c.MTLTextureDescriptor.setUsage(texture_desc, c.MTLTextureUsageShaderRead | c.MTLTextureUsageRenderTarget);
+
+        const metal_texture = c.MTLDevice.newTextureWithDescriptor(self.device.?, texture_desc);
+        if (metal_texture == null) {
+            return interface.GraphicsBackendError.ResourceCreationFailed;
+        }
+
+        texture.id = @intFromPtr(metal_texture);
+
+        // Upload initial data if provided
+        if (data) |texture_data| {
+            const bytes_per_pixel = getBytesPerPixel(texture.format);
+            const bytes_per_row = texture.width * bytes_per_pixel;
+            const expected_size = bytes_per_row * texture.height;
+
+            if (texture_data.len < expected_size) {
+                std.log.err("Texture data size mismatch: expected {}, got {}", .{ expected_size, texture_data.len });
+                return interface.GraphicsBackendError.InvalidOperation;
+            }
+
+            const region = c.MTLRegion{
+                .origin = c.MTLOrigin{ .x = 0, .y = 0, .z = 0 },
+                .size = c.MTLSize{ .width = texture.width, .height = texture.height, .depth = 1 },
+            };
+
+            c.MTLTexture.replaceRegion(metal_texture, region, 0, // mip level
+                texture_data.ptr, bytes_per_row);
+        }
+    }
+
+    fn createBufferImpl(impl: *anyopaque, buffer: *types.Buffer, data: ?[]const u8) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+
+        if (buffer.size == 0) {
+            return interface.GraphicsBackendError.InvalidOperation;
+        }
+
+        const options = getMetalResourceOptions(buffer.usage);
+        var metal_buffer: ?*c.MTLBuffer = null;
+
+        if (data) |buffer_data| {
+            if (buffer_data.len > buffer.size) {
+                return interface.GraphicsBackendError.InvalidOperation;
+            }
+            metal_buffer = c.MTLDevice.newBufferWithBytes(self.device.?, buffer_data.ptr, buffer_data.len, options);
+        } else {
+            metal_buffer = c.MTLDevice.newBufferWithLength(self.device.?, buffer.size, options);
+        }
+
+        if (metal_buffer == null) {
+            return interface.GraphicsBackendError.ResourceCreationFailed;
+        }
+
+        buffer.id = @intFromPtr(metal_buffer);
+    }
+
+    fn getMetalResourceOptions(usage: types.BufferUsage) c.MTLResourceOptions {
+        return switch (usage) {
+            .vertex, .index => c.MTLResourceStorageModeShared,
+            .uniform => c.MTLResourceStorageModeShared | c.MTLResourceCPUCacheModeWriteCombined,
+            .storage => c.MTLResourceStorageModePrivate,
+            .staging => c.MTLResourceStorageModeShared | c.MTLResourceCPUCacheModeDefaultCache,
+        };
+    }
+
+    fn createShaderImpl(impl: *anyopaque, shader: *types.Shader) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+
+        if (shader.source.len == 0) {
+            return interface.GraphicsBackendError.InvalidOperation;
+        }
+
+        // Create null-terminated string for C API
+        const null_terminated_source = std.fmt.allocPrintZ(self.allocator, "{s}", .{shader.source}) catch {
+            return interface.GraphicsBackendError.ResourceCreationFailed;
+        };
+        defer self.allocator.free(null_terminated_source);
+
+        // Create NSString from shader source
+        const source_string = c.NSString.stringWithUTF8String(null_terminated_source.ptr);
+        if (source_string == null) {
+            return interface.GraphicsBackendError.ResourceCreationFailed;
+        }
+
+        // Compile library from source
+        var compilation_error: ?*c.NSError = null;
+        const shader_library = c.MTLDevice.newLibraryWithSource(self.device.?, source_string, null, // options
+            &compilation_error);
+
+        if (shader_library == null or compilation_error != null) {
+            if (compilation_error != null) {
+                const error_desc = c.NSError.localizedDescription(compilation_error.?);
+                if (error_desc != null) {
+                    const error_string = c.NSString.UTF8String(error_desc);
+                    if (error_string != null) {
+                        std.log.err("Metal shader compilation failed: {s}", .{error_string});
+                    }
+                }
+            }
+            return interface.GraphicsBackendError.ResourceCreationFailed;
+        }
+
+        // Get function by entry point name
+        const entry_point = if (shader.entry_point.len > 0) shader.entry_point else "main";
+        const entry_point_z = std.fmt.allocPrintZ(self.allocator, "{s}", .{entry_point}) catch {
+            return interface.GraphicsBackendError.ResourceCreationFailed;
+        };
+        defer self.allocator.free(entry_point_z);
+
+        const function_name = c.NSString.stringWithUTF8String(entry_point_z.ptr);
+        const metal_function = c.MTLLibrary.newFunctionWithName(shader_library, function_name);
+
+        if (metal_function == null) {
+            std.log.err("Failed to find shader function '{s}'", .{entry_point});
+            return interface.GraphicsBackendError.ResourceCreationFailed;
+        }
+
+        shader.id = @intFromPtr(metal_function);
+        shader.compiled = true;
+    }
+
+    fn createPipelineImpl(impl: *anyopaque, desc: *const interface.PipelineDesc) interface.GraphicsBackendError!*interface.Pipeline {
+        const self: *Self = @ptrCast(@alignCast(impl));
+
+        // Create render pipeline descriptor
+        const pipeline_desc = c.MTLRenderPipelineDescriptor.renderPipelineDescriptor();
+        if (pipeline_desc == null) {
+            return interface.GraphicsBackendError.ResourceCreationFailed;
+        }
+
+        // Set shaders if provided
+        if (desc.vertex_shader) |vs| {
+            const metal_function: *c.MTLFunction = @ptrFromInt(vs.id);
+            c.MTLRenderPipelineDescriptor.setVertexFunction(pipeline_desc, metal_function);
+        }
+
+        if (desc.fragment_shader) |fs| {
+            const metal_function: *c.MTLFunction = @ptrFromInt(fs.id);
+            c.MTLRenderPipelineDescriptor.setFragmentFunction(pipeline_desc, metal_function);
+        }
+
+        // Set color format
+        const color_attachments = c.MTLRenderPipelineDescriptor.colorAttachments(pipeline_desc);
+        const color_attachment = c.MTLRenderPipelineColorAttachmentDescriptorArray.objectAtIndexedSubscript(color_attachments, 0);
+        c.MTLRenderPipelineColorAttachmentDescriptor.setPixelFormat(color_attachment, self.pixel_format);
+
+        // Create pipeline state
+        var pipeline_error: ?*c.NSError = null;
+        const metal_pipeline = c.MTLDevice.newRenderPipelineStateWithDescriptor(self.device.?, pipeline_desc, &pipeline_error);
+
+        if (metal_pipeline == null or pipeline_error != null) {
+            if (pipeline_error != null) {
+                const error_desc = c.NSError.localizedDescription(pipeline_error.?);
+                if (error_desc != null) {
+                    const error_string = c.NSString.UTF8String(error_desc);
+                    if (error_string != null) {
+                        std.log.err("Metal pipeline creation failed: {s}", .{error_string});
+                    }
+                }
+            }
+            return interface.GraphicsBackendError.ResourceCreationFailed;
+        }
+
+        const pipeline = try self.allocator.create(interface.Pipeline);
+        pipeline.* = interface.Pipeline{
+            .id = @intFromPtr(metal_pipeline),
+            .backend_handle = undefined,
+            .allocator = self.allocator,
+        };
+
+        return pipeline;
+    }
+
+    fn createRenderTargetImpl(impl: *anyopaque, render_target: *types.RenderTarget) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = render_target;
+        return interface.GraphicsBackendError.UnsupportedOperation;
+    }
+
+    fn updateBufferImpl(impl: *anyopaque, buffer: *types.Buffer, offset: u64, data: []const u8) interface.GraphicsBackendError!void {
+        _ = impl;
+
+        if (offset + data.len > buffer.size) {
+            return interface.GraphicsBackendError.InvalidOperation;
+        }
+
+        const metal_buffer: *c.MTLBuffer = @ptrFromInt(buffer.id);
+        const contents = c.MTLBuffer.contents(metal_buffer);
+
+        if (contents == null) {
+            return interface.GraphicsBackendError.InvalidOperation;
+        }
+
+        const dest_ptr: [*]u8 = @ptrCast(contents);
+        const dest_slice = dest_ptr[offset .. offset + data.len];
+        @memcpy(dest_slice, data);
+    }
+
+    fn updateTextureImpl(impl: *anyopaque, texture: *types.Texture, region: *const interface.TextureCopyRegion, data: []const u8) interface.GraphicsBackendError!void {
+        _ = impl;
+
+        const metal_texture: *c.MTLTexture = @ptrFromInt(texture.id);
+        const bytes_per_pixel = getBytesPerPixel(texture.format);
+        const bytes_per_row = region.extent[0] * bytes_per_pixel;
+        const expected_size = bytes_per_row * region.extent[1] * region.extent[2];
+
+        if (data.len < expected_size) {
+            return interface.GraphicsBackendError.InvalidOperation;
+        }
+
+        const metal_region = c.MTLRegion{
+            .origin = c.MTLOrigin{ .x = region.dst_offset[0], .y = region.dst_offset[1], .z = region.dst_offset[2] },
+            .size = c.MTLSize{ .width = region.extent[0], .height = region.extent[1], .depth = region.extent[2] },
+        };
+
+        c.MTLTexture.replaceRegion(metal_texture, metal_region, region.dst_mip_level, data.ptr, bytes_per_row);
+    }
+
+    fn destroyTextureImpl(impl: *anyopaque, texture: *types.Texture) void {
+        _ = impl;
+        if (texture.id != 0) {
+            // Metal uses ARC, so we don't need to manually release
+            texture.id = 0;
+        }
+    }
+
+    fn destroyBufferImpl(impl: *anyopaque, buffer: *types.Buffer) void {
+        _ = impl;
+        if (buffer.id != 0) {
+            // Metal uses ARC, so we don't need to manually release
+            buffer.id = 0;
+        }
+    }
+
+    fn destroyShaderImpl(impl: *anyopaque, shader: *types.Shader) void {
+        _ = impl;
+        if (shader.id != 0) {
+            // Metal uses ARC, so we don't need to manually release
+            shader.id = 0;
+        }
+    }
+
+    fn destroyRenderTargetImpl(impl: *anyopaque, render_target: *types.RenderTarget) void {
+        _ = impl;
+        _ = render_target;
+    }
+
+    fn createCommandBufferImpl(impl: *anyopaque) interface.GraphicsBackendError!*interface.CommandBuffer {
+        const self: *Self = @ptrCast(@alignCast(impl));
+
+        const cmd = try self.allocator.create(interface.CommandBuffer);
+        cmd.* = interface.CommandBuffer{
+            .id = 0,
+            .backend_handle = undefined,
+            .allocator = self.allocator,
+        };
+
+        return cmd;
+    }
+
+    fn beginCommandBufferImpl(impl: *anyopaque, cmd: *interface.CommandBuffer) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+
+        if (self.command_queue == null) {
+            return interface.GraphicsBackendError.InvalidOperation;
+        }
+
+        self.command_buffer = c.MTLCommandQueue.commandBuffer(self.command_queue.?);
+        if (self.command_buffer == null) {
+            return interface.GraphicsBackendError.CommandSubmissionFailed;
+        }
+
+        cmd.recording = true;
+    }
+
+    fn endCommandBufferImpl(impl: *anyopaque, cmd: *interface.CommandBuffer) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+
+        // End any active encoders
+        self.endAllEncoders();
+        cmd.recording = false;
+    }
+
+    fn submitCommandBufferImpl(impl: *anyopaque, cmd: *interface.CommandBuffer) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        _ = cmd;
+
+        if (self.command_buffer != null) {
+            c.MTLCommandBuffer.commit(self.command_buffer.?);
+            self.command_buffer = null;
+        }
+    }
+
+    fn beginRenderPassImpl(impl: *anyopaque, cmd: *interface.CommandBuffer, desc: *const interface.RenderPassDesc) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        _ = cmd;
+
+        if (self.render_pass_descriptor == null or self.command_buffer == null) {
+            return interface.GraphicsBackendError.InvalidOperation;
+        }
+
+        // Set up color attachment
+        if (self.current_drawable != null) {
+            const color_attachment = c.MTLRenderPassDescriptor.colorAttachments(self.render_pass_descriptor.?)[0];
+            const drawable_texture = c.CAMetalDrawable.texture(self.current_drawable.?);
+
+            c.MTLRenderPassColorAttachmentDescriptor.setTexture(color_attachment, drawable_texture);
+            c.MTLRenderPassColorAttachmentDescriptor.setLoadAction(color_attachment, c.MTLLoadActionClear);
+            c.MTLRenderPassColorAttachmentDescriptor.setStoreAction(color_attachment, c.MTLStoreActionStore);
+            c.MTLRenderPassColorAttachmentDescriptor.setClearColor(color_attachment, c.MTLClearColor{
+                .red = desc.clear_color.r,
+                .green = desc.clear_color.g,
+                .blue = desc.clear_color.b,
+                .alpha = desc.clear_color.a,
+            });
+        }
+
+        // Set up depth attachment
+        if (self.depth_stencil_texture != null) {
+            const depth_attachment = c.MTLRenderPassDescriptor.depthAttachment(self.render_pass_descriptor.?);
+            c.MTLRenderPassDepthAttachmentDescriptor.setTexture(depth_attachment, self.depth_stencil_texture.?);
+            c.MTLRenderPassDepthAttachmentDescriptor.setLoadAction(depth_attachment, c.MTLLoadActionClear);
+            c.MTLRenderPassDepthAttachmentDescriptor.setStoreAction(depth_attachment, c.MTLStoreActionDontCare);
+            c.MTLRenderPassDepthAttachmentDescriptor.setClearDepth(depth_attachment, desc.clear_depth);
+        }
+
+        self.render_encoder = c.MTLCommandBuffer.renderCommandEncoderWithDescriptor(self.command_buffer.?, self.render_pass_descriptor.?);
+
+        if (self.render_encoder == null) {
+            return interface.GraphicsBackendError.CommandSubmissionFailed;
+        }
+    }
+
+    fn endRenderPassImpl(impl: *anyopaque, cmd: *interface.CommandBuffer) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        _ = cmd;
+
+        if (self.render_encoder != null) {
+            c.MTLRenderCommandEncoder.endEncoding(self.render_encoder.?);
+            self.render_encoder = null;
+        }
+    }
+
+    fn setViewportImpl(impl: *anyopaque, cmd: *interface.CommandBuffer, viewport: *const types.Viewport) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        _ = cmd;
+
+        if (self.render_encoder == null) {
+            return interface.GraphicsBackendError.InvalidOperation;
+        }
+
+        const metal_viewport = c.MTLViewport{
+            .originX = @floatFromInt(viewport.x),
+            .originY = @floatFromInt(viewport.y),
+            .width = @floatFromInt(viewport.width),
+            .height = @floatFromInt(viewport.height),
