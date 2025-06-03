@@ -424,14 +424,14 @@ pub fn getOrCreatePipeline(allocator: std.mem.Allocator, hash: u64) !*PipelineSt
             return pipeline;
         }
     }
-    
+
     // Create a new pipeline
     const pipeline = try PipelineState.init(allocator);
-    
+
     // Add to cache if available
     if (global_pipeline_cache) |*cache| {
         try cache.addPipeline(pipeline);
     }
-    
+
     return pipeline;
 }

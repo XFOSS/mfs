@@ -47,7 +47,7 @@ pub const BufferAllocation = struct {
     /// @symbol Public memory mapping API
     pub fn map(self: *const BufferAllocation) ![]u8 {
         const full_map = try self.buffer.map();
-        return full_map[self.offset..self.offset+self.size];
+        return full_map[self.offset .. self.offset + self.size];
     }
 
     /// Release this allocation back to the pool
@@ -422,10 +422,7 @@ pub const Buffer = struct {
         self.allocations = std.AutoArrayHashMap(usize, BufferRegion).init(allocator);
 
         // Initially the entire buffer is free
-        try self.free_regions.?.append(BufferRegion{
-            .offset = 0,
-            .size = size
-        });
+        try self.free_regions.?.append(BufferRegion{ .offset = 0, .size = size });
 
         try self.initBuffer();
 
@@ -541,7 +538,7 @@ pub const Buffer = struct {
         if (offset + size > self.size) return BufferError.Overflow;
 
         const full_map = try self.map();
-        return full_map[offset..offset+size];
+        return full_map[offset .. offset + size];
     }
 
     /// Unmap buffer
@@ -1143,7 +1140,7 @@ pub const BufferMemoryManager = struct {
         self.index_pool.deinit();
         self.uniform_pool.deinit();
         self.storage_pool.deinit();
-        
+
         var it = self.uniform_buffer_pools.valueIterator();
         while (it.next()) |pool| {
             pool.*.deinit();
@@ -1153,14 +1150,14 @@ pub const BufferMemoryManager = struct {
         self.frame_ring.deinit();
         self.allocator.destroy(self);
     }
-    
+
     /// Begin a new frame for ring buffer allocations
     /// @thread-safe Thread-safe frame boundary
     /// @symbol Public frame management API
     pub fn beginFrame(self: *Self, frame_number: u64) void {
         self.frame_ring.beginFrame(frame_number);
     }
-    
+
     /// Allocate per-frame data from ring buffer
     /// @thread-safe Thread-safe with frame synchronization
     /// @symbol Public per-frame allocation API
@@ -1168,60 +1165,60 @@ pub const BufferMemoryManager = struct {
         const allocation = try self.frame_ring.allocate(size, 16);
         return try allocation.map();
     }
-    
+
     /// Allocate a uniform buffer from the pool
     /// @thread-safe Thread-safe with internal mutex protection
     /// @symbol Public uniform buffer allocation API
     pub fn allocateUniformBuffer(self: *Self, size: usize, binding_slot: u32) !*UniformBuffer {
         // Ensure size is aligned to uniform buffer requirements
         const aligned_size = (size + BufferAlignment.uniform - 1) & ~(BufferAlignment.uniform - 1);
-        
+
         const allocation = try self.uniform_pool.allocate(aligned_size);
-        
+
         return UniformBuffer.initFromAllocation(self.allocator, allocation, binding_slot);
     }
-    
+
     /// Allocate an index buffer from the pool
     /// @thread-safe Thread-safe with internal mutex protection
     /// @symbol Public index buffer allocation API
     pub fn allocateIndexBuffer(self: *Self, index_count: u32, format: interface.IndexFormat) !*IndexBuffer {
         const element_size: usize = if (format == .uint16) 2 else 4;
         const size = @as(usize, index_count) * element_size;
-        
+
         const allocation = try self.index_pool.allocate(size);
-        
+
         return IndexBuffer.initFromAllocation(self.allocator, allocation, format);
     }
-    
+
     /// Allocate a vertex buffer from the pool
     /// @thread-safe Thread-safe with internal mutex protection
     /// @symbol Public vertex buffer allocation API
     pub fn allocateVertexBuffer(self: *Self, vertex_count: u32, vertex_size: u32) !*VertexBuffer {
         const size = @as(usize, vertex_count) * @as(usize, vertex_size);
-    
+
         const allocation = try self.vertex_pool.allocate(size);
-    
+
         return VertexBuffer.initFromAllocation(self.allocator, allocation, vertex_size);
     }
-    
+
     /// Get a pool for uniform buffers of a specific size
     /// @thread-safe Thread-safe with internal mutex protection
     /// @symbol Internal pool management API
     pub fn getUniformBufferPool(self: *Self, size: usize) !*BufferPool {
         self.mutex.lock();
         defer self.mutex.unlock();
-    
+
         // Round up to the nearest aligned size
         const aligned_size = (size + BufferAlignment.uniform - 1) & ~(BufferAlignment.uniform - 1);
-    
+
         if (self.uniform_buffer_pools.get(aligned_size)) |pool| {
             return pool;
         }
-    
+
         // Create a new pool
         const pool = try BufferPool.init(self.allocator, .uniform, aligned_size, .cpu_to_gpu);
         try self.uniform_buffer_pools.put(aligned_size, pool);
-    
+
         return pool;
     }
 };
@@ -1236,7 +1233,7 @@ var global_buffer_manager: ?*BufferMemoryManager = null;
 /// @symbol Public global memory manager API
 pub fn initGlobalBufferManager(allocator: Allocator) !void {
     if (global_buffer_manager != null) return;
-    
+
     global_buffer_manager = try BufferMemoryManager.init(allocator);
 }
 

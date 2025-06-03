@@ -1,7 +1,7 @@
 //! MFS Engine Main Module
-//! Provides the core application entry point and lifecycle management
-//! @thread-safe Thread safety is managed per-component
-//! @symbol Public engine interface
+//! Core application entry point and lifecycle management system
+//! @thread-safe Component-level thread safety applies
+//! @symbol PublicEngineAPI
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -13,37 +13,34 @@ const platform = @import("../platform/platform.zig");
 const Window = @import("../ui/simple_window.zig").Window;
 
 // Performance monitoring and profiling
-const tracy = if (@hasDecl(build_options, "enable_tracy") and build_options.enable_tracy)
-    @import("tracy")
-else
-    struct {
-        pub inline fn traceNamed(comptime name: []const u8) void {
-            _ = name;
-        }
-        pub inline fn frameMarkNamed(comptime name: []const u8) void {
-            _ = name;
-        }
-        pub inline fn plotF64(comptime name: []const u8, value: f64) void {
-            _ = name;
-            _ = value;
-        }
-    };
+const tracy = if (@hasDecl(build_options, "enable_tracy") and build_options.enable_tracy) @import("tracy") else struct {
+    pub inline fn traceNamed(comptime name: []const u8) void {
+        _ = name;
+    }
+    pub inline fn frameMarkNamed(comptime name: []const u8) void {
+        _ = name;
+    }
+    pub inline fn plotF64(comptime name: []const u8, value: f64) void {
+        _ = name;
+        _ = value;
+    }
+};
 
 // Advanced logging with structured output
 const log = std.log.scoped(.main);
 
 // Plugin system architecture
-/// @thread-safe Thread-safe plugin interface
-/// @symbol Public plugin API
-const PluginInterface = struct {
+/// @thread-safe Plugin interface with cross-component thread safety
+/// @symbol PluginAPI
+const PluginInterface = extern struct {
     name: []const u8,
     version: Version,
     init_fn: *const fn (*anyopaque, std.mem.Allocator) anyerror!void,
     deinit_fn: *const fn (*anyopaque) void,
     update_fn: *const fn (*anyopaque, f64) anyerror!void,
-    context: *anyopaque,
+    context: *volatile anyopaque,
 
-    const Version = struct {
+    const Version = extern struct {
         major: u32,
         minor: u32,
         patch: u32,
@@ -805,7 +802,7 @@ fn mainLoop(app_state: *AppState) !void {
         tracy.traceNamed("main_loop_iteration");
 
         const frame_start = std.time.nanoTimestamp();
-        const frame_time = frame_start - app_state.last_frame_time;
+        const frame_time = std.math.max(0, frame_start - app_state.last_frame_time); // Ensure non-negative frame time
         app_state.last_frame_time = frame_start;
 
         accumulator += frame_time;
@@ -816,6 +813,8 @@ fn mainLoop(app_state: *AppState) !void {
                 log.err("Failed to poll window events: {}", .{err});
                 app_state.recordError(err);
                 if (!app_state.shouldAttemptRecovery()) return err;
+                app_state.error_count = 0; // Reset error count on successful recovery
+                continue; // Skip rest of frame on recovery
             };
             if (window.shouldClose()) {
                 log.info("Window close requested");
@@ -839,6 +838,8 @@ fn mainLoop(app_state: *AppState) !void {
                     log.err("Engine update failed: {}", .{err});
                     app_state.recordError(err);
                     if (!app_state.shouldAttemptRecovery()) return err;
+                    app_state.error_count = 0; // Reset error count on successful recovery
+                    break; // Exit update loop on recovery
                 };
             }
 
@@ -848,7 +849,7 @@ fn mainLoop(app_state: *AppState) !void {
                 app_state.recordError(err);
             };
 
-            accumulator -= target_frame_time_ns;
+            accumulator = std.math.max(0, accumulator - target_frame_time_ns); // Prevent negative accumulator
         }
 
         // Render frame with interpolation
@@ -864,6 +865,8 @@ fn mainLoop(app_state: *AppState) !void {
                 log.err("Engine render failed: {}", .{err});
                 app_state.recordError(err);
                 if (!app_state.shouldAttemptRecovery()) return err;
+                app_state.error_count = 0; // Reset error count on successful recovery
+                continue; // Skip frame timing on recovery
             };
         }
 

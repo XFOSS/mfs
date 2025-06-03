@@ -398,7 +398,7 @@ pub const SubresourceRange = struct {
     array_slice_count: u32 = std.math.maxInt(u32),
 };
 
-/// Pipeline state object 
+/// Pipeline state object
 /// @thread-safe Not thread-safe, external synchronization required
 /// @symbol Graphics pipeline object
 pub const Pipeline = struct {

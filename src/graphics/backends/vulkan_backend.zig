@@ -91,10 +91,7 @@ pub const VulkanBackend = struct {
 
         // Create core Vulkan objects
         backend.device = try enhanced_backend.VulkanDevice.init(allocator);
-        backend.command_pool = try enhanced_backend.CommandPool.init(
-            backend.device.?.device,
-            backend.device.?.graphics_queue_family
-        );
+        backend.command_pool = try enhanced_backend.CommandPool.init(backend.device.?.device, backend.device.?.graphics_queue_family);
 
         // Create the interface object
         const graphics_backend = try allocator.create(interface.GraphicsBackend);
@@ -365,31 +362,31 @@ pub const VulkanBackend = struct {
         if (usage.vertex_buffer) {
             result |= vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
         }
-        
+
         if (usage.index_buffer) {
             result |= vk.VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
         }
-        
+
         if (usage.uniform_buffer) {
             result |= vk.VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
         }
-        
+
         if (usage.storage_buffer) {
             result |= vk.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
         }
-        
+
         if (usage.indirect_buffer) {
             result |= vk.VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
         }
-        
+
         if (usage.copy_src) {
             result |= vk.VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         }
-        
+
         if (usage.copy_dst) {
             result |= vk.VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         }
-        
+
         return result;
     }
 
@@ -398,10 +395,8 @@ pub const VulkanBackend = struct {
 
         if (self.device) |device| {
             // TODO: Implement shader module creation
-            std.log.debug("Creating shader: stage={}, entry={s}", .{
-                shader.stage, shader.entry_point
-            });
-            
+            std.log.debug("Creating shader: stage={}, entry={s}", .{ shader.stage, shader.entry_point });
+
             // Set backend handle to a non-null value to indicate success
             shader.backend_handle = shader.id;
             return;
@@ -412,30 +407,30 @@ pub const VulkanBackend = struct {
 
     fn createPipelineImpl(impl: *anyopaque, desc: *const interface.PipelineDesc) interface.GraphicsBackendError!*interface.Pipeline {
         const self: *Self = @ptrCast(@alignCast(impl));
-        
+
         if (self.device) |_| {
             // Create a pipeline hash for caching
             const pipeline_hash = generatePipelineHash(desc);
-            
+
             // Check if we already have this pipeline
             if (self.pipelines.get(pipeline_hash)) |existing_pipeline| {
                 // Return a pipeline object for this existing pipeline
                 const pipeline = try self.allocator.create(interface.Pipeline);
                 pipeline.* = interface.Pipeline{
-                    .id = pipeline_hash, 
+                    .id = pipeline_hash,
                     .backend_handle = @intFromPtr(&existing_pipeline),
                     .allocator = self.allocator,
                 };
                 return pipeline;
             }
-            
+
             // Create vertex input state
             var vertex_bindings: [16]vk.VkVertexInputBindingDescription = undefined;
             var vertex_attrs: [16]vk.VkVertexInputAttributeDescription = undefined;
-            
+
             var binding_count: u32 = 0;
             var attr_count: u32 = 0;
-            
+
             if (desc.vertex_layout) |vertex_layout| {
                 // Add the vertex binding
                 vertex_bindings[binding_count] = .{
@@ -444,7 +439,7 @@ pub const VulkanBackend = struct {
                     .inputRate = vk.VK_VERTEX_INPUT_RATE_VERTEX,
                 };
                 binding_count += 1;
-                
+
                 // Add each vertex attribute
                 for (vertex_layout.attributes) |attr| {
                     vertex_attrs[attr_count] = .{
@@ -456,7 +451,7 @@ pub const VulkanBackend = struct {
                     attr_count += 1;
                 }
             }
-            
+
             // Create a new pipeline
             var new_pipeline = try enhanced_backend.Pipeline.init(
                 device.device,
@@ -469,10 +464,10 @@ pub const VulkanBackend = struct {
                 mapBlendState(desc.blend_state),
                 mapDepthStencilState(desc.depth_stencil_state),
             );
-            
+
             // Store pipeline in cache
             try self.pipelines.put(pipeline_hash, new_pipeline);
-            
+
             // Return a pipeline object
             const pipeline = try self.allocator.create(interface.Pipeline);
             pipeline.* = interface.Pipeline{
@@ -480,13 +475,13 @@ pub const VulkanBackend = struct {
                 .backend_handle = @intFromPtr(&self.pipelines.get(pipeline_hash).?),
                 .allocator = self.allocator,
             };
-            
+
             return pipeline;
         }
-        
+
         return interface.GraphicsBackendError.InitializationFailed;
     }
-    
+
     // Get default renderpass (need to implement proper renderpass handling)
     fn getDefaultRenderPass(self: *Self) vk.VkRenderPass {
         if (self.renderer) |renderer| {
@@ -494,28 +489,28 @@ pub const VulkanBackend = struct {
         }
         return undefined;
     }
-    
+
     // Generate a hash for pipeline caching
     fn generatePipelineHash(desc: *const interface.PipelineDesc) u64 {
         var hasher = std.hash.Wyhash.init(0);
-        
+
         // Hash vertex shader
         if (desc.vertex_shader) |shader| {
             std.hash.autoHash(&hasher, shader.id);
         }
-        
+
         // Hash fragment shader
         if (desc.fragment_shader) |shader| {
             std.hash.autoHash(&hasher, shader.id);
         }
-        
+
         // Hash primitive topology
         std.hash.autoHash(&hasher, @intFromEnum(desc.primitive_topology));
-        
+
         // Return the hash
         return hasher.final();
     }
-    
+
     // Map vertex format to Vulkan format
     fn mapVertexFormat(format: interface.VertexFormat) vk.VkFormat {
         return switch (format) {
@@ -539,7 +534,7 @@ pub const VulkanBackend = struct {
             .half4 => vk.VK_FORMAT_R16G16B16A16_SFLOAT,
         };
     }
-    
+
     // Map primitive topology to Vulkan topology
     fn mapPrimitiveTopology(topology: interface.PrimitiveTopology) vk.VkPrimitiveTopology {
         return switch (topology) {
@@ -556,7 +551,7 @@ pub const VulkanBackend = struct {
             .patches => vk.VK_PRIMITIVE_TOPOLOGY_PATCH_LIST,
         };
     }
-    
+
     // Map blend state to Vulkan blend state
     fn mapBlendState(blend_state: ?interface.BlendState) vk.VkPipelineColorBlendAttachmentState {
         if (blend_state) |state| {
@@ -573,7 +568,7 @@ pub const VulkanBackend = struct {
                 };
             }
         }
-        
+
         // Default: no blending, write all channels
         return .{
             .blendEnable = vk.VK_FALSE,
@@ -583,11 +578,11 @@ pub const VulkanBackend = struct {
             .srcAlphaBlendFactor = vk.VK_BLEND_FACTOR_ONE,
             .dstAlphaBlendFactor = vk.VK_BLEND_FACTOR_ZERO,
             .alphaBlendOp = vk.VK_BLEND_OP_ADD,
-            .colorWriteMask = vk.VK_COLOR_COMPONENT_R_BIT | vk.VK_COLOR_COMPONENT_G_BIT | 
-                              vk.VK_COLOR_COMPONENT_B_BIT | vk.VK_COLOR_COMPONENT_A_BIT,
+            .colorWriteMask = vk.VK_COLOR_COMPONENT_R_BIT | vk.VK_COLOR_COMPONENT_G_BIT |
+                vk.VK_COLOR_COMPONENT_B_BIT | vk.VK_COLOR_COMPONENT_A_BIT,
         };
     }
-    
+
     // Map blend factor to Vulkan blend factor
     fn mapBlendFactor(factor: interface.BlendFactor) vk.VkBlendFactor {
         return switch (factor) {
@@ -607,7 +602,7 @@ pub const VulkanBackend = struct {
             .inv_blend_alpha => vk.VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA,
         };
     }
-    
+
     // Map blend op to Vulkan blend op
     fn mapBlendOp(op: interface.BlendOp) vk.VkBlendOp {
         return switch (op) {
@@ -618,7 +613,7 @@ pub const VulkanBackend = struct {
             .max => vk.VK_BLEND_OP_MAX,
         };
     }
-    
+
     // Map color mask to Vulkan color mask
     fn mapColorMask(mask: interface.ColorMask) vk.VkColorComponentFlags {
         var result: vk.VkColorComponentFlags = 0;
@@ -628,7 +623,7 @@ pub const VulkanBackend = struct {
         if (mask.a) result |= vk.VK_COLOR_COMPONENT_A_BIT;
         return result;
     }
-    
+
     // Map depth stencil state to Vulkan depth stencil state
     fn mapDepthStencilState(state: ?interface.DepthStencilState) vk.VkPipelineDepthStencilStateCreateInfo {
         if (state) |ds| {
@@ -647,7 +642,7 @@ pub const VulkanBackend = struct {
                 .maxDepthBounds = 1.0,
             };
         }
-        
+
         // Default: depth test and write enabled, less compare, no stencil
         return .{
             .sType = vk.VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
@@ -680,7 +675,7 @@ pub const VulkanBackend = struct {
             .maxDepthBounds = 1.0,
         };
     }
-    
+
     // Map stencil op to Vulkan stencil op state
     fn mapStencilOp(op: interface.StencilOp) vk.VkStencilOpState {
         return .{
@@ -693,7 +688,7 @@ pub const VulkanBackend = struct {
             .reference = 0,
         };
     }
-    
+
     // Map stencil action to Vulkan stencil op
     fn mapStencilAction(action: interface.StencilAction) vk.VkStencilOp {
         return switch (action) {
@@ -707,7 +702,7 @@ pub const VulkanBackend = struct {
             .decr_wrap => vk.VK_STENCIL_OP_DECREMENT_AND_WRAP,
         };
     }
-    
+
     // Map compare function to Vulkan compare op
     fn mapCompareFunc(func: interface.CompareFunc) vk.VkCompareOp {
         return switch (func) {
@@ -724,19 +719,15 @@ pub const VulkanBackend = struct {
 
     fn createRenderTargetImpl(impl: *anyopaque, render_target: *types.RenderTarget) interface.GraphicsBackendError!void {
         const self: *Self = @ptrCast(@alignCast(impl));
-        
+
         if (self.device) |device| {
-            std.log.debug("Creating render target: {}x{} format={}", .{
-                render_target.width,
-                render_target.height,
-                @intFromEnum(render_target.format)
-            });
-            
+            std.log.debug("Creating render target: {}x{} format={}", .{ render_target.width, render_target.height, @intFromEnum(render_target.format) });
+
             // For now, just mark the render target as valid
             render_target.backend_handle = render_target.id;
             return;
         }
-        
+
         return interface.GraphicsBackendError.InitializationFailed;
     }
 
@@ -758,7 +749,7 @@ pub const VulkanBackend = struct {
 
     fn destroyTextureImpl(impl: *anyopaque, texture: *types.Texture) void {
         const self: *Self = @ptrCast(@alignCast(impl));
-        
+
         // Check if this is a swapchain image (which we don't own)
         if (self.swapchain) |swapchain| {
             for (swapchain.images) |img| {
@@ -769,7 +760,7 @@ pub const VulkanBackend = struct {
                 }
             }
         }
-        
+
         // Get texture from cache by ID
         if (self.textures.getPtr(texture.id)) |img_ptr| {
             // Clean up Vulkan resources
@@ -780,7 +771,7 @@ pub const VulkanBackend = struct {
 
     fn destroyBufferImpl(impl: *anyopaque, buffer: *types.Buffer) void {
         const self: *Self = @ptrCast(@alignCast(impl));
-        
+
         // Get buffer from cache
         if (self.buffers.getPtr(buffer.id)) |buf_ptr| {
             // Clean up Vulkan resources
@@ -802,14 +793,14 @@ pub const VulkanBackend = struct {
 
     fn createCommandBufferImpl(impl: *anyopaque) interface.GraphicsBackendError!*interface.CommandBuffer {
         const self: *Self = @ptrCast(@alignCast(impl));
-        
+
         if (self.command_pool == null) {
             return interface.GraphicsBackendError.MissingResource;
         }
-        
+
         // Allocate a command buffer from the pool
         var vk_cmd_buffer = try self.command_pool.?.allocateCommandBuffer();
-        
+
         // Create command buffer wrapper
         const cmd = try self.allocator.create(interface.CommandBuffer);
         cmd.* = interface.CommandBuffer{
@@ -818,20 +809,20 @@ pub const VulkanBackend = struct {
             .allocator = self.allocator,
             .recording = false,
         };
-        
+
         return cmd;
     }
 
     fn beginCommandBufferImpl(impl: *anyopaque, cmd: *interface.CommandBuffer) interface.GraphicsBackendError!void {
         const self = @as(*Self, @ptrCast(@alignCast(impl)));
-        
+
         if (cmd.backend_handle == 0) {
             return interface.GraphicsBackendError.InvalidResource;
         }
-        
+
         // Get the Vulkan command buffer
         const vk_cmd_buffer = @as(vk.VkCommandBuffer, @ptrFromInt(cmd.backend_handle));
-        
+
         // Begin the command buffer
         const begin_info = vk.VkCommandBufferBeginInfo{
             .sType = vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -839,12 +830,12 @@ pub const VulkanBackend = struct {
             .flags = vk.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
             .pInheritanceInfo = null,
         };
-        
+
         const result = vk.vkBeginCommandBuffer(vk_cmd_buffer, &begin_info);
         if (result != vk.VK_SUCCESS) {
             return interface.GraphicsBackendError.CommandBufferError;
         }
-        
+
         // Store current command buffer for later use
         self.current_command_buffer = vk_cmd_buffer;
         cmd.recording = true;
@@ -852,39 +843,39 @@ pub const VulkanBackend = struct {
 
     fn endCommandBufferImpl(impl: *anyopaque, cmd: *interface.CommandBuffer) interface.GraphicsBackendError!void {
         const self: *Self = @ptrCast(@alignCast(impl));
-        
+
         if (cmd.backend_handle == 0) {
             return interface.GraphicsBackendError.InvalidResource;
         }
-        
+
         // Get the Vulkan command buffer
         const vk_cmd_buffer = @as(vk.VkCommandBuffer, @ptrFromInt(cmd.backend_handle));
-        
+
         // End the command buffer
         const result = vk.vkEndCommandBuffer(vk_cmd_buffer);
         if (result != vk.VK_SUCCESS) {
             return interface.GraphicsBackendError.CommandBufferError;
         }
-        
+
         self.current_command_buffer = null;
         cmd.recording = false;
     }
 
     fn submitCommandBufferImpl(impl: *anyopaque, cmd: *interface.CommandBuffer) interface.GraphicsBackendError!void {
         const self: *Self = @ptrCast(@alignCast(impl));
-        
+
         if (cmd.backend_handle == 0) {
             return interface.GraphicsBackendError.InvalidResource;
         }
-        
+
         if (cmd.recording) {
             return interface.GraphicsBackendError.InvalidState;
         }
-        
+
         if (self.device) |device| {
             // Get the Vulkan command buffer
             const vk_cmd_buffer = @as(vk.VkCommandBuffer, @ptrFromInt(cmd.backend_handle));
-            
+
             // Create submit info
             const submit_info = vk.VkSubmitInfo{
                 .sType = vk.VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -897,49 +888,49 @@ pub const VulkanBackend = struct {
                 .signalSemaphoreCount = 0,
                 .pSignalSemaphores = null,
             };
-            
+
             // Submit the command buffer
             const result = vk.vkQueueSubmit(device.graphics_queue, 1, &submit_info, 0);
             if (result != vk.VK_SUCCESS) {
                 return interface.GraphicsBackendError.CommandBufferError;
             }
-            
+
             // Wait for the queue to complete
             _ = vk.vkQueueWaitIdle(device.graphics_queue);
-            
+
             return;
         }
-        
+
         return interface.GraphicsBackendError.MissingResource;
     }
 
     fn beginRenderPassImpl(impl: *anyopaque, cmd: *interface.CommandBuffer, desc: *const interface.RenderPassDesc) interface.GraphicsBackendError!void {
         const self: *Self = @ptrCast(@alignCast(impl));
-        
+
         if (!cmd.recording) {
             return interface.GraphicsBackendError.InvalidState;
         }
-        
+
         if (cmd.backend_handle == 0) {
             return interface.GraphicsBackendError.InvalidResource;
         }
-        
+
         if (self.renderer) |*renderer| {
             // Get the Vulkan command buffer
             const vk_cmd_buffer = @as(vk.VkCommandBuffer, @ptrFromInt(cmd.backend_handle));
-            
+
             // Get dimensions from color target
-            var width: u32 = 1920;  // Default fallback
+            var width: u32 = 1920; // Default fallback
             var height: u32 = 1080; // Default fallback
-            
+
             if (desc.color_targets.len > 0 and desc.color_targets[0].texture != null) {
                 width = desc.color_targets[0].texture.?.width;
                 height = desc.color_targets[0].texture.?.height;
             }
-            
+
             // Set up clear values
             var clear_values: [2]vk.VkClearValue = undefined;
-            
+
             // Color clear value
             if (desc.clear_color) |color| {
                 clear_values[0].color.float32[0] = color[0];
@@ -952,11 +943,11 @@ pub const VulkanBackend = struct {
                 clear_values[0].color.float32[2] = 0.0;
                 clear_values[0].color.float32[3] = 1.0;
             }
-            
+
             // Depth/stencil clear value
             clear_values[1].depthStencil.depth = desc.clear_depth;
             clear_values[1].depthStencil.stencil = desc.clear_stencil;
-            
+
             // Set up render pass begin info
             const render_area = vk.VkRect2D{
                 .offset = .{ .x = 0, .y = 0 },
@@ -965,7 +956,7 @@ pub const VulkanBackend = struct {
                     .height = height,
                 },
             };
-            
+
             // Begin render pass
             const begin_info = vk.VkRenderPassBeginInfo{
                 .sType = vk.VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -976,28 +967,28 @@ pub const VulkanBackend = struct {
                 .clearValueCount = 2,
                 .pClearValues = &clear_values,
             };
-            
+
             vk.vkCmdBeginRenderPass(vk_cmd_buffer, &begin_info, vk.VK_SUBPASS_CONTENTS_INLINE);
             return;
         }
-        
+
         return interface.GraphicsBackendError.MissingResource;
     }
 
     fn endRenderPassImpl(impl: *anyopaque, cmd: *interface.CommandBuffer) interface.GraphicsBackendError!void {
         _ = impl;
-        
+
         if (!cmd.recording) {
             return interface.GraphicsBackendError.InvalidState;
         }
-        
+
         if (cmd.backend_handle == 0) {
             return interface.GraphicsBackendError.InvalidResource;
         }
-        
+
         // Get the Vulkan command buffer
         const vk_cmd_buffer = @as(vk.VkCommandBuffer, @ptrFromInt(cmd.backend_handle));
-        
+
         // End render pass
         vk.vkCmdEndRenderPass(vk_cmd_buffer);
         return;
@@ -1017,80 +1008,80 @@ pub const VulkanBackend = struct {
 
     fn bindPipelineImpl(impl: *anyopaque, cmd: *interface.CommandBuffer, pipeline: *interface.Pipeline) interface.GraphicsBackendError!void {
         _ = impl;
-        
+
         if (!cmd.recording) {
             return interface.GraphicsBackendError.InvalidState;
         }
-        
+
         if (cmd.backend_handle == 0) {
             return interface.GraphicsBackendError.InvalidResource;
         }
-        
+
         // Get the Vulkan command buffer
         const vk_cmd_buffer = @as(vk.VkCommandBuffer, @ptrFromInt(cmd.backend_handle));
-        
+
         // Get the pipeline from backend handle
         if (pipeline.backend_handle != 0) {
             const pipeline_ptr = @as(*enhanced_backend.Pipeline, @ptrFromInt(pipeline.backend_handle));
             pipeline_ptr.bind(vk_cmd_buffer);
             return;
         }
-        
+
         return interface.GraphicsBackendError.InvalidResource;
     }
 
     fn bindVertexBufferImpl(impl: *anyopaque, cmd: *interface.CommandBuffer, slot: u32, buffer: *types.Buffer, offset: u64) interface.GraphicsBackendError!void {
         _ = impl;
-        
+
         if (!cmd.recording) {
             return interface.GraphicsBackendError.InvalidState;
         }
-        
+
         if (cmd.backend_handle == 0 or buffer.backend_handle == 0) {
             return interface.GraphicsBackendError.InvalidResource;
         }
-        
+
         // Get the Vulkan command buffer
         const vk_cmd_buffer = @as(vk.VkCommandBuffer, @ptrFromInt(cmd.backend_handle));
-        
+
         // Get buffer from handle - note we stored a pointer to the cache entry
         if (buffer.backend_handle != 0) {
             const buffer_ptr = @as(*enhanced_backend.Buffer, @ptrFromInt(buffer.backend_handle));
             const vk_buffer = buffer_ptr.buffer;
             const vk_offset: vk.VkDeviceSize = offset;
-            
+
             // Bind vertex buffer
             vk.vkCmdBindVertexBuffers(vk_cmd_buffer, slot, 1, &vk_buffer, &vk_offset);
             return;
         }
-        
+
         return interface.GraphicsBackendError.InvalidResource;
     }
 
     fn bindIndexBufferImpl(impl: *anyopaque, cmd: *interface.CommandBuffer, buffer: *types.Buffer, offset: u64, format: interface.IndexFormat) interface.GraphicsBackendError!void {
         _ = impl;
-        
+
         if (!cmd.recording) {
             return interface.GraphicsBackendError.InvalidState;
         }
-        
+
         if (cmd.backend_handle == 0 or buffer.backend_handle == 0) {
             return interface.GraphicsBackendError.InvalidResource;
         }
-        
+
         // Get the Vulkan command buffer
         const vk_cmd_buffer = @as(vk.VkCommandBuffer, @ptrFromInt(cmd.backend_handle));
-        
+
         // Map index format to Vulkan
         const vk_format = switch (format) {
             .uint16 => vk.VK_INDEX_TYPE_UINT16,
             .uint32 => vk.VK_INDEX_TYPE_UINT32,
         };
-        
+
         // Get buffer from handle
         const buffer_ptr = @as(*enhanced_backend.Buffer, @ptrFromInt(buffer.backend_handle));
         const vk_buffer = buffer_ptr.buffer;
-        
+
         // Bind index buffer
         vk.vkCmdBindIndexBuffer(vk_cmd_buffer, vk_buffer, offset, vk_format);
         return;
@@ -1114,54 +1105,41 @@ pub const VulkanBackend = struct {
 
     fn drawImpl(impl: *anyopaque, cmd: *interface.CommandBuffer, draw_cmd: *const interface.DrawCommand) interface.GraphicsBackendError!void {
         _ = impl;
-        
+
         if (!cmd.recording) {
             return interface.GraphicsBackendError.InvalidState;
         }
-        
+
         if (cmd.backend_handle == 0) {
             return interface.GraphicsBackendError.InvalidResource;
         }
-        
+
         // Get the Vulkan command buffer
         const vk_cmd_buffer = @as(vk.VkCommandBuffer, @ptrFromInt(cmd.backend_handle));
-        
+
         // Draw command
-        vk.vkCmdDraw(
-            vk_cmd_buffer, 
-            draw_cmd.vertex_count, 
-            draw_cmd.instance_count, 
-            draw_cmd.first_vertex, 
-            draw_cmd.first_instance
-        );
-        
+        vk.vkCmdDraw(vk_cmd_buffer, draw_cmd.vertex_count, draw_cmd.instance_count, draw_cmd.first_vertex, draw_cmd.first_instance);
+
         return;
     }
 
     fn drawIndexedImpl(impl: *anyopaque, cmd: *interface.CommandBuffer, draw_cmd: *const interface.DrawIndexedCommand) interface.GraphicsBackendError!void {
         _ = impl;
-        
+
         if (!cmd.recording) {
             return interface.GraphicsBackendError.InvalidState;
         }
-        
+
         if (cmd.backend_handle == 0) {
             return interface.GraphicsBackendError.InvalidResource;
         }
-        
+
         // Get the Vulkan command buffer
         const vk_cmd_buffer = @as(vk.VkCommandBuffer, @ptrFromInt(cmd.backend_handle));
-        
+
         // Draw indexed command
-        vk.vkCmdDrawIndexed(
-            vk_cmd_buffer,
-            draw_cmd.index_count,
-            draw_cmd.instance_count,
-            draw_cmd.first_index,
-            draw_cmd.vertex_offset,
-            draw_cmd.first_instance
-        );
-        
+        vk.vkCmdDrawIndexed(vk_cmd_buffer, draw_cmd.index_count, draw_cmd.instance_count, draw_cmd.first_index, draw_cmd.vertex_offset, draw_cmd.first_instance);
+
         return;
     }
 
@@ -1211,7 +1189,7 @@ pub const VulkanBackend = struct {
 
     fn getBackendInfoImpl(impl: *anyopaque) interface.BackendInfo {
         const self: *Self = @ptrCast(@alignCast(impl));
-        
+
         var info = interface.BackendInfo{
             .name = "Vulkan",
             .version = "1.3",
@@ -1234,44 +1212,44 @@ pub const VulkanBackend = struct {
             .supports_variable_rate_shading = false,
             .supports_multiview = true,
         };
-        
+
         if (self.device) |device| {
             // Retrieve device properties
             var props: vk.VkPhysicalDeviceProperties = undefined;
             vk.vkGetPhysicalDeviceProperties(device.physical_device, &props);
-            
+
             // Update info with actual device data
             info.device_name = std.mem.sliceTo(&props.deviceName, 0);
             info.api_version = props.apiVersion;
             info.driver_version = props.driverVersion;
             info.max_texture_size = props.limits.maxImageDimension2D;
-            
+
             // Fetch memory information
             var memory_props: vk.VkPhysicalDeviceMemoryProperties = undefined;
             vk.vkGetPhysicalDeviceMemoryProperties(device.physical_device, &memory_props);
-            
+
             var total_memory: u64 = 0;
             for (0..memory_props.memoryHeapCount) |i| {
                 if (memory_props.memoryHeaps[i].flags & vk.VK_MEMORY_HEAP_DEVICE_LOCAL_BIT != 0) {
                     total_memory += memory_props.memoryHeaps[i].size;
                 }
             }
-            
+
             info.memory_budget = @intCast(total_memory / (1024 * 1024)); // Convert to MB
-            
+
             // Check feature support
             var features2: vk.VkPhysicalDeviceFeatures2 = .{
                 .sType = vk.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
                 .pNext = null,
                 .features = undefined,
             };
-            
+
             vk.vkGetPhysicalDeviceFeatures2(device.physical_device, &features2);
-            
+
             info.supports_geometry_shaders = features2.features.geometryShader == vk.VK_TRUE;
             info.supports_tessellation = features2.features.tessellationShader == vk.VK_TRUE;
         }
-        
+
         return info;
     }
 

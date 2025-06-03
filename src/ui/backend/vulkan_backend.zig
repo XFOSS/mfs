@@ -644,7 +644,7 @@ fn vulkanGetLastError(ctx: *anyopaque) ?[]const u8 {
 }
 
 pub const vulkan_backend_interface: interface.BackendInterface = {
-    .init_fn = vulkanInit,
+    .init_fn = vulkanInit;
     .deinit_fn = vulkanDeinit,
     .begin_frame_fn = vulkanBeginFrame,
     .end_frame_fn = vulkanEndFrame,

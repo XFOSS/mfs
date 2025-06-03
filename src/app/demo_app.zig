@@ -20,14 +20,7 @@ pub const DemoApp = struct {
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator) !*Self {
-        var app = try allocator.create(Self);
-        app.* = Self{
-            .allocator = allocator,
-            .backend_manager = null,
-            .adaptive_renderer = null,
-        };
-
-        // Initialize graphics backend manager
+        // First create the backend manager to avoid potential null states
         const manager_options = backend_manager.BackendManager.InitOptions{
             .preferred_backend = null, // Auto-detect best backend
             .auto_fallback = true,
@@ -36,8 +29,20 @@ pub const DemoApp = struct {
             .enable_backend_switching = true,
         };
 
-        app.backend_manager = try backend_manager.BackendManager.init(allocator, manager_options);
-        app.adaptive_renderer = try app.backend_manager.?.createAdaptiveRenderer();
+        var backend_mgr = try backend_manager.BackendManager.init(allocator, manager_options);
+        errdefer backend_mgr.deinit();
+
+        var adaptive_rend = try backend_mgr.createAdaptiveRenderer();
+        errdefer adaptive_rend.deinit();
+
+        const app = try allocator.create(Self);
+        errdefer allocator.destroy(app);
+
+        app.* = Self{
+            .allocator = allocator,
+            .backend_manager = backend_mgr,
+            .adaptive_renderer = adaptive_rend,
+        };
 
         std.log.info("Demo application initialized successfully", .{});
         return app;
@@ -56,8 +61,11 @@ pub const DemoApp = struct {
         // Print system information
         self.printSystemInfo();
 
-        // Create swap chain
-        try self.createSwapChain();
+        // Create swap chain with improved error handling
+        try self.createSwapChain() catch |err| {
+            std.log.err("Swap chain creation failed: {}", .{err});
+            return err;
+        };
 
         // Main render loop
         self.last_time = @intCast(std.time.milliTimestamp());
@@ -151,18 +159,18 @@ pub const DemoApp = struct {
     }
 
     fn render(self: *Self) !void {
-        if (self.adaptive_renderer) |*renderer| {
-            // Create dummy frame data
-            const frame_data = struct {
-                frame_number: u64,
-                time: f32,
-            }{
-                .frame_number = self.frame_count,
-                .time = @as(f32, @floatFromInt(self.frame_count)) * 0.016,
-            };
+        // Adaptive renderer is guaranteed to be non-null after init
+        const frame_data = struct {
+            frame_number: u64,
+            time: f32,
+        }{
+            .frame_number = self.frame_count,
+            .time = @as(f32, @floatFromInt(self.frame_count)) * 0.016,
+        };
 
-            try renderer.render(frame_data);
-        } else if (self.backend_manager) |manager| {
+        try self.adaptive_renderer.?.render(frame_data);
+
+        if (self.backend_manager) |manager| {
             if (manager.getPrimaryBackend()) |backend| {
                 // Basic rendering demonstration
                 try self.performBasicRendering(backend);

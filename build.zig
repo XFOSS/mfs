@@ -1,10 +1,11 @@
 const std = @import("std");
 const builtin = @import("builtin");
+
 const build_helpers = @import("build_helpers.zig");
 
 /// Main build function
-/// @thread-safe This function initializes and coordinates the entire build process
-/// @symbol This is the main entry point for the build system
+/// @symbol Coordinates the entire build process
+/// @thread-safe Ensures thread-safe initialization and coordination
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -20,7 +21,7 @@ pub fn build(b: *std.Build) !void {
     const exe = try createMainExecutable(b, target, optimize, opts, vulkan_zig_dep);
 
     // Create run command
-    const run_step = try createRunStep(b, exe, "run", "Run the MFS engine");
+    _ = try createRunStep(b, exe, "run", "Run the MFS engine");
 
     // ---- Example Applications ----
     try buildExamplesAndDemos(b, target, optimize, opts, vulkan_zig_dep);
@@ -44,7 +45,7 @@ pub fn build(b: *std.Build) !void {
     tools_step.dependOn(b.getStepForName("assets") orelse b.getInstallStep());
 
     // Add benchmarking step
-    const bench_step = try createBenchmarkStep(b, target, optimize, opts);
+    _ = try createBenchmarkStep(b, target, optimize, opts);
 
     // Add tools - asset processor and profiler visualizer
     try buildAndRegisterTools(b, target, optimize, tools_step);
@@ -63,7 +64,8 @@ fn getVulkanDependency(b: *std.Build, target: std.Build.ResolvedTarget, optimize
 }
 
 /// Create build options for feature toggles
-/// @symbol This function defines build-time feature flags
+/// @symbol Defines build-time feature flags for customization
+/// @thread-safe Ensures safe creation of build options
 fn createBuildOptions(b: *std.Build, target: std.Build.ResolvedTarget) *std.Build.Step.Options {
     const opts = b.addOptions();
 
@@ -148,7 +150,8 @@ fn createRunStep(
 }
 
 /// Build all examples and demos
-/// @symbol Builds example applications demonstrating engine features
+/// @symbol Demonstrates engine features through example applications
+/// @thread-safe Ensures safe parallel builds of examples and demos
 fn buildExamplesAndDemos(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
@@ -220,7 +223,8 @@ fn buildExamplesAndDemos(
 }
 
 /// Build all tutorial applications
-/// @symbol Builds tutorial applications for learning the engine
+/// @symbol Provides tutorial applications for engine learning
+/// @thread-safe Ensures safe tutorial application builds
 fn buildTutorials(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
@@ -276,7 +280,8 @@ fn connectTutorialSteps(
 }
 
 /// Build web demo if target is web platform
-/// @symbol Conditionally builds web demo for WebAssembly targets
+/// @symbol Builds WebAssembly-compatible web demos
+/// @thread-safe Ensures safe conditional builds for web targets
 fn buildWebDemoIfTargeted(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
@@ -317,7 +322,6 @@ fn buildWebDemoIfTargeted(
 fn createBenchmarkStep(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
     opts: *std.Build.Step.Options,
 ) !*std.Build.Step {
     const bench_exe = b.addExecutable(.{
@@ -340,7 +344,8 @@ fn createBenchmarkStep(
 }
 
 /// Build and register all tools
-/// @symbol Builds asset processor, profiler visualizer and other tools
+/// @symbol Registers tools like asset processors and profilers
+/// @thread-safe Ensures safe tool registration and builds
 fn buildAndRegisterTools(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
@@ -386,8 +391,8 @@ fn buildAndRegisterTools(
 }
 
 /// Install shader files and assets to the right location
-/// @thread-safe Thread-safe asset installation
-/// @symbol Installs shaders and assets for the application
+/// @symbol Handles shader and asset installation for applications
+/// @thread-safe Ensures safe installation of assets
 fn installShadersAndAssets(b: *std.Build, exe: *std.Build.Step.Compile) void {
     // Install shader files
     const shader_dir = b.addInstallDirectory(.{
@@ -434,8 +439,8 @@ fn installShadersAndAssets(b: *std.Build, exe: *std.Build.Step.Compile) void {
 }
 
 /// Add platform-specific dependencies
-/// @thread-safe Thread-safe dependency addition
-/// @symbol Links appropriate platform-specific libraries
+/// @symbol Links libraries specific to the target platform
+/// @thread-safe Ensures safe addition of platform dependencies
 fn addPlatformDependencies(exe: *std.Build.Step.Compile, os_tag: std.Target.Os.Tag) void {
     // Link C library for all platforms
     exe.linkLibC();
@@ -463,7 +468,8 @@ fn addPlatformDependencies(exe: *std.Build.Step.Compile, os_tag: std.Target.Os.T
 }
 
 /// Add Windows-specific dependencies
-/// @symbol Links Windows-specific libraries
+/// @symbol Handles linking of Windows libraries
+/// @thread-safe Ensures safe addition of Windows dependencies
 fn addWindowsDependencies(exe: *std.Build.Step.Compile) void {
     exe.linkSystemLibrary("user32");
     exe.linkSystemLibrary("kernel32");
@@ -491,7 +497,8 @@ fn addWindowsDependencies(exe: *std.Build.Step.Compile) void {
 }
 
 /// Add Linux-specific dependencies
-/// @symbol Links Linux-specific libraries
+/// @symbol Handles linking of Linux libraries
+/// @thread-safe Ensures safe addition of Linux dependencies
 fn addLinuxDependencies(exe: *std.Build.Step.Compile) void {
     exe.linkSystemLibrary("GL");
     exe.linkSystemLibrary("X11");
@@ -508,7 +515,8 @@ fn addLinuxDependencies(exe: *std.Build.Step.Compile) void {
 }
 
 /// Add macOS-specific dependencies
-/// @symbol Links macOS-specific frameworks
+/// @symbol Handles linking of macOS frameworks
+/// @thread-safe Ensures safe addition of macOS dependencies
 fn addMacosDependencies(exe: *std.Build.Step.Compile) void {
     exe.linkFramework("Cocoa");
     exe.linkFramework("OpenGL");
@@ -523,7 +531,8 @@ fn addMacosDependencies(exe: *std.Build.Step.Compile) void {
 }
 
 /// Add Android-specific dependencies
-/// @symbol Links Android-specific libraries
+/// @symbol Handles linking of Android libraries
+/// @thread-safe Ensures safe addition of Android dependencies
 fn addAndroidDependencies(exe: *std.Build.Step.Compile) void {
     exe.linkSystemLibrary("android");
     exe.linkSystemLibrary("EGL");
@@ -533,7 +542,8 @@ fn addAndroidDependencies(exe: *std.Build.Step.Compile) void {
 }
 
 /// Add iOS-specific dependencies
-/// @symbol Links iOS-specific frameworks
+/// @symbol Handles linking of iOS frameworks
+/// @thread-safe Ensures safe addition of iOS dependencies
 fn addIosDependencies(exe: *std.Build.Step.Compile) void {
     exe.linkFramework("UIKit");
     exe.linkFramework("Foundation");
@@ -545,8 +555,9 @@ fn addIosDependencies(exe: *std.Build.Step.Compile) void {
 }
 
 /// Add Web-specific dependencies
-/// @symbol Links web platform libraries (WebAssembly)
-fn addWebDependencies(exe: *std.Build.Step.Compile) void {
+/// @symbol Handles linking of WebAssembly libraries
+/// @thread-safe Ensures safe addition of web dependencies
+fn addWebDependencies() void {
     // Web platform typically doesn't need explicit libraries
     // as they're included in the emscripten/wasi toolchain
 }

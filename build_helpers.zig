@@ -1,13 +1,12 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-/// Build helpers module - provides utility functions for the build system
-/// @symbol Public interface for build utilities
-/// @thread-safe All functions in this module are thread-safe
-
-/// Recursively discover and register modules in a directory
-/// @symbol Public API for module discovery
-/// @thread-safe Thread-safe module discovery and registration
+/// Build Helpers Module
+/// @symbol Provides utility functions for the build system
+/// @thread-safe Ensures thread-safe operations for all functions
+/// Discover and Register Modules
+/// @symbol Recursively discovers and registers modules in a directory
+/// @thread-safe Guarantees thread-safe module discovery and registration
 pub fn discoverAndRegisterModules(b: *std.Build, exe: *std.Build.Step.Compile, dir: []const u8) !void {
     const full_path = try std.fmt.allocPrint(b.allocator, "src/{s}", .{dir}) catch |err| {
         std.log.err("Failed to allocate path for directory '{s}': {s}", .{ dir, @errorName(err) });
@@ -47,9 +46,9 @@ pub fn discoverAndRegisterModules(b: *std.Build, exe: *std.Build.Step.Compile, d
     }
 }
 
-/// Add source modules to an executable
-/// @symbol Public API for adding source modules
-/// @thread-safe Thread-safe module addition
+/// Add Source Modules
+/// @symbol Adds source modules to an executable
+/// @thread-safe Ensures thread-safe addition of source modules
 pub fn addSourceModules(b: *std.Build, exe: *std.Build.Step.Compile) !void {
     // Core directories that should always be included
     const core_dirs = [_][]const u8{
@@ -102,9 +101,9 @@ pub fn addSourceModules(b: *std.Build, exe: *std.Build.Step.Compile) !void {
     }
 }
 
-/// Create test steps for all test modules
-/// @symbol Public API for test step creation
-/// @thread-safe Thread-safe test step creation
+/// Create Test Steps
+/// @symbol Generates test steps for all test modules
+/// @thread-safe Provides thread-safe test step creation
 pub fn createTestSteps(b: *std.Build) !void {
     // Create main test step that runs all tests
     const test_step = b.step("test", "Run all tests");
@@ -295,9 +294,9 @@ fn createRendererBenchmarks(b: *std.Build, parent_step: *std.Build.Step) !void {
     }
 }
 
-/// Detect if Vulkan SDK is available on the system
-/// @symbol Public API for Vulkan SDK detection
-/// @thread-safe Thread-safe SDK detection
+/// Detect Vulkan SDK
+/// @symbol Checks if Vulkan SDK is available on the system
+/// @thread-safe Ensures thread-safe Vulkan SDK detection
 pub fn detectVulkanSDK(is_windows: bool) bool {
     const env_var = if (is_windows) "VULKAN_SDK" else "VULKAN_SDK";
 
@@ -308,7 +307,7 @@ pub fn detectVulkanSDK(is_windows: bool) bool {
         return true;
     } else |err| {
         std.log.debug("Vulkan environment variable not found: {s}", .{@errorName(err)});
-        
+
         // If environment variable doesn't exist, try platform-specific detection
         if (is_windows) {
             // On Windows, check common installation paths
@@ -322,7 +321,7 @@ pub fn detectVulkanSDK(is_windows: bool) bool {
             for (paths) |base_path| {
                 var dir = std.fs.openDirAbsolute(base_path, .{ .iterate = true }) catch continue;
                 defer dir.close();
-                
+
                 var it = dir.iterate() catch continue;
                 while (it.next() catch break) |entry| {
                     if (entry.kind == .Directory) {
@@ -349,55 +348,47 @@ pub fn detectVulkanSDK(is_windows: bool) bool {
                 } else |_| {}
             }
         }
-        
+
         return false;
     }
 }
 
-/// Detect if DirectX 12 is available on the system
-/// @symbol Public API for DirectX 12 detection
-/// @thread-safe Thread-safe DirectX detection
+/// Detect DirectX 12
+/// @symbol Checks if DirectX 12 is available on the system
+/// @thread-safe Guarantees thread-safe DirectX 12 detection
 pub fn detectDirectX12() bool {
     // DirectX 12 requires Windows 10 or newer
     if (builtin.os.tag == .windows) {
         // Try to detect Windows version
         const version_info = detectWindowsVersion();
-        
+
         // DX12 is only available on Windows 10 (10.0) or newer
         if (version_info.major >= 10) {
-            std.log.debug("DirectX 12 should be available (Windows {d}.{d})", .{ 
-                version_info.major, version_info.minor 
-            });
+            std.log.debug("DirectX 12 should be available (Windows {d}.{d})", .{ version_info.major, version_info.minor });
             return true;
         } else {
-            std.log.debug("DirectX 12 not available (requires Windows 10+, detected {d}.{d})", .{
-                version_info.major, version_info.minor
-            });
+            std.log.debug("DirectX 12 not available (requires Windows 10+, detected {d}.{d})", .{ version_info.major, version_info.minor });
             return false;
         }
     }
     return false;
 }
 
-/// Detect if DirectX 11 is available on the system
-/// @symbol Public API for DirectX 11 detection  
-/// @thread-safe Thread-safe DirectX detection
+/// Detect DirectX 11
+/// @symbol Checks if DirectX 11 is available on the system
+/// @thread-safe Ensures thread-safe DirectX 11 detection
 pub fn detectDirectX11() bool {
     // DirectX 11 is available on Windows 7 and newer
     if (builtin.os.tag == .windows) {
         // Try to detect Windows version
         const version_info = detectWindowsVersion();
-        
+
         // DX11 is available on Windows 7 (6.1) or newer
-        if (version_info.major > 6 || (version_info.major == 6 && version_info.minor >= 1)) {
-            std.log.debug("DirectX 11 should be available (Windows {d}.{d})", .{ 
-                version_info.major, version_info.minor 
-            });
+        if (version_info.major > 6 || (version_info.major == 6 and version_info.minor >= 1)) {
+            std.log.debug("DirectX 11 should be available (Windows {d}.{d})", .{ version_info.major, version_info.minor });
             return true;
         } else {
-            std.log.debug("DirectX 11 not available (requires Windows 7+, detected {d}.{d})", .{
-                version_info.major, version_info.minor
-            });
+            std.log.debug("DirectX 11 not available (requires Windows 7+, detected {d}.{d})", .{ version_info.major, version_info.minor });
             return false;
         }
     }
@@ -419,7 +410,7 @@ fn detectWindowsVersion() WindowsVersionInfo {
     }
 
     var info = WindowsVersionInfo{};
-    
+
     if (builtin.target.os.isAtLeast(.windows, .win10)) {
         info.major = 10;
         info.minor = 0;
@@ -439,6 +430,6 @@ fn detectWindowsVersion() WindowsVersionInfo {
         info.major = 5; // XP or older
         info.minor = 0;
     }
-    
+
     return info;
 }
