@@ -3,13 +3,14 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const HashMap = std.HashMap;
 const AutoHashMap = std.AutoHashMap;
+
+const Mat4 = @import("../math/mat4.zig").Mat4f;
 const Vec2 = @import("../math/vec2.zig").Vec2f;
 const Vec3 = @import("../math/vec3.zig").Vec3f;
 const Vec4 = @import("../math/vec4.zig").Vec4f;
-const Mat4 = @import("../math/mat4.zig").Mat4f;
 const VoxelEngine = @import("voxel_engine.zig");
 
-const NeuralNetwork = MLNetwork;
+// Forward declarations
 const VoxelFeatureExtractor = FeatureExtractor;
 const MeshOptimizer = Optimizer;
 const TextureSynthesizer = Synthesizer;
@@ -17,7 +18,7 @@ const LODGenerator = Generator;
 
 pub const MLMeshConverter = struct {
     allocator: Allocator,
-    neural_network: *NeuralNetwork,
+    neural_network: *NeuralNetwork, // Using our own NeuralNetwork type defined below
     training_data: ArrayList(TrainingExample),
     feature_extractor: *VoxelFeatureExtractor,
     mesh_optimizer: *MeshOptimizer,
@@ -148,8 +149,9 @@ pub const MLMeshConverter = struct {
     pub fn trainNetwork(self: *MLMeshConverter, epochs: u32, learning_rate: f32) !void {
         for (0..epochs) |epoch| {
             var total_loss: f32 = 0.0;
+            std.log.debug("Training epoch: {}", .{epoch}); // Use epoch for logging
 
-            for (self.training_data.items) |*example| {
+            for (self.training_data.items) |example| {
                 const features = try self.feature_extractor.extractFeaturesFromMesh(&example.target_mesh);
                 const prediction = try self.neural_network.predict(features);
                 const target = try self.meshToTarget(&example.target_mesh);
@@ -246,22 +248,23 @@ pub const MLMeshConverter = struct {
             if (base_idx + 2 >= prediction.len) break;
 
             // Convert prediction values to vertex indices
-            const i0 = @as(u32, @intFromFloat(prediction[base_idx] * @as(f32, @floatFromInt(vertex_count - 1))));
-            const i1 = @as(u32, @intFromFloat(prediction[base_idx + 1] * @as(f32, @floatFromInt(vertex_count - 1))));
-            const i2 = @as(u32, @intFromFloat(prediction[base_idx + 2] * @as(f32, @floatFromInt(vertex_count - 1))));
+            const idx0 = @as(u32, @intFromFloat(prediction[base_idx] * @as(f32, @floatFromInt(vertex_count - 1))));
+            const idx1 = @as(u32, @intFromFloat(prediction[base_idx + 1] * @as(f32, @floatFromInt(vertex_count - 1))));
+            const idx2 = @as(u32, @intFromFloat(prediction[base_idx + 2] * @as(f32, @floatFromInt(vertex_count - 1))));
 
             // Ensure valid triangle
-            if (i0 != i1 and i1 != i2 and i0 != i2 and i0 < vertex_count and i1 < vertex_count and i2 < vertex_count) {
-                try mesh.indices.append(i0);
-                try mesh.indices.append(i1);
-                try mesh.indices.append(i2);
+            if (idx0 != idx1 and idx1 != idx2 and idx0 != idx2 and idx0 < vertex_count and idx1 < vertex_count and idx2 < vertex_count) {
+                try mesh.indices.append(idx0);
+                try mesh.indices.append(idx1);
+                try mesh.indices.append(idx2);
             }
         }
     }
 
     fn preserveImportantFeatures(self: *MLMeshConverter, mesh: *VoxelEngine.VoxelMesh, voxel_chunk: *VoxelEngine.VoxelChunk, preservation_factor: f32) !void {
-        _ = self;
-        _ = preservation_factor;
+        // These parameters will be used in a full implementation
+        std.log.debug("Preserving features with factor {}", .{preservation_factor});
+        std.log.debug("Mesh vertices: {}, chunk size: {}", .{ mesh.vertices.items.len, voxel_chunk.size });
 
         // Detect edges and corners in voxel data
         var important_features = ArrayList(Vec3).init(self.allocator);
@@ -336,8 +339,9 @@ pub const MLMeshConverter = struct {
     }
 
     fn calculateErrorMetrics(self: *MLMeshConverter, mesh: *VoxelEngine.VoxelMesh, voxel_chunk: *VoxelEngine.VoxelChunk) !ConversionResult.ErrorMetrics {
-        _ = self;
-        _ = voxel_chunk;
+        std.log.debug("Analyzing voxel chunk of size {}", .{voxel_chunk.size});
+        // We'd use vertex_count in a full implementation
+        _ = mesh.vertices.items.len;
 
         // Calculate various error metrics
         var geometric_error: f32 = 0.0;
@@ -371,11 +375,11 @@ pub const MLMeshConverter = struct {
         // Check for degenerate triangles
         var i: usize = 0;
         while (i < mesh.indices.items.len) : (i += 3) {
-            const i0 = mesh.indices.items[i];
-            const i1 = mesh.indices.items[i + 1];
-            const i2 = mesh.indices.items[i + 2];
+            const v0 = mesh.indices.items[i];
+            const v1 = mesh.indices.items[i + 1];
+            const v2 = mesh.indices.items[i + 2];
 
-            if (i0 == i1 or i1 == i2 or i0 == i2) {
+            if (v0 == v1 or v1 == v2 or v0 == v2) {
                 error_score += 0.01; // Degenerate triangle penalty
             }
 
@@ -447,7 +451,7 @@ pub const MLMeshConverter = struct {
     }
 
     fn meshToTarget(self: *MLMeshConverter, mesh: *const VoxelEngine.VoxelMesh) ![]f32 {
-        _ = self;
+        // Need self.allocator for memory allocation
 
         // Convert mesh to training target format
         const target_size = 1000; // Fixed size for network training
@@ -601,7 +605,7 @@ pub const NeuralNetwork = struct {
         return try self.allocator.dupe(f32, self.layers.items[self.layers.items.len - 1].activations);
     }
 
-    fn calculateLoss(self: *MLNetwork, predicted: []const f32, target: []const f32) f32 {
+    fn calculateLoss(self: *NeuralNetwork, predicted: []const f32, target: []const f32) f32 {
         _ = self;
         var loss: f32 = 0.0;
         const len = @min(predicted.len, target.len);
@@ -614,7 +618,8 @@ pub const NeuralNetwork = struct {
         return loss / @as(f32, @floatFromInt(len));
     }
 
-    pub fn backpropagate(self: *NeuralNetwork, prediction: []const f32, target: []const f32, learning_rate: f32) !void {
+    pub fn backpropagate(self: *NeuralNetwork, prediction: []const f32, target: []const f32, learning_rate_param: f32) !void {
+        _ = learning_rate_param; // Would use this instead of self.learning_rate in a full implementation
         const len = @min(prediction.len, target.len);
 
         // Calculate output layer gradients
@@ -651,7 +656,7 @@ pub const NeuralNetwork = struct {
         }
     }
 
-    fn applyGradients(self: *Network, learning_rate: f32) void {
+    fn applyGradients(self: *NeuralNetwork, learning_rate: f32) void {
         for (self.layers.items) |*layer| {
             // Update weights
             for (layer.weights, 0..) |*weight, i| {
@@ -714,7 +719,7 @@ test "ml mesh converter" {
     defer converter.deinit();
 
     // Create test voxel data
-    var voxel_data = try allocator.alloc(u8, 32 * 32 * 32);
+    const voxel_data = try allocator.alloc(u8, 32 * 32 * 32);
     defer allocator.free(voxel_data);
 
     // Fill with some test pattern
@@ -733,16 +738,33 @@ test "ml mesh converter" {
     try std.testing.expect(converter.training_data.items.len == 1);
 
     // Test network creation
-    const config = MLMeshConverter.NetworkConfig{
-        .input_size = 32 * 32 * 32,
-        .hidden_layers = &[_]u32{ 512, 256, 128 },
+    const config = MLMeshConverter.ConversionConfig{
+        .target_poly_count = 1000,
+        .quality_threshold = 0.95,
+        .preserve_features = true,
+        .smooth_surfaces = true,
+        .generate_uvs = true,
+        .optimize_topology = true,
+        .adaptive_lod = true,
+        .texture_resolution = 1024,
+        .normal_preservation = 0.8,
+        .edge_preservation = 0.9,
+        .use_gpu_acceleration = false,
         .output_size = 1024,
         .learning_rate = 0.001,
         .activation = .relu,
     };
 
-    _ = config;
-    // Network testing would go here in a full implementation
+    // Create a dummy chunk for testing
+    const dummy_chunk = try allocator.create(VoxelEngine.VoxelChunk);
+    dummy_chunk.* = VoxelEngine.VoxelChunk{
+        .data = &[_]u8{1} ** 32,
+        .size = 32,
+        .position = Vec3.init(0, 0, 0),
+    };
+
+    // Use config for conversion testing
+    _ = try converter.convertVoxelsToMesh(dummy_chunk, config);
     try std.testing.expect(true);
 }
 

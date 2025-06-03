@@ -73,6 +73,7 @@ pub const Buffer = struct {
     const Self = @This();
 
     pub fn init(device: *const VulkanDevice, size: vk.VkDeviceSize, usage: u32, properties: u32) !Self {
+        _ = usage; // autofix
         _ = device;
         _ = properties;
         return Self{
@@ -453,6 +454,7 @@ pub const Scene = struct {
     }
 
     pub fn render(self: *Self, device: *const VulkanDevice, command_buffer: vk.VkCommandBuffer, pipeline: *Pipeline) void {
+        _ = device; // autofix
         pipeline.bind(command_buffer);
 
         for (self.meshes.items) |mesh| {

@@ -103,11 +103,13 @@ pub const GdiContext = struct {
     memDC: ?HDC = null,
     memBitmap: ?HBITMAP = null,
     oldBitmap: ?HBITMAP = null,
+    last_error: ?[]const u8 = null,
 
     const Self = @This();
 
     pub fn init(allocator: Allocator, window_handle: usize) !*Self {
         const ctx = try allocator.create(Self);
+        ctx.last_error = null;
         const hwnd = @as(HWND, @ptrFromInt(window_handle));
         const hdc = GetDC(hwnd);
 
@@ -238,7 +240,7 @@ pub const GdiContext = struct {
                 _ = SetTextColor(hdc, colorToColorref(text_data.color));
 
                 // Create font
-                const font_height = @intFromFloat(-text_data.font.style.size * 1.3);
+                const font_height = @as(i32, @intFromFloat(-text_data.font.style.size * 1.3));
                 const font_width = 0; // auto
                 const font_weight = if (text_data.font.style.weight >= 700) FW_BOLD else FW_NORMAL;
                 const font_italic: u32 = if (text_data.font.style.italic) 1 else 0;
@@ -291,10 +293,10 @@ pub const GdiContext = struct {
                 const old_bitmap = SelectObject(bitmap_dc, bitmap);
 
                 // Calculate coordinates
-                const x = @intFromFloat(image_data.rect.x);
-                const y = @intFromFloat(image_data.rect.y);
-                const width = @intFromFloat(image_data.rect.width);
-                const height = @intFromFloat(image_data.rect.height);
+                const x = @as(i32, @intFromFloat(image_data.rect.x));
+                const y = @as(i32, @intFromFloat(image_data.rect.y));
+                const width = @as(i32, @intFromFloat(image_data.rect.width));
+                const height = @as(i32, @intFromFloat(image_data.rect.height));
 
                 // BitBlt the image to our target DC
                 _ = BitBlt(hdc, x, y, width, height, bitmap_dc, 0, 0, SRCCOPY);
@@ -320,11 +322,11 @@ pub const GdiContext = struct {
                 }
 
                 // Create new clip rect
-                var new_rect = RECT{
-                    .left = @intFromFloat(clip_rect.x),
-                    .top = @intFromFloat(clip_rect.y),
-                    .right = @intFromFloat(clip_rect.x + clip_rect.width),
-                    .bottom = @intFromFloat(clip_rect.y + clip_rect.height),
+                const new_rect = RECT{
+                    .left = @as(i32, @intFromFloat(clip_rect.x)),
+                    .top = @as(i32, @intFromFloat(clip_rect.y)),
+                    .right = @as(i32, @intFromFloat(clip_rect.x + clip_rect.width)),
+                    .bottom = @as(i32, @intFromFloat(clip_rect.y + clip_rect.height)),
                 };
 
                 // Apply new clip rect
@@ -495,6 +497,12 @@ fn colorToColorref(color: interface.Color) COLORREF {
 }
 
 // Implementation of the backend interface
+// Get last error message from the context
+fn gdiGetLastError(ctx: *anyopaque) ?[]const u8 {
+    const gdi_context = @as(*GdiContext, @ptrCast(@alignCast(ctx)));
+    return gdi_context.last_error;
+}
+
 pub const gdi_backend_interface = interface.BackendInterface{
     .init_fn = gdiInit,
     .deinit_fn = gdiDeinit,
@@ -505,6 +513,7 @@ pub const gdi_backend_interface = interface.BackendInterface{
     .destroy_image_fn = gdiDestroyImage,
     .get_text_size_fn = gdiGetTextSize,
     .resize_fn = gdiResize,
+    .get_last_error_fn = gdiGetLastError,
     .backend_type = .gdi,
 };
 

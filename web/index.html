@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MFS Engine - WebAssembly Demo</title>
+    <title>MFS Engine - Interactive WebAssembly Demo</title>
+    <meta name="description" content="High-Performance 3D Graphics Engine with WebAssembly, WebGPU/WebGL support">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family
     <style>
         body {
             margin: 0;
@@ -195,22 +199,22 @@
             .header h1 {
                 font-size: 2em;
             }
-            
+
             #canvas {
                 max-width: 100vw;
                 max-height: 60vh;
             }
-            
+
             .controls {
                 flex-direction: column;
                 align-items: center;
             }
-            
+
             .stats {
                 flex-direction: column;
                 gap: 10px;
             }
-            
+
             .info-panel {
                 margin: 20px 10px;
                 padding: 15px;
@@ -273,7 +277,7 @@
             <li><strong>Input Handling:</strong> Mouse, keyboard, and touch support</li>
             <li><strong>Real-time Updates:</strong> Live FPS and memory monitoring</li>
         </ul>
-        
+
         <h3>Controls</h3>
         <ul>
             <li><strong>Mouse:</strong> Rotate camera view</li>
@@ -348,7 +352,7 @@
             onRuntimeInitialized: function() {
                 console.log('WASM Runtime initialized');
                 updateProgress(50);
-                
+
                 try {
                     // Initialize the engine
                     if (Module._initialize_engine) {
@@ -392,7 +396,7 @@
                 updateEngineStatus('Running');
                 startBtn.disabled = true;
                 pauseBtn.disabled = false;
-                
+
                 // Start the engine main loop
                 if (Module._start_main_loop) {
                     Module._start_main_loop();
@@ -406,7 +410,7 @@
                 updateEngineStatus('Paused');
                 startBtn.disabled = false;
                 pauseBtn.disabled = true;
-                
+
                 if (Module._pause_main_loop) {
                     Module._pause_main_loop();
                 }
@@ -442,19 +446,19 @@
         function updatePerformanceStats() {
             const currentTime = performance.now();
             frameCount++;
-            
+
             if (currentTime - lastTime >= 1000) {
                 const fps = (frameCount * 1000) / (currentTime - lastTime);
                 updateFPS(fps);
                 frameCount = 0;
                 lastTime = currentTime;
-                
+
                 // Update memory usage
                 if (performance.memory) {
                     updateMemoryUsage(performance.memory.usedJSHeapSize);
                 }
             }
-            
+
             if (engineRunning) {
                 requestAnimationFrame(updatePerformanceStats);
             }
@@ -473,17 +477,17 @@
             const container = canvas.parentElement;
             const containerWidth = container.clientWidth;
             const containerHeight = Math.min(container.clientHeight, window.innerHeight * 0.6);
-            
+
             canvas.width = containerWidth;
             canvas.height = containerHeight;
-            
+
             if (Module._web_resize && engineInitialized) {
                 Module._web_resize(containerWidth, containerHeight);
             }
         }
 
         window.addEventListener('resize', resizeCanvas);
-        
+
         // Initial setup
         updateProgress(0);
         updateEngineStatus('Loading...');

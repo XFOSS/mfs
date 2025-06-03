@@ -1,5 +1,5 @@
 const std = @import("std");
-const enhanced_render = @import("enhanced_render.zig");
+const enhanced_render = @import("../enhanced_render.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

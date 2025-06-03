@@ -144,6 +144,7 @@ pub const BackendInterface = struct {
     destroy_image_fn: *const fn (ctx: *anyopaque, image: *Image) void,
     get_text_size_fn: *const fn (ctx: *anyopaque, text: []const u8, font: FontInfo) struct { width: f32, height: f32 },
     resize_fn: *const fn (ctx: *anyopaque, width: u32, height: u32) void,
+    get_last_error_fn: ?*const fn (ctx: *anyopaque) ?[]const u8,
     backend_type: BackendType,
 };
 
@@ -151,6 +152,7 @@ pub const BackendInterface = struct {
 pub const UIBackend = struct {
     ctx: *anyopaque,
     vtable: *const BackendInterface,
+    last_error: ?[]const u8,
 
     /// Initialize a rendering backend with the given interface and window handle
     pub fn init(allocator: Allocator, vtable: *const BackendInterface, window_handle: usize) !UIBackend {
@@ -158,6 +160,7 @@ pub const UIBackend = struct {
         return UIBackend{
             .ctx = ctx,
             .vtable = vtable,
+            .last_error = null,
         };
     }
 
@@ -204,5 +207,13 @@ pub const UIBackend = struct {
     /// Get the type of this backend
     pub fn getBackendType(self: *const UIBackend) BackendType {
         return self.vtable.backend_type;
+    }
+
+    /// Get the last error message if any
+    pub fn getLastError(self: *const UIBackend) ?[]const u8 {
+        if (self.vtable.get_last_error_fn) |get_error| {
+            return get_error(self.ctx);
+        }
+        return null;
     }
 };

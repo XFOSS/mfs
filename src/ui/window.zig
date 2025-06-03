@@ -27,6 +27,13 @@ const WM_DESTROY = 0x0002;
 const WM_CLOSE = 0x0010;
 const WM_PAINT = 0x000F;
 const WM_KEYDOWN = 0x0100;
+const WM_KEYUP = 0x0101;
+const WM_LBUTTONDOWN = 0x0201;
+const WM_LBUTTONUP = 0x0202;
+const WM_RBUTTONDOWN = 0x0204;
+const WM_RBUTTONUP = 0x0205;
+const WM_MBUTTONDOWN = 0x0207;
+const WM_MBUTTONUP = 0x0208;
 const WM_USER = 0x0400;
 const WM_CUSTOM_TASK = WM_USER + 1;
 const CS_HREDRAW = 0x0002;
@@ -35,6 +42,7 @@ const IDC_ARROW = 32512;
 const COLOR_WINDOW = 5;
 const VK_ESCAPE = 0x1B;
 const SW_SHOW = 5;
+const GWLP_USERDATA = -21;
 
 const RECT = extern struct {
     left: i32,
@@ -103,6 +111,8 @@ extern "user32" fn LoadCursorW(?HINSTANCE, usize) callconv(.C) HCURSOR;
 extern "user32" fn GetSystemMetrics(i32) callconv(.C) i32;
 extern "user32" fn InvalidateRect(HWND, ?*const RECT, BOOL) callconv(.C) BOOL;
 extern "user32" fn FillRect(HDC, *const RECT, HBRUSH) callconv(.C) i32;
+extern "user32" fn SetWindowLongPtrW(HWND, i32, isize) callconv(.C) isize;
+extern "user32" fn GetWindowLongPtrW(HWND, i32) callconv(.C) isize;
 extern "gdi32" fn SetBkMode(HDC, i32) callconv(.C) i32;
 extern "gdi32" fn SetTextColor(HDC, DWORD) callconv(.C) DWORD;
 extern "kernel32" fn GetModuleHandleW(?[*:0]const u16) callconv(.C) HINSTANCE;
@@ -189,19 +199,27 @@ pub const WindowManager = struct {
     running: bool,
     render_text: ArrayList(u8),
     text_mutex: Mutex,
+    last_error: ?[]const u8,
+
+    // Event callbacks
+    on_resize: ?*const fn (width: i32, height: i32) void = null,
+    on_close: ?*const fn () void = null,
+    on_key: ?*const fn (key_code: u32, pressed: bool) void = null,
+    on_mouse: ?*const fn (x: i32, y: i32, button: u32, pressed: bool) void = null,
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator) !Self {
+    pub fn init(allocator: Allocator, worker_count: u32) !Self {
         return Self{
             .hwnd = null,
             .hInstance = GetModuleHandleW(null),
             .allocator = allocator,
             .task_queue = TaskQueue.init(allocator),
-            .worker_threads = try allocator.alloc(Thread, 4), // 4 worker threads
+            .worker_threads = try allocator.alloc(Thread, worker_count),
             .running = true,
             .render_text = ArrayList(u8).init(allocator),
             .text_mutex = Mutex{},
+            .last_error = null,
         };
     }
 
@@ -221,9 +239,14 @@ pub const WindowManager = struct {
         self.allocator.free(self.worker_threads);
         self.task_queue.deinit();
         self.render_text.deinit();
+
+        // Free any error message
+        if (self.last_error) |error_msg| {
+            self.allocator.free(error_msg);
+        }
     }
 
-    pub fn createWindow(self: *Self, title: []const u8, width: i32, height: i32) !void {
+    pub fn createWindow(self: *Self, title: []const u8, width: i32, height: i32, window_style: ?u32) !void {
         const class_name = std.unicode.utf8ToUtf16LeStringLiteral("ThreadedZigWindow");
         const window_title_wide = try std.unicode.utf8ToUtf16LeAllocZ(self.allocator, title);
         defer self.allocator.free(window_title_wide);
@@ -244,6 +267,7 @@ pub const WindowManager = struct {
         };
 
         if (RegisterClassExW(&wc) == 0) {
+            self.setError("Failed to register window class");
             return error.WindowClassRegistrationFailed;
         }
 
@@ -252,11 +276,13 @@ pub const WindowManager = struct {
         const window_x = @divTrunc(screen_width - width, 2);
         const window_y = @divTrunc(screen_height - height, 2);
 
+        const style = window_style orelse (WS_OVERLAPPEDWINDOW | WS_VISIBLE);
+
         self.hwnd = CreateWindowExW(
             0,
             class_name,
             window_title_wide.ptr,
-            WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+            style,
             window_x,
             window_y,
             width,
@@ -268,6 +294,7 @@ pub const WindowManager = struct {
         );
 
         if (self.hwnd == null) {
+            self.setError("Failed to create window");
             return error.WindowCreationFailed;
         }
 
@@ -413,6 +440,13 @@ fn taskCompletedCallback(task: *const Task, result: []const u8) void {
 }
 
 fn windowProc(hwnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM) callconv(.C) LRESULT {
+    // Try to get the window manager instance
+    const window_ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+    const window_manager = if (window_ptr != 0)
+        @as(*WindowManager, @ptrFromInt(@intCast(window_ptr)))
+    else
+        null;
+
     switch (uMsg) {
         0x0001 => { // WM_CREATE
             const create_struct: *extern struct {
@@ -422,23 +456,98 @@ fn windowProc(hwnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM) callconv(.
 
             if (create_struct.lpCreateParams) |params_ptr| {
                 // Store window manager pointer in window data
-                // In a real implementation, you'd use SetWindowLongPtr
-                // Cast to the correct type to avoid unused capture warning
-                _ = @as(*WindowManager, @ptrCast(@alignCast(params_ptr)));
+                _ = SetWindowLongPtrW(hwnd, GWLP_USERDATA, @intFromPtr(params_ptr));
             }
             return 0;
         },
         WM_DESTROY => {
+            // Call the close callback if available
+            if (window_manager) |mgr| {
+                if (mgr.on_close) |callback| {
+                    callback();
+                }
+                mgr.running = false;
+            }
             PostQuitMessage(0);
             return 0;
         },
         WM_CLOSE => {
+            // Call the close callback if available
+            if (window_manager) |mgr| {
+                if (mgr.on_close) |callback| {
+                    callback();
+                }
+            }
             _ = DestroyWindow(hwnd);
             return 0;
         },
+        WM_SIZE => {
+            // Handle window resizing
+            if (window_manager) |mgr| {
+                const new_width = @intCast(lParam & 0xFFFF);
+                const new_height = @intCast((lParam >> 16) & 0xFFFF);
+
+                if (mgr.on_resize) |callback| {
+                    callback(@intCast(new_width), @intCast(new_height));
+                }
+            }
+            return 0;
+        },
         WM_KEYDOWN => {
+            // Handle key press events
+            if (window_manager) |mgr| {
+                if (mgr.on_key) |callback| {
+                    callback(@intCast(wParam), true);
+                }
+            }
+
             if (wParam == VK_ESCAPE) {
                 _ = PostMessageW(hwnd, WM_CLOSE, 0, 0);
+            }
+            return 0;
+        },
+        WM_KEYUP => {
+            // Handle key release events
+            if (window_manager) |mgr| {
+                if (mgr.on_key) |callback| {
+                    callback(@intCast(wParam), false);
+                }
+            }
+            return 0;
+        },
+        WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_MBUTTONDOWN => {
+            // Handle mouse button down
+            if (window_manager) |mgr| {
+                if (mgr.on_mouse) |callback| {
+                    const x = @as(i16, @truncate(@as(u32, @bitCast(lParam))));
+                    const y = @as(i16, @truncate(@as(u32, @bitCast(lParam >> 16))));
+                    const button = switch (uMsg) {
+                        WM_LBUTTONDOWN => 0,
+                        WM_RBUTTONDOWN => 1,
+                        WM_MBUTTONDOWN => 2,
+                        else => 0,
+                    };
+
+                    callback(@intCast(x), @intCast(y), button, true);
+                }
+            }
+            return 0;
+        },
+        WM_LBUTTONUP, WM_RBUTTONUP, WM_MBUTTONUP => {
+            // Handle mouse button up
+            if (window_manager) |mgr| {
+                if (mgr.on_mouse) |callback| {
+                    const x = @as(i16, @truncate(@as(u32, @bitCast(lParam))));
+                    const y = @as(i16, @truncate(@as(u32, @bitCast(lParam >> 16))));
+                    const button = switch (uMsg) {
+                        WM_LBUTTONUP => 0,
+                        WM_RBUTTONUP => 1,
+                        WM_MBUTTONUP => 2,
+                        else => 0,
+                    };
+
+                    callback(@intCast(x), @intCast(y), button, false);
+                }
             }
             return 0;
         },
@@ -457,9 +566,33 @@ fn windowProc(hwnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM) callconv(.
             _ = SetBkMode(hdc, 1); // TRANSPARENT
             _ = SetTextColor(hdc, 0x00FF0000); // Blue text
 
-            // Draw text (in a real implementation, get this from window manager)
-            const text = std.unicode.utf8ToUtf16LeStringLiteral("Threaded Zig Window\nPress ESC to exit");
-            _ = DrawTextW(hdc, text, -1, &client_rect, 0x00000001 | 0x00000004); // DT_CENTER | DT_VCENTER
+            // Draw text from the window manager if available
+            if (window_manager) |mgr| {
+                mgr.text_mutex.lock();
+                defer mgr.text_mutex.unlock();
+
+                if (mgr.render_text.items.len > 0) {
+                    const text_slice = mgr.render_text.items;
+                    const text_wide = std.unicode.utf8ToUtf16LeAlloc(mgr.allocator, text_slice) catch |err| {
+                        // Handle conversion error
+                        const fallback_text = std.unicode.utf8ToUtf16LeStringLiteral("Text conversion error");
+                        _ = DrawTextW(hdc, fallback_text, -1, &client_rect, DT_CENTER | DT_VCENTER);
+                        _ = EndPaint(hwnd, &ps);
+                        return 0;
+                    };
+                    defer mgr.allocator.free(text_wide);
+
+                    _ = DrawTextW(hdc, text_wide.ptr, @intCast(text_wide.len), &client_rect, DT_CENTER | DT_VCENTER);
+                } else {
+                    // Fallback if no text is set
+                    const text = std.unicode.utf8ToUtf16LeStringLiteral("Threaded Zig Window\nPress ESC to exit");
+                    _ = DrawTextW(hdc, text, -1, &client_rect, DT_CENTER | DT_VCENTER);
+                }
+            } else {
+                // Fallback if no window manager is found
+                const text = std.unicode.utf8ToUtf16LeStringLiteral("Threaded Zig Window\nPress ESC to exit");
+                _ = DrawTextW(hdc, text, -1, &client_rect, DT_CENTER | DT_VCENTER);
+            }
 
             _ = EndPaint(hwnd, &ps);
             return 0;
@@ -468,9 +601,30 @@ fn windowProc(hwnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM) callconv(.
     }
 }
 
+// Helper method for setting error messages
+fn setError(self: *WindowManager, message: []const u8) void {
+    if (self.last_error) |old_msg| {
+        self.allocator.free(old_msg);
+    }
+    self.last_error = self.allocator.dupe(u8, message) catch null;
+}
+
+// Get the last error message
+pub fn getLastError(self: *const WindowManager) ?[]const u8 {
+    return self.last_error;
+}
+
+// Set callbacks for window events
+pub fn setCallbacks(self: *WindowManager, resize_cb: ?*const fn (width: i32, height: i32) void, close_cb: ?*const fn () void, key_cb: ?*const fn (key_code: u32, pressed: bool) void, mouse_cb: ?*const fn (x: i32, y: i32, button: u32, pressed: bool) void) void {
+    self.on_resize = resize_cb;
+    self.on_close = close_cb;
+    self.on_key = key_cb;
+    self.on_mouse = mouse_cb;
+}
+
 // Public API for creating and managing threaded windows
-pub fn createThreadedWindow(allocator: Allocator, title: []const u8, width: i32, height: i32) !WindowManager {
-    var window_manager = try WindowManager.init(allocator);
-    try window_manager.createWindow(title, width, height);
+pub fn createThreadedWindow(allocator: Allocator, title: []const u8, width: i32, height: i32, worker_count: u32) !WindowManager {
+    var window_manager = try WindowManager.init(allocator, worker_count);
+    try window_manager.createWindow(title, width, height, null);
     return window_manager;
 }

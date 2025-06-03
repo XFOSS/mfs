@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
+
 const Vec4 = @import("../math/vec4.zig").Vec4f;
 const color = @import("color.zig");
 const color_bridge = @import("color_bridge.zig");

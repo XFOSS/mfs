@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const working_vulkan = @import("vulkan/working_vulkan.zig");
-const vulkan_config = @import("vulkan_config.zig");
+const working_vulkan = @import("./vulkan/working_vulkan.zig");
+const vulkan_config = @import("./graphics/vulkan_config.zig");
 
 pub const RendererError = error{
     InitializationFailed,

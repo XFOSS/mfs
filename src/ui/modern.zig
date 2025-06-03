@@ -63,36 +63,36 @@ pub const Theme = struct {
 
     pub fn dark() Theme {
         return Theme{
-            .primary = 0x00BB86FC,      // Purple
-            .secondary = 0x0003DAC6,    // Teal
-            .accent = 0x00CF6679,       // Pink
-            .background = 0x00121212,   // Dark gray
-            .surface = 0x001E1E1E,      // Lighter dark gray
-            .on_primary = 0x00000000,   // Black
+            .primary = 0x00BB86FC, // Purple
+            .secondary = 0x0003DAC6, // Teal
+            .accent = 0x00CF6679, // Pink
+            .background = 0x00121212, // Dark gray
+            .surface = 0x001E1E1E, // Lighter dark gray
+            .on_primary = 0x00000000, // Black
             .on_secondary = 0x00000000, // Black
-            .on_surface = 0x00FFFFFF,   // White
-            .error_color = 0x00CF6679,  // Red
-            .warning = 0x00FFC107,      // Orange
-            .success = 0x004CAF50,      // Green
-            .disabled = 0x00505050,     // Dark gray
+            .on_surface = 0x00FFFFFF, // White
+            .error_color = 0x00CF6679, // Red
+            .warning = 0x00FFC107, // Orange
+            .success = 0x004CAF50, // Green
+            .disabled = 0x00505050, // Dark gray
             .disabled_text = 0x00A0A0A0, // Light gray
         };
     }
 
     pub fn light() Theme {
         return Theme{
-            .primary = 0x006200EE,      // Purple
-            .secondary = 0x0018FFFF,    // Cyan
-            .accent = 0x00FF4081,       // Pink
-            .background = 0x00FFFFFF,   // White
-            .surface = 0x00F5F5F5,      // Light gray
-            .on_primary = 0x00FFFFFF,   // White
+            .primary = 0x006200EE, // Purple
+            .secondary = 0x0018FFFF, // Cyan
+            .accent = 0x00FF4081, // Pink
+            .background = 0x00FFFFFF, // White
+            .surface = 0x00F5F5F5, // Light gray
+            .on_primary = 0x00FFFFFF, // White
             .on_secondary = 0x00000000, // Black
-            .on_surface = 0x00000000,   // Black
-            .error_color = 0x00B00020,  // Red
-            .warning = 0x00FF6F00,      // Orange
-            .success = 0x00388E3C,      // Green
-            .disabled = 0x00E0E0E0,     // Light gray
+            .on_surface = 0x00000000, // Black
+            .error_color = 0x00B00020, // Red
+            .warning = 0x00FF6F00, // Orange
+            .success = 0x00388E3C, // Green
+            .disabled = 0x00E0E0E0, // Light gray
             .disabled_text = 0x00909090, // Dark gray
         };
     }
@@ -264,7 +264,7 @@ pub const Widget = struct {
 
     pub fn containsPoint(self: *const Self, x: i32, y: i32) bool {
         return x >= self.bounds.left and x < self.bounds.right and
-               y >= self.bounds.top and y < self.bounds.bottom;
+            y >= self.bounds.top and y < self.bounds.bottom;
     }
 };
 
@@ -334,8 +334,7 @@ pub const Button = struct {
         // Draw background
         const brush = CreateSolidBrush(bg_color);
         const old_brush = SelectObject(hdc, brush);
-        _ = RoundRect(hdc, widget.bounds.left, widget.bounds.top,
-                     widget.bounds.right, widget.bounds.bottom, 8, 8);
+        _ = RoundRect(hdc, widget.bounds.left, widget.bounds.top, widget.bounds.right, widget.bounds.bottom, 8, 8);
         _ = SelectObject(hdc, old_brush);
         _ = DeleteObject(brush);
 
@@ -347,8 +346,7 @@ pub const Button = struct {
         text_rect.left += 8;
         text_rect.right -= 8;
 
-        _ = DrawTextW(hdc, button.text_wide.ptr, -1, &text_rect,
-                     0x00000001 | 0x00000004 | 0x00000020); // DT_CENTER | DT_VCENTER | DT_SINGLELINE
+        _ = DrawTextW(hdc, button.text_wide.ptr, -1, &text_rect, 0x00000001 | 0x00000004 | 0x00000020); // DT_CENTER | DT_VCENTER | DT_SINGLELINE
     }
 
     fn buttonHandleEvent(widget: *Widget, event: *const Event) bool {
@@ -424,48 +422,47 @@ pub const TextInput = struct {
         self.text_wide.clearRetainingCapacity();
         const wide_text = try std.unicode.utf8ToUtf16LeAllocZ(self.widget.allocator, text);
         defer self.widget.allocator.free(wide_text);
-        try self.text_wide.appendSlice(wide_text[0..wide_text.len-1]); // Remove null terminator
+        try self.text_wide.appendSlice(wide_text[0 .. wide_text.len - 1]); // Remove null terminator
 
-self.cursor_pos = @min(self.cursor_pos, self.text.items.len);
+        self.cursor_pos = @min(self.cursor_pos, self.text.items.len);
 
-if (self.on_change) |callback| {
+        if (self.on_change) |callback| {
             callback(self);
         }
     }
 
-pub fn getText(self: *const Self) []const u8 {
+    pub fn getText(self: *const Self) []const u8 {
         return self.text.items;
     }
     fn inputRender(widget: *Widget, hdc: HDC) void {
         const input: *TextInput = @fieldParentPtr("widget", widget);
         const theme = widget.theme;
 
-// Draw background
+        // Draw background
         const bg_color = if (input.is_focused) theme.surface else theme.background;
         const border_color = if (input.is_focused) theme.primary else 0x00808080;
 
-const bg_brush = CreateSolidBrush(bg_color);
+        const bg_brush = CreateSolidBrush(bg_color);
         const border_pen = CreatePen(0, 2, border_color);
 
-const old_brush = SelectObject(hdc, bg_brush);
+        const old_brush = SelectObject(hdc, bg_brush);
         const old_pen = SelectObject(hdc, border_pen);
 
-_ = RoundRect(hdc, widget.bounds.left, widget.bounds.top,
-                     widget.bounds.right, widget.bounds.bottom, 4, 4);
+        _ = RoundRect(hdc, widget.bounds.left, widget.bounds.top, widget.bounds.right, widget.bounds.bottom, 4, 4);
 
-_ = SelectObject(hdc, old_brush);
+        _ = SelectObject(hdc, old_brush);
         _ = SelectObject(hdc, old_pen);
         _ = DeleteObject(bg_brush);
         _ = DeleteObject(border_pen);
 
-// Draw text or placeholder
+        // Draw text or placeholder
         var text_rect = widget.bounds;
         text_rect.left += 8;
         text_rect.right -= 8;
 
-_ = SetBkMode(hdc, 1); // TRANSPARENT
+        _ = SetBkMode(hdc, 1); // TRANSPARENT
 
-if (input.text.items.len > 0) {
+        if (input.text.items.len > 0) {
             // Draw actual text
             _ = SetTextColor(hdc, theme.on_surface);
             const null_terminated = input.widget.allocator.dupeZ(u16, input.text_wide.items) catch return;
@@ -477,24 +474,24 @@ if (input.text.items.len > 0) {
             _ = DrawTextW(hdc, input.placeholder_wide.ptr, -1, &text_rect, 0x00000020); // DT_SINGLELINE
         }
 
-// Draw cursor if focused
+        // Draw cursor if focused
         if (input.is_focused) {
             // Simple cursor implementation - would need proper text measurement in real code
             const cursor_x = text_rect.left + @as(i32, @intCast(input.cursor_pos * 8));
             const cursor_pen = CreatePen(0, 1, theme.on_surface);
             const old_cursor_pen = SelectObject(hdc, cursor_pen);
 
-// Draw cursor line (simplified)
+            // Draw cursor line (simplified)
             _ = Rectangle(hdc, cursor_x, text_rect.top + 2, cursor_x + 1, text_rect.bottom - 2);
 
-_ = SelectObject(hdc, old_cursor_pen);
+            _ = SelectObject(hdc, old_cursor_pen);
             _ = DeleteObject(cursor_pen);
         }
     }
     fn inputHandleEvent(widget: *Widget, event: *const Event) bool {
         const input: *TextInput = @fieldParentPtr("widget", widget);
 
-switch (event.event_type) {
+        switch (event.event_type) {
             .click => {
                 input.is_focused = true;
                 return true;
@@ -508,19 +505,19 @@ switch (event.event_type) {
                     const char_data: *u8 = @ptrCast(@alignCast(event.data.?));
                     input.text.append(char_data.*) catch return false;
 
-// Update wide text
+                    // Update wide text
                     const new_text = input.widget.allocator.dupeZ(u8, input.text.items) catch return false;
                     defer input.widget.allocator.free(new_text);
 
-const wide_text = std.unicode.utf8ToUtf16LeAllocZ(input.widget.allocator, new_text) catch return false;
+                    const wide_text = std.unicode.utf8ToUtf16LeAllocZ(input.widget.allocator, new_text) catch return false;
                     defer input.widget.allocator.free(wide_text);
 
-input.text_wide.clearRetainingCapacity();
-                    input.text_wide.appendSlice(wide_text[0..wide_text.len-1]) catch return false;
+                    input.text_wide.clearRetainingCapacity();
+                    input.text_wide.appendSlice(wide_text[0 .. wide_text.len - 1]) catch return false;
 
-input.cursor_pos = input.text.items.len;
+                    input.cursor_pos = input.text.items.len;
 
-if (input.on_change) |callback| {
+                    if (input.on_change) |callback| {
                         callback(input);
                     }
                     return true;
@@ -550,7 +547,7 @@ pub const Panel = struct {
         .on_resize = panelOnResize,
     };
 
-pub fn init(allocator: Allocator, theme: *const Theme) !*Self {
+    pub fn init(allocator: Allocator, theme: *const Theme) !*Self {
         const panel = try allocator.create(Self);
         panel.* = Self{
             .widget = Widget.init(allocator, theme, &panel_vtable),
@@ -562,21 +559,20 @@ pub fn init(allocator: Allocator, theme: *const Theme) !*Self {
         return panel;
     }
 
-pub fn deinit(self: *Self) void {
+    pub fn deinit(self: *Self) void {
         self.widget.deinit();
     }
     fn panelRender(widget: *Widget, hdc: HDC) void {
         const panel: *Panel = @fieldParentPtr("widget", widget);
 
-// Draw background
+        // Draw background
         const bg_brush = CreateSolidBrush(panel.background_color);
         const old_brush = SelectObject(hdc, bg_brush);
 
-if (panel.border_width > 0) {
+        if (panel.border_width > 0) {
             const border_pen = CreatePen(0, panel.border_width, panel.border_color);
             const old_pen = SelectObject(hdc, border_pen);
-            _ = Rectangle(hdc, widget.bounds.left, widget.bounds.top,
-                         widget.bounds.right, widget.bounds.bottom);
+            _ = Rectangle(hdc, widget.bounds.left, widget.bounds.top, widget.bounds.right, widget.bounds.bottom);
             _ = SelectObject(hdc, old_pen);
             _ = DeleteObject(border_pen);
         } else {
@@ -584,7 +580,7 @@ if (panel.border_width > 0) {
             _ = FillRect(hdc, &fill_rect, bg_brush);
         }
 
-_ = SelectObject(hdc, old_brush);
+        _ = SelectObject(hdc, old_brush);
         _ = DeleteObject(bg_brush);
     }
     fn panelHandleEvent(widget: *Widget, event: *const Event) bool {
@@ -593,19 +589,19 @@ _ = SelectObject(hdc, old_brush);
         return false; // Panels don't handle events by default
     }
 
-fn panelOnResize(widget: *Widget) void {
+    fn panelOnResize(widget: *Widget) void {
         const panel: *Panel = @fieldParentPtr("widget", widget);
 
-// Automatically layout children with padding
+        // Automatically layout children with padding
         const content_left = widget.bounds.left + panel.padding.left;
         const content_top = widget.bounds.top + panel.padding.top;
         const content_width = (widget.bounds.right - widget.bounds.left) - panel.padding.left - panel.padding.right;
         const content_height = (widget.bounds.bottom - widget.bounds.top) - panel.padding.top - panel.padding.bottom;
 
-if (widget.children.items.len > 0) {
+        if (widget.children.items.len > 0) {
             const child_height = @divTrunc(content_height, @as(i32, @intCast(widget.children.items.len)));
 
-for (widget.children.items, 0..) |child, i| {
+            for (widget.children.items, 0..) |child, i| {
                 const y_offset = @as(i32, @intCast(i)) * child_height;
                 child.setBounds(content_left, content_top + y_offset, content_width, child_height);
             }
@@ -632,10 +628,10 @@ pub const Layout = struct {
         };
     }
 
-pub fn apply(self: *const Self, container: *Widget) void {
+    pub fn apply(self: *const Self, container: *Widget) void {
         if (container.children.items.len == 0) return;
 
-switch (self.layout_type) {
+        switch (self.layout_type) {
             .vertical => self.applyVerticalLayout(container),
             .horizontal => self.applyHorizontalLayout(container),
             .grid => self.applyGridLayout(container),
@@ -643,13 +639,13 @@ switch (self.layout_type) {
         }
     }
 
-fn applyVerticalLayout(self: *const Self, container: *Widget) void {
+    fn applyVerticalLayout(self: *const Self, container: *Widget) void {
         const content_width = container.bounds.right - container.bounds.left;
         const total_spacing = self.spacing * @as(i32, @intCast(container.children.items.len - 1));
         const content_height = container.bounds.bottom - container.bounds.top - total_spacing;
         const child_height = @divTrunc(content_height, @as(i32, @intCast(container.children.items.len)));
 
-var y_offset = container.bounds.top;
+        var y_offset = container.bounds.top;
         for (container.children.items) |child| {
             child.setBounds(container.bounds.left, y_offset, content_width, child_height);
             y_offset += child_height + self.spacing;
@@ -661,33 +657,33 @@ var y_offset = container.bounds.top;
         const content_width = container.bounds.right - container.bounds.left - total_spacing;
         const child_width = @divTrunc(content_width, @as(i32, @intCast(container.children.items.len)));
 
-var x_offset = container.bounds.left;
+        var x_offset = container.bounds.left;
         for (container.children.items) |child| {
             child.setBounds(x_offset, container.bounds.top, child_width, content_height);
             x_offset += child_width + self.spacing;
         }
     }
 
-fn applyGridLayout(self: *const Self, container: *Widget) void {
+    fn applyGridLayout(self: *const Self, container: *Widget) void {
         // Simple grid layout - square grid
         const child_count = container.children.items.len;
         if (child_count == 0) return;
 
-const grid_size = @as(i32, @intFromFloat(@ceil(@sqrt(@as(f64, @floatFromInt(child_count))))));
+        const grid_size = @as(i32, @intFromFloat(@ceil(@sqrt(@as(f64, @floatFromInt(child_count))))));
         const container_width = container.bounds.right - container.bounds.left;
         const container_height = container.bounds.bottom - container.bounds.top;
 
-const cell_width = @divTrunc(container_width - (grid_size - 1) * self.spacing, grid_size);
+        const cell_width = @divTrunc(container_width - (grid_size - 1) * self.spacing, grid_size);
         const cell_height = @divTrunc(container_height - (grid_size - 1) * self.spacing, grid_size);
 
-for (container.children.items, 0..) |child, i| {
+        for (container.children.items, 0..) |child, i| {
             const row = @as(i32, @intCast(i / @as(usize, @intCast(grid_size))));
             const col = @as(i32, @intCast(i % @as(usize, @intCast(grid_size))));
 
-const x = container.bounds.left + col * (cell_width + self.spacing);
+            const x = container.bounds.left + col * (cell_width + self.spacing);
             const y = container.bounds.top + row * (cell_height + self.spacing);
 
-child.setBounds(x, y, cell_width, cell_height);
+            child.setBounds(x, y, cell_width, cell_height);
         }
     }
 };
@@ -700,7 +696,7 @@ pub const ModernUI = struct {
     focused_widget: ?*Widget,
     const Self = @This();
 
-pub fn init(allocator: Allocator, dark_theme: bool) Self {
+    pub fn init(allocator: Allocator, dark_theme: bool) Self {
         return Self{
             .allocator = allocator,
             .theme = if (dark_theme) Theme.dark() else Theme.light(),
@@ -709,14 +705,14 @@ pub fn init(allocator: Allocator, dark_theme: bool) Self {
         };
     }
 
-pub fn deinit(self: *Self) void {
+    pub fn deinit(self: *Self) void {
         if (self.root_widget) |root| {
             root.deinit();
             self.allocator.destroy(root);
         }
     }
 
-pub fn setRootWidget(self: *Self, widget: *Widget) void {
+    pub fn setRootWidget(self: *Self, widget: *Widget) void {
         if (self.root_widget) |old_root| {
             old_root.deinit();
             self.allocator.destroy(old_root);
@@ -735,15 +731,15 @@ pub fn setRootWidget(self: *Self, widget: *Widget) void {
         return false;
     }
 
-pub fn setFocus(self: *Self, widget: ?*Widget) void {
+    pub fn setFocus(self: *Self, widget: ?*Widget) void {
         if (self.focused_widget) |old_focused| {
             const blur_event = Event.init(.blur, old_focused);
             _ = old_focused.handleEvent(&blur_event);
         }
 
-self.focused_widget = widget;
+        self.focused_widget = widget;
 
-if (widget) |new_focused| {
+        if (widget) |new_focused| {
             const focus_event = Event.init(.focus, new_focused);
             _ = new_focused.handleEvent(&focus_event);
         }

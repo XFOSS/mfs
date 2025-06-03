@@ -15,16 +15,16 @@ const Vec4f = Vector(4, f32);
 const Vec8f = Vector(8, f32);
 
 // Core modules with enhanced imports
-pub const math = @import("math/math.zig");
-pub const physics = @import("physics/physics.zig");
-pub const neural = @import("neural/brain.zig");
-pub const scene = @import("scene/scene.zig");
-pub const rendering = @import("render.zig");
-pub const platform = @import("platform.zig");
-pub const gpu = @import("gpu.zig");
-pub const ui = @import("ui/uix.zig");
-pub const xr = @import("xr.zig");
-pub const audio = @import("audio/audio.zig");
+pub const math = @import("math/math.zig")
+pub const physics = @import("physics/physics.zig")
+pub const neural = @import("neural/brain.zig")
+pub const scene = @import("scene/scene.zig")
+pub const rendering = @import("render.zig")
+pub const platform = @import("platform/platform.zig")
+pub const gpu = @import("gpu.zig")
+pub const ui = @import("ui/simple_window.zig")
+pub const xr = @import("xr.zig")
+pub const audio = @import("audio/audio.zig")
 
 // Advanced memory management with object pooling
 pub const ObjectPool = struct {

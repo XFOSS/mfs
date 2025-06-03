@@ -1,10 +1,10 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const scene = @import("scene/scene.zig");
-const vk_cube = @import("vulkan/cube.zig");
-const ui = @import("ui/simple_window.zig");
-const opengl_backend = @import("graphics/opengl_backend.zig");
-const graphics_types = @import("graphics/types.zig");
+const scene = @import("./scene/scene.zig");
+const vk_cube = @import("./vulkan/cube.zig");
+const ui = @import("./ui/simple_window.zig");
+const opengl_backend = @import("./graphics/opengl_backend.zig");
+const graphics_types = @import("./graphics/types.zig");
 
 pub const RendererBackend = enum {
     auto,

@@ -8,6 +8,7 @@ pub const color_bridge = @import("color_bridge.zig");
 pub const simple_window = @import("simple_window.zig");
 pub const window = @import("window.zig");
 pub const worker = @import("worker.zig");
+pub const utils = @import("utils/utils.zig");
 
 // UI Systems
 pub const swiftui = @import("swiftui.zig");
@@ -58,12 +59,38 @@ pub const UIConfig = struct {
     enable_animations: bool = true,
     enable_gestures: bool = true,
     debug_rendering: bool = false,
+    high_contrast: bool = false,
+    vsync: bool = true,
+
+    // Validate the configuration
+    pub fn validate(self: *const UIConfig) bool {
+        // Check if worker thread count is reasonable
+        if (self.worker_threads > 64) {
+            return false;
+        }
+
+        // Validate that if threading is disabled, worker count should be 0
+        if (!self.enable_threading and self.worker_threads > 0) {
+            return false;
+        }
+
+        return true;
+    }
 };
 
 pub const ThemeType = enum {
     light,
     dark,
     custom,
+};
+
+// Error types specific to the UI framework
+pub const FrameworkError = error{
+    BackendInitFailed,
+    WindowInitFailed,
+    ColorRegistryInitFailed,
+    ThreadPoolInitFailed,
+    InvalidConfiguration,
 };
 
 // Main UI Framework manager
@@ -74,10 +101,18 @@ pub const Framework = struct {
     color_registry: ?ColorRegistry,
     thread_pool: ?ThreadPool,
     window_instance: ?Window,
+    initialized: bool,
+    error_handler: utils.error_handler.ErrorHandler,
+    last_error: ?[]const u8,
 
     const Self = @This();
 
     pub fn init(allocator: Allocator, config: UIConfig) !Self {
+        // Validate configuration
+        if (!config.validate()) {
+            return FrameworkError.InvalidConfiguration;
+        }
+
         return Self{
             .allocator = allocator,
             .config = config,
@@ -85,46 +120,126 @@ pub const Framework = struct {
             .color_registry = null,
             .thread_pool = null,
             .window_instance = null,
+            .initialized = false,
+            .error_handler = utils.error_handler.ErrorHandler.init(allocator),
+            .last_error = null,
         };
     }
 
     pub fn deinit(self: *Self) void {
+        // Clean up resources in reverse order of creation
         if (self.thread_pool) |*pool| {
             pool.deinit();
+            self.thread_pool = null;
         }
 
         if (self.backend_instance) |*backend_inst| {
             backend_inst.deinit();
+            self.backend_instance = null;
         }
 
         if (self.color_registry) |*registry| {
             registry.deinit();
+            self.color_registry = null;
         }
 
         if (self.window_instance) |*window_inst| {
             window_inst.deinit();
+            self.window_instance = null;
         }
+
+        if (self.last_error) |error_msg| {
+            self.allocator.free(error_msg);
+            self.last_error = null;
+        }
+
+        // Clean up error handler
+        self.error_handler.deinit();
+
+        self.initialized = false;
+    }
+
+    // Set error message with proper memory management
+    fn setError(self: *Self, message: []const u8) void {
+        if (self.last_error) |old_msg| {
+            self.allocator.free(old_msg);
+        }
+        self.last_error = self.allocator.dupe(u8, message) catch |err| {
+            std.debug.print("Failed to allocate memory for error message: {}\n", .{err});
+            return;
+        };
     }
 
     pub fn createWindow(self: *Self, window_config: WindowConfig) !void {
+        if (self.initialized) {
+            self.setError("Framework already initialized");
+            return FrameworkError.InvalidConfiguration;
+        }
+
         // Create window
-        self.window_instance = try Window.init(self.allocator, window_config);
+        self.window_instance = Window.init(self.allocator, window_config) catch |err| {
+            self.setError("Failed to create window");
+            return FrameworkError.WindowInitFailed;
+        };
 
         // Initialize color system
-        self.color_registry = ColorRegistry.init(self.allocator);
-        try self.setupTheme();
+        var registry = ColorRegistry.init(self.allocator);
+        self.color_registry = registry;
+
+        self.setupTheme() catch |err| {
+            self.setError("Failed to setup theme");
+            if (self.window_instance) |*window| {
+                window.deinit();
+                self.window_instance = null;
+            }
+            return FrameworkError.ColorRegistryInitFailed;
+        };
 
         // Create UI backend
         if (self.window_instance) |window_inst| {
             if (window_inst.getNativeHandle()) |handle| {
-                self.backend_instance = try backend.createBackend(self.allocator, self.config.backend_type, @intFromPtr(handle.hwnd));
+                self.backend_instance = backend.createBackend(self.allocator, self.config.backend_type, @intFromPtr(handle.hwnd)) catch |err| {
+                    self.setError("Failed to create backend");
+
+                    // Clean up previously allocated resources
+                    if (self.window_instance) |*window| {
+                        window.deinit();
+                        self.window_instance = null;
+                    }
+                    if (self.color_registry) |*registry| {
+                        registry.deinit();
+                        self.color_registry = null;
+                    }
+
+                    return FrameworkError.BackendInitFailed;
+                };
             }
         }
 
         // Initialize threading if enabled
         if (self.config.enable_threading) {
-            self.thread_pool = try ThreadPool.init(self.allocator, self.config.worker_threads);
+            self.thread_pool = ThreadPool.init(self.allocator, self.config.worker_threads) catch |err| {
+                self.setError("Failed to initialize thread pool");
+
+                // Clean up previously allocated resources
+                if (self.backend_instance) |*backend_inst| {
+                    backend_inst.deinit();
+                    self.backend_instance = null;
+                }
+                if (self.window_instance) |*window| {
+                    window.deinit();
+                    self.window_instance = null;
+                }
+                if (self.color_registry) |*registry| {
+                    registry.deinit();
+                    self.color_registry = null;
+                }
+
+                return FrameworkError.ThreadPoolInitFailed;
+            };
         }
+
+        self.initialized = true;
     }
 
     pub fn pollEvents(self: *Self) !bool {
@@ -135,35 +250,76 @@ pub const Framework = struct {
         return false;
     }
 
-    pub fn beginFrame(self: *Self) void {
+    pub fn beginFrame(self: *Self) !void {
+        if (!self.initialized) {
+            self.setError("Framework not initialized");
+            return FrameworkError.InvalidConfiguration;
+        }
+
         if (self.backend_instance) |*backend_inst| {
             if (self.window_instance) |window_inst| {
                 const size = window_inst.getSize();
                 backend_inst.beginFrame(size.width, size.height);
+                return;
             }
         }
+
+        self.setError("Backend or window not available");
+        return FrameworkError.InvalidConfiguration;
     }
 
-    pub fn endFrame(self: *Self) void {
+    pub fn endFrame(self: *Self) !void {
+        if (!self.initialized) {
+            self.setError("Framework not initialized");
+            return FrameworkError.InvalidConfiguration;
+        }
+
         if (self.backend_instance) |*backend_inst| {
             backend_inst.endFrame();
+            return;
         }
+
+        self.setError("Backend not available");
+        return FrameworkError.InvalidConfiguration;
     }
 
-    pub fn executeDrawCommands(self: *Self, commands: []const DrawCommand) void {
+    pub fn executeDrawCommands(self: *Self, commands: []const DrawCommand) !void {
+        if (!self.initialized) {
+            self.setError("Framework not initialized");
+            return FrameworkError.InvalidConfiguration;
+        }
+
         if (self.backend_instance) |*backend_inst| {
             backend_inst.executeDrawCommands(commands);
+            return;
         }
+
+        self.setError("Backend not available");
+        return FrameworkError.InvalidConfiguration;
     }
 
     pub fn getColorRegistry(self: *Self) ?*ColorRegistry {
+        if (!self.initialized) {
+            self.setError("Framework not initialized");
+            return null;
+        }
+
         if (self.color_registry) |*registry| {
             return registry;
         }
         return null;
     }
 
+    // Get the last error message
+    pub fn getLastError(self: *const Self) ?[]const u8 {
+        return self.last_error;
+    }
+
     pub fn getThreadPool(self: *Self) ?*ThreadPool {
+        if (!self.initialized) {
+            return null;
+        }
+
         if (self.thread_pool) |*pool| {
             return pool;
         }
@@ -171,6 +327,10 @@ pub const Framework = struct {
     }
 
     pub fn getBackend(self: *Self) ?*UIBackend {
+        if (!self.initialized) {
+            return null;
+        }
+
         if (self.backend_instance) |*backend_inst| {
             return backend_inst;
         }
@@ -180,15 +340,25 @@ pub const Framework = struct {
     fn setupTheme(self: *Self) !void {
         if (self.color_registry) |*registry| {
             switch (self.config.default_theme) {
-                .light => color_bridge.applyAppearance(registry, false),
-                .dark => color_bridge.applyAppearance(registry, true),
+                .light => color_bridge.applyAppearanceWithContrast(registry, false, self.config.high_contrast),
+                .dark => color_bridge.applyAppearanceWithContrast(registry, true, self.config.high_contrast),
                 .custom => {
                     // Setup custom theme if needed
                     const accent_color = color.RGBA.fromHex(0xFF007AFF);
                     try color_bridge.defineCustomTheme(registry, accent_color);
                 },
             }
+            return;
         }
+        return FrameworkError.ColorRegistryInitFailed;
+    }
+
+    // Check if the framework is properly initialized
+    pub fn isInitialized(self: *const Self) bool {
+        return self.initialized and
+            self.window_instance != null and
+            self.color_registry != null and
+            self.backend_instance != null;
     }
 };
 
@@ -230,14 +400,22 @@ pub fn detectBestBackend() UIBackendType {
 }
 
 pub fn createDefaultConfig() UIConfig {
+    // Detect the number of available CPU cores
+    const cpu_count = std.Thread.getCpuCount() catch 1;
+
+    // Use half the available cores for worker threads (min 2, max 16)
+    const worker_count = @max(2, @min(16, cpu_count / 2));
+
     return UIConfig{
         .backend_type = detectBestBackend(),
         .enable_threading = true,
         .default_theme = .dark,
-        .worker_threads = 4,
+        .worker_threads = @intCast(worker_count),
         .enable_animations = true,
         .enable_gestures = true,
         .debug_rendering = false,
+        .high_contrast = false,
+        .vsync = true,
     };
 }
 
@@ -246,8 +424,29 @@ pub fn runTests() !void {
     const testing = std.testing;
     const allocator = testing.allocator;
 
+    // Create a test config with minimal resource usage
+    var config = UIConfig{
+        .backend_type = .gdi, // Use GDI for tests as it's more likely to work
+        .enable_threading = true,
+        .default_theme = .light,
+        .worker_threads = 2, // Use fewer threads for testing
+        .enable_animations = false, // Disable animations for testing
+        .enable_gestures = false, // Disable gestures for testing
+        .debug_rendering = true, // Enable debug rendering for tests
+        .high_contrast = false,
+        .vsync = false, // Disable vsync for testing
+    };
+
+    // Test configuration validation
+    try testing.expect(config.validate());
+
+    // Test invalid configuration
+    var invalid_config = config;
+    invalid_config.worker_threads = 100; // Too many worker threads
+    try testing.expect(!invalid_config.validate());
+
     // Test framework initialization
-    var framework = try Framework.init(allocator, createDefaultConfig());
+    var framework = try Framework.init(allocator, config);
     defer framework.deinit();
 
     // Test window creation
@@ -255,6 +454,8 @@ pub fn runTests() !void {
         .title = "Test Window",
         .width = 800,
         .height = 600,
+        .resizable = false, // Make non-resizable for tests
+        .vsync = false,
     };
 
     try framework.createWindow(window_config);
@@ -263,13 +464,22 @@ pub fn runTests() !void {
     try testing.expect(framework.window_instance != null);
     try testing.expect(framework.color_registry != null);
     try testing.expect(framework.backend_instance != null);
+    try testing.expect(framework.initialized);
 
     if (framework.config.enable_threading) {
         try testing.expect(framework.thread_pool != null);
     }
+
+    // Test resource cleanup
+    framework.deinit();
+    try testing.expect(framework.window_instance == null);
+    try testing.expect(framework.color_registry == null);
+    try testing.expect(framework.backend_instance == null);
+    try testing.expect(framework.thread_pool == null);
+    try testing.expect(!framework.initialized);
 }
 
-test "framework initialization" {
+test "framework initialization and cleanup" {
     try runTests();
 }
 

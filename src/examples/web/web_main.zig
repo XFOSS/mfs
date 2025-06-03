@@ -1,9 +1,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const build_options = @import("build_options");
-const engine = @import("engine/engine.zig");
-const graphics = @import("graphics/backend_manager.zig");
-const platform = @import("platform.zig");
+const build_options = @import("../../build_options");
+const engine = @import("../../engine/engine.zig");
+const graphics = @import("../../graphics/backend_manager.zig");
+const platform = @import("../../platform/platform.zig");
 
 // Web-specific allocator
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};

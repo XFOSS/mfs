@@ -1,0 +1,182 @@
+name: MFS Engine CI
+
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+    branches: [ main, master, dev ]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sundays at midnight
+
+jobs:
+  format-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.11.0
+      - name: Check formatting
+        run: zig fmt --check src/ build.zig build_helpers.zig
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.11.0
+      - name: Lint code
+        run: |
+          for f in $(find src -name "*.zig"); do
+            zig build-obj $f -fno-emit-bin || exit 1
+          done
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.11.0
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libgl1-mesa-dev libvulkan-dev
+      - name: Build engine
+        run: zig build
+      - name: Run tests
+        run: zig build test
+      - name: Run benchmarks
+        run: zig build bench
+      - name: Generate coverage report
+        run: |
+          zig build test-coverage
+          mkdir -p coverage
+          lcov --directory . --capture --output-file coverage/lcov.info
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+          verbose: true
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.11.0
+      - name: Build engine
+        run: zig build
+      - name: Run tests
+        run: zig build test
+      - name: Create artifacts
+        run: |
+          mkdir -p artifacts/windows
+          cp zig-out/bin/*.exe artifacts/windows/
+          cp -r zig-out/bin/shaders artifacts/windows/
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-binaries
+          path: artifacts/windows
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.11.0
+      - name: Build engine
+        run: zig build
+      - name: Run tests
+        run: zig build test
+      - name: Create artifacts
+        run: |
+          mkdir -p artifacts/macos
+          cp zig-out/bin/* artifacts/macos/
+          cp -r zig-out/bin/shaders artifacts/macos/
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-binaries
+          path: artifacts/macos
+
+  examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.11.0
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libgl1-mesa-dev libvulkan-dev
+      - name: Build examples
+        run: |
+          zig build run-cube -Dtarget=native-native-gnu
+          zig build run-advanced-cube -Dtarget=native-native-gnu
+          zig build run-enhanced -Dtarget=native-native-gnu
+      - name: Build tutorials
+        run: zig build tutorials
+
+  documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.11.0
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+      - name: Generate API documentation
+        run: |
+          zig build docs
+          mkdir -p public/api
+          cp -r zig-out/docs/* public/api/
+      - name: Copy markdown docs
+        run: |
+          mkdir -p public/docs
+          cp docs/*.md public/docs/
+          cp README.md public/index.md
+      - name: Generate site with MkDocs
+        uses: mhausenblas/mkdocs-deploy-gh-pages@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONFIG_FILE: mkdocs.yml
+          EXTRA_PACKAGES: build-base
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: release-artifacts
+      - name: Create release archives
+        run: |
+          cd release-artifacts
+          for dir in */; do
+            platform=${dir%/}
+            tar -czvf "mfs-${platform}.tar.gz" "$platform"
+            zip -r "mfs-${platform}.zip" "$platform"
+          done
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release-artifacts/*.tar.gz
+            release-artifacts/*.zip
+          draft: true
+          prerelease: false
+          generate_release_notes: true

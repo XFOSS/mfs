@@ -99,12 +99,58 @@ pub const KeyCode = enum {
     end,
     page_up,
     page_down,
-    a, b, c, d, e, f, g, h, i, j, k, l, m,
-    n, o, p, q, r, s, t, u, v, w, x, y, z,
-    num_0, num_1, num_2, num_3, num_4,
-    num_5, num_6, num_7, num_8, num_9,
-    f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12,
-    shift, control, alt, super,
+    a,
+    b,
+    c,
+    d,
+    e,
+    f,
+    g,
+    h,
+    i,
+    j,
+    k,
+    l,
+    m,
+    n,
+    o,
+    p,
+    q,
+    r,
+    s,
+    t,
+    u,
+    v,
+    w,
+    x,
+    y,
+    z,
+    num_0,
+    num_1,
+    num_2,
+    num_3,
+    num_4,
+    num_5,
+    num_6,
+    num_7,
+    num_8,
+    num_9,
+    f1,
+    f2,
+    f3,
+    f4,
+    f5,
+    f6,
+    f7,
+    f8,
+    f9,
+    f10,
+    f11,
+    f12,
+    shift,
+    control,
+    alt,
+    super,
 };
 
 /// Represents an input event with all relevant data
@@ -223,16 +269,16 @@ pub const Rect = struct {
 
     pub fn contains(self: Rect, point: Point) bool {
         return point.x >= self.origin.x and
-               point.x < self.origin.x + self.size.width and
-               point.y >= self.origin.y and
-               point.y < self.origin.y + self.size.height;
+            point.x < self.origin.x + self.size.width and
+            point.y >= self.origin.y and
+            point.y < self.origin.y + self.size.height;
     }
 
     pub fn intersects(self: Rect, other: Rect) bool {
         return self.origin.x < other.origin.x + other.size.width and
-               self.origin.x + self.size.width > other.origin.x and
-               self.origin.y < other.origin.y + other.size.height and
-               self.origin.y + self.size.height > other.origin.y;
+            self.origin.x + self.size.width > other.origin.x and
+            self.origin.y < other.origin.y + other.size.height and
+            self.origin.y + self.size.height > other.origin.y;
     }
 
     pub fn center(self: Rect) Point {
@@ -583,45 +629,24 @@ pub const UISystem = struct {
     fn convertRenderCommand(self: *Self, cmd: RenderCommand) backend.DrawCommand {
         return switch (cmd) {
             .clear => |clear_color| backend.DrawCommand{ .clear = clear_color },
-            .rect => |rect_data| backend.DrawCommand{
-                .rect = .{
-                    .rect = backend.Rect.init(
-                        rect_data.rect.origin.x,
-                        rect_data.rect.origin.y,
-                        rect_data.rect.size.width,
-                        rect_data.rect.size.height
-                    ),
-                    .color = rect_data.color,
-                    .border_radius = rect_data.border_radius,
-                    .border_width = rect_data.border_width,
-                    .border_color = rect_data.border_color,
-                }
-            },
-            .text => |text_data| backend.DrawCommand{
-                .text = .{
-                    .rect = backend.Rect.init(
-                        text_data.rect.origin.x,
-                        text_data.rect.origin.y,
-                        text_data.rect.size.width,
-                        text_data.rect.size.height
-                    ),
-                    .text = text_data.text,
-                    .color = text_data.color,
-                    .font = backend.FontInfo{
-                        .name = "Arial",
-                        .style = backend.FontStyle{ .size = text_data.font_size },
-                    },
-                    .align_ = text_data.alignment,
-                }
-            },
-            .clip_push => |rect| backend.DrawCommand{
-                .clip_push = backend.Rect.init(
-                    rect.origin.x,
-                    rect.origin.y,
-                    rect.size.width,
-                    rect.size.height
-                )
-            },
+            .rect => |rect_data| backend.DrawCommand{ .rect = .{
+                .rect = backend.Rect.init(rect_data.rect.origin.x, rect_data.rect.origin.y, rect_data.rect.size.width, rect_data.rect.size.height),
+                .color = rect_data.color,
+                .border_radius = rect_data.border_radius,
+                .border_width = rect_data.border_width,
+                .border_color = rect_data.border_color,
+            } },
+            .text => |text_data| backend.DrawCommand{ .text = .{
+                .rect = backend.Rect.init(text_data.rect.origin.x, text_data.rect.origin.y, text_data.rect.size.width, text_data.rect.size.height),
+                .text = text_data.text,
+                .color = text_data.color,
+                .font = backend.FontInfo{
+                    .name = "Arial",
+                    .style = backend.FontStyle{ .size = text_data.font_size },
+                },
+                .align_ = text_data.alignment,
+            } },
+            .clip_push => |rect| backend.DrawCommand{ .clip_push = backend.Rect.init(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height) },
             .clip_pop => backend.DrawCommand{ .clip_pop = {} },
             else => backend.DrawCommand{ .clear = backend.Color{ .r = 0, .g = 0, .b = 0, .a = 1 } },
         };
@@ -631,12 +656,12 @@ pub const UISystem = struct {
 // Utility functions
 pub fn isKeyPressed(current: InputEvent, previous: InputEvent, key: KeyCode) bool {
     return current.event_type == .key_down and current.key_code == key and
-           (previous.event_type != .key_down or previous.key_code != key);
+        (previous.event_type != .key_down or previous.key_code != key);
 }
 
 pub fn isMouseButtonPressed(current: InputEvent, previous: InputEvent, button: MouseButton) bool {
     return current.event_type == .mouse_down and current.mouse_button == button and
-           previous.event_type != .mouse_down;
+        previous.event_type != .mouse_down;
 }
 
 pub fn getMouseDelta(current: InputEvent, previous: InputEvent) Point {

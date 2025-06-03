@@ -1,10 +1,10 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-// Try to import Vulkan, fall back to stub if headers not available
 const vk = @import("vulkan_c.zig");
 const vulkan_stub = @import("vulkan_stub.zig");
 
+// Try to import Vulkan, fall back to stub if headers not available
 pub const VulkanError = error{
     InitializationFailed,
     DeviceCreationFailed,
@@ -146,7 +146,7 @@ pub const WorkingVulkanRenderer = struct {
 
         if (layer_count == 0) return false;
 
-        var available_layers = try self.allocator.alloc(vk.c.VkLayerProperties, layer_count);
+        const available_layers = try self.allocator.alloc(vk.c.VkLayerProperties, layer_count);
         defer self.allocator.free(available_layers);
 
         _ = vk.c.vkEnumerateInstanceLayerProperties(&layer_count, available_layers.ptr);
@@ -190,7 +190,7 @@ pub const WorkingVulkanRenderer = struct {
             return VulkanError.PhysicalDeviceNotSuitable;
         }
 
-        var devices = try self.allocator.alloc(vk.VkPhysicalDevice, device_count);
+        const devices = try self.allocator.alloc(vk.VkPhysicalDevice, device_count);
         defer self.allocator.free(devices);
 
         _ = vk.vkEnumeratePhysicalDevices(self.instance, &device_count, devices.ptr);
@@ -244,7 +244,7 @@ pub const WorkingVulkanRenderer = struct {
         var queue_family_count: u32 = 0;
         vk.vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, null);
 
-        var queue_families = try self.allocator.alloc(vk.VkQueueFamilyProperties, queue_family_count);
+        const queue_families = try self.allocator.alloc(vk.VkQueueFamilyProperties, queue_family_count);
         defer self.allocator.free(queue_families);
 
         vk.vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.ptr);
@@ -275,7 +275,7 @@ pub const WorkingVulkanRenderer = struct {
         var extension_count: u32 = 0;
         _ = vk.c.vkEnumerateDeviceExtensionProperties(device, null, &extension_count, null);
 
-        var available_extensions = try self.allocator.alloc(vk.c.VkExtensionProperties, extension_count);
+        const available_extensions = try self.allocator.alloc(vk.c.VkExtensionProperties, extension_count);
         defer self.allocator.free(available_extensions);
 
         _ = vk.c.vkEnumerateDeviceExtensionProperties(device, null, &extension_count, available_extensions.ptr);

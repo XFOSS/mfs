@@ -1,10 +1,10 @@
 const std = @import("std");
-const builtin = @import("builtin");
-const build_options = @import("build_options");
-const capabilities = @import("platform/capabilities.zig");
-const backend_manager = @import("graphics/backend_manager.zig");
-const interface = @import("graphics/backends/interface.zig");
-const types = @import("graphics/types.zig");
+const builtin = @import("../builtin");
+const build_options = @import("../build_options");
+const capabilities = @import("../platform/capabilities.zig");
+const backend_manager = @import("../graphics/backend_manager.zig");
+const interface = @import("../graphics/backends/interface.zig");
+const types = @import("../graphics/types.zig");
 
 pub const DemoApp = struct {
     allocator: std.mem.Allocator,

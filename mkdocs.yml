@@ -1,0 +1,39 @@
+site_name: MFS Engine
+site_description: Cross-platform game engine and rendering framework
+site_url: https://github.com/username/mfs
+repo_url: https://github.com/username/mfs
+repo_name: MFS Engine
+
+theme:
+  name: material
+  palette:
+    primary: indigo
+    accent: deep purple
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - footnotes
+  - meta
+  - pymdownx.arithmatex
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences

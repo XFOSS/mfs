@@ -1,5 +1,5 @@
 const std = @import("std");
-const working_vulkan = @import("vulkan/working_vulkan.zig");
+const working_vulkan = @import("../vulkan/working_vulkan.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

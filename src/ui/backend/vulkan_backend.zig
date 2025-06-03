@@ -32,10 +32,18 @@ pub const VulkanContext = struct {
     current_frame: usize,
     width: u32,
     height: u32,
-    hwnd: *anyopaque,
+    hwnd: usize,
 
-    // Image and texture cache
-    images: std.AutoHashMap(usize, ImageResource),
+    // Error tracking
+    last_error: ?[]const u8,
+    validation_enabled: bool,
+
+    // Memory tracking
+    total_memory_allocated: usize,
+    memory_allocations: std.AutoHashMap(u64, usize),
+
+    // Image resources
+    images: std.AutoHashMap(u32, ImageResource),
     descriptor_pool: vk.DescriptorPool,
     descriptor_set_layout: vk.DescriptorSetLayout,
     descriptor_sets: []vk.DescriptorSet,
@@ -629,7 +637,13 @@ fn vulkanResize(ctx: *anyopaque, width: u32, height: u32) void {
     backend.resize(width, height);
 }
 
-pub const vulkan_backend_interface = interface.BackendInterface{
+// Helper function to get last error from context
+fn vulkanGetLastError(ctx: *anyopaque) ?[]const u8 {
+    const context = @ptrCast(*VulkanContext, @alignCast(@alignOf(VulkanContext), ctx));
+    return context.last_error;
+}
+
+pub vulkan_backend_interface interface.BackendInterface{
     .init_fn = vulkanInit,
     .deinit_fn = vulkanDeinit,
     .begin_frame_fn = vulkanBeginFrame,
@@ -639,5 +653,6 @@ pub const vulkan_backend_interface = interface.BackendInterface{
     .destroy_image_fn = vulkanDestroyImage,
     .get_text_size_fn = vulkanGetTextSize,
     .resize_fn = vulkanResize,
+    .get_last_error_fn = vulkanGetLastError,
     .backend_type = .vulkan,
 };
