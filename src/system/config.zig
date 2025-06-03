@@ -164,7 +164,7 @@ pub const Config = struct {
 // Parse command-line arguments to create config
 pub fn parseConfig(allocator: std.mem.Allocator) !Config {
     var config = Config{};
-    
+
     var args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
@@ -256,10 +256,10 @@ fn printHelp() void {
 test "config validation" {
     var config = Config{};
     try config.validate();
-    
+
     config.memory_budget_mb = 32;
     try std.testing.expectError(error.InsufficientMemoryBudget, config.validate());
-    
+
     config.memory_budget_mb = 128;
     config.target_fps = 300;
     config.max_fps = 240;

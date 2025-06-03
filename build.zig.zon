@@ -63,7 +63,6 @@
         //    // When this is set to `true`, a package is declared to be lazily
         //    // fetched. This makes the dependency only get fetched if it is
         //    // actually used.
-        //    .lazy = false,
         //},
     },
 
@@ -79,10 +78,10 @@
         "build.zig",
         "build.zig.zon",
         "src",
-        "tools",
-        "shaders",
-        "scripts",
-        "examples",
+        // "tools",
+        // "shaders",
+        // "scripts",
+        // "examples",
         //"LICENSE",
         "README.md",
     },

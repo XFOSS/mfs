@@ -1,3 +1,8 @@
+//! MFS Engine Main Module
+//! Provides the core application entry point and lifecycle management
+//! @thread-safe Thread safety is managed per-component
+//! @symbol Public engine interface
+
 const std = @import("std");
 const builtin = @import("builtin");
 const nyx = @import("../nyx_std.zig");
@@ -28,6 +33,8 @@ else
 const log = std.log.scoped(.main);
 
 // Plugin system architecture
+/// @thread-safe Thread-safe plugin interface
+/// @symbol Public plugin API
 const PluginInterface = struct {
     name: []const u8,
     version: Version,
@@ -50,6 +57,8 @@ const PluginInterface = struct {
 };
 
 // Enhanced configuration with validation and serialization
+/// @thread-safe Configuration can be accessed concurrently for reading, but requires exclusive access for writing
+/// @symbol Public configuration interface
 const Config = struct {
     // Core subsystems
     enable_gpu: bool = true,
@@ -158,6 +167,9 @@ const Config = struct {
         debug,
     };
 
+    /// Validates configuration parameters
+    /// @thread-safe Thread-safe validation (performs no mutation)
+    /// @symbol Public validation API
     pub fn validate(self: *const Config) !void {
         if (self.target_fps == 0 or self.target_fps > self.max_fps) {
             return error.InvalidFrameRate;
@@ -173,27 +185,45 @@ const Config = struct {
         }
     }
 
+    /// Saves configuration to a file
+    /// @thread-safe Not thread-safe, requires external synchronization
+    /// @symbol Public serialization API
     pub fn saveToFile(self: *const Config, allocator: std.mem.Allocator, path: []const u8) !void {
         const json_string = try std.json.stringifyAlloc(allocator, self, .{ .whitespace = .indent_2 });
         defer allocator.free(json_string);
 
-        try std.fs.cwd().writeFile(.{ .sub_path = path, .data = json_string });
+        var file = try std.fs.cwd().createFile(path, .{});
+        defer file.close();
+
+        try file.writeAll(json_string);
     }
 
+    /// Loads configuration from a file
+    /// @thread-safe Thread-safe for reading the file, but requires external synchronization for updating shared config
+    /// @symbol Public deserialization API
     pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) !Config {
-        const file_data = try std.fs.cwd().readFileAlloc(allocator, path, 1024 * 1024);
+        // Check if file exists first
+        const file = std.fs.cwd().openFile(path, .{}) catch |err| {
+            log.err("Failed to open config file '{s}': {s}", .{ path, @errorName(err) });
+            return err;
+        };
+        defer file.close();
+
+        const file_data = try file.readToEndAlloc(allocator, 1024 * 1024);
         defer allocator.free(file_data);
 
         const parsed = try std.json.parseFromSlice(Config, allocator, file_data, .{});
         defer parsed.deinit();
 
-        const config = parsed.value;
+        var config = parsed.value;
         try config.validate();
         return config;
     }
 };
 
 // Advanced performance monitoring system
+/// @thread-safe Thread-safe performance monitoring with internal synchronization
+/// @symbol Public performance monitoring interface
 const PerformanceMonitor = struct {
     allocator: std.mem.Allocator,
     frame_times: std.RingBuffer,

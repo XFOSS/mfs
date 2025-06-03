@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 const build_options = @import("build_options");
 
 const backend_manager = @import("backend_manager.zig");
+const resource_manager = @import("resource_manager.zig");
 const interface = @import("backends/interface.zig");
 pub const BackendType = interface.BackendType;
 pub const IndexFormat = interface.IndexFormat;
@@ -18,6 +19,11 @@ pub const Shader = types.Shader;
 pub const Buffer = types.Buffer;
 pub const RenderTarget = types.RenderTarget;
 
+// Pipeline management
+const pipeline_state = @import("pipeline_state.zig");
+pub const PipelineState = pipeline_state.PipelineState;
+pub const PipelineStateCache = pipeline_state.PipelineStateCache;
+
 pub const Error = error{
     NoSuitableBackendFound,
     BackendInitializationFailed,
@@ -26,6 +32,8 @@ pub const Error = error{
     InvalidOperation,
     OutOfMemory,
     UnsupportedFeature,
+    ResourceManagerNotInitialized,
+    PipelineCacheNotInitialized,
 } || types.GraphicsError;
 
 pub const SwapChainOptions = struct {
@@ -135,6 +143,7 @@ pub const Pipeline = struct {
 
 // Global state
 var initialized = false;
+var frame_counter: u64 = 0;
 var default_allocator: std.mem.Allocator = undefined;
 var backend: ?*interface.GraphicsBackend = null;
 var backend_mgr: ?*backend_manager.BackendManager = null;

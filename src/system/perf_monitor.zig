@@ -134,7 +134,7 @@ pub const PerformanceMonitor = struct {
 
         var sum: f64 = 0.0;
         var count: usize = 0;
-        
+
         var iter = self.frame_times.constIterator();
         while (iter.next()) |frame_time| {
             sum += frame_time.*;
@@ -150,7 +150,7 @@ pub const PerformanceMonitor = struct {
         }
 
         var min_time: f64 = std.math.floatMax(f64);
-        
+
         var iter = self.frame_times.constIterator();
         while (iter.next()) |frame_time| {
             min_time = @min(min_time, frame_time.*);
@@ -165,7 +165,7 @@ pub const PerformanceMonitor = struct {
         }
 
         var max_time: f64 = 0.0;
-        
+
         var iter = self.frame_times.constIterator();
         while (iter.next()) |frame_time| {
             max_time = @max(max_time, frame_time.*);
@@ -203,9 +203,7 @@ pub fn reportPerformanceStats(monitor: *PerformanceMonitor) void {
     const stats = monitor.getStats();
     std.log.info("=== Performance Report ===", .{});
     std.log.info("Uptime: {d:.2} seconds", .{stats.uptime_seconds});
-    std.log.info("FPS: {d:.1} (min: {d:.1}, max: {d:.1})", .{ 
-        stats.average_fps, stats.min_fps, stats.max_fps 
-    });
+    std.log.info("FPS: {d:.1} (min: {d:.1}, max: {d:.1})", .{ stats.average_fps, stats.min_fps, stats.max_fps });
     std.log.info("Memory: {d} MB", .{stats.memory_usage_mb});
     std.log.info("CPU Usage: {d:.1}%", .{stats.cpu_usage_percent});
     std.log.info("GPU Usage: {d:.1}%", .{stats.gpu_usage_percent});
@@ -214,16 +212,16 @@ pub fn reportPerformanceStats(monitor: *PerformanceMonitor) void {
 
 test "performance monitor" {
     const allocator = std.testing.allocator;
-    
+
     var monitor = try PerformanceMonitor.init(allocator);
     defer monitor.deinit();
-    
+
     // Record some sample frames
     for (0..100) |i| {
         const frame_time = 16.7 + @as(f64, @floatFromInt(i % 10));
         try monitor.recordFrame(frame_time, 1000);
     }
-    
+
     const stats = monitor.getStats();
     try std.testing.expect(stats.average_fps > 0.0);
     try std.testing.expect(stats.memory_usage_mb >= 0);

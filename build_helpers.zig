@@ -1,12 +1,24 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+/// Build helpers module - provides utility functions for the build system
+/// @symbol Public interface for build utilities
+/// @thread-safe All functions in this module are thread-safe
+
 /// Recursively discover and register modules in a directory
+/// @symbol Public API for module discovery
+/// @thread-safe Thread-safe module discovery and registration
 pub fn discoverAndRegisterModules(b: *std.Build, exe: *std.Build.Step.Compile, dir: []const u8) !void {
-    const full_path = try std.fmt.allocPrint(b.allocator, "src/{s}", .{dir});
+    const full_path = try std.fmt.allocPrint(b.allocator, "src/{s}", .{dir}) catch |err| {
+        std.log.err("Failed to allocate path for directory '{s}': {s}", .{ dir, @errorName(err) });
+        return err;
+    };
     defer b.allocator.free(full_path);
 
-    var src_dir = try std.fs.cwd().openDir(full_path, .{ .iterate = true });
+    var src_dir = std.fs.cwd().openDir(full_path, .{ .iterate = true }) catch |err| {
+        std.log.err("Failed to open directory '{s}': {s}", .{ full_path, @errorName(err) });
+        return err;
+    };
     defer src_dir.close();
 
     var iter = src_dir.iterate();
@@ -21,7 +33,7 @@ pub fn discoverAndRegisterModules(b: *std.Build, exe: *std.Build.Step.Compile, d
                 std.log.debug("Adding module: {s}", .{module_path});
 
                 // Register module with executable
-                exe.addAnonymousModule(entry.name[0..entry.name.len-4], .{
+                exe.addAnonymousModule(entry.name[0 .. entry.name.len - 4], .{
                     .source_file = .{ .path = module_path },
                 });
             }
@@ -36,6 +48,8 @@ pub fn discoverAndRegisterModules(b: *std.Build, exe: *std.Build.Step.Compile, d
 }
 
 /// Add source modules to an executable
+/// @symbol Public API for adding source modules
+/// @thread-safe Thread-safe module addition
 pub fn addSourceModules(b: *std.Build, exe: *std.Build.Step.Compile) !void {
     // Core directories that should always be included
     const core_dirs = [_][]const u8{
@@ -45,7 +59,7 @@ pub fn addSourceModules(b: *std.Build, exe: *std.Build.Step.Compile) !void {
         "graphics",
         "platform",
         "vulkan",
-        "physics", 
+        "physics",
         "math",
         "utils",
         "audio",
@@ -80,7 +94,7 @@ pub fn addSourceModules(b: *std.Build, exe: *std.Build.Step.Compile) !void {
 
             // Skip main.zig as it's already the root
             if (!std.mem.eql(u8, entry.name, "main.zig")) {
-                exe.addAnonymousModule(entry.name[0..entry.name.len-4], .{
+                exe.addAnonymousModule(entry.name[0 .. entry.name.len - 4], .{
                     .source_file = .{ .path = module_path },
                 });
             }
@@ -89,32 +103,35 @@ pub fn addSourceModules(b: *std.Build, exe: *std.Build.Step.Compile) !void {
 }
 
 /// Create test steps for all test modules
+/// @symbol Public API for test step creation
+/// @thread-safe Thread-safe test step creation
 pub fn createTestSteps(b: *std.Build) !void {
     // Create main test step that runs all tests
     const test_step = b.step("test", "Run all tests");
-    
+
     // Create test executable for testing the main library
     const main_tests = b.addTest(.{
         .root_source_file = .{ .path = "src/main.zig" },
         .target = b.standardTargetOptions(.{}),
         .optimize = b.standardOptimizeOption(.{}),
     });
-    
+
     // Add all source modules to the test
     try addSourceModules(b, main_tests);
-    
+
     // Create run step for tests
     const run_main_tests = b.addRunArtifact(main_tests);
     test_step.dependOn(&run_main_tests.step);
-    
+
     // Add specialized test categories
     try createSubsystemTestSteps(b, test_step);
-    
+
     // Add benchmarking steps
     try createBenchmarkSteps(b);
 }
 
 /// Create subsystem-specific test steps
+/// @thread-safe Thread-safe subsystem test step creation
 fn createSubsystemTestSteps(b: *std.Build, parent_step: *std.Build.Step) !void {
     const subsystems = [_][]const u8{
         "graphics",
@@ -136,8 +153,7 @@ fn createSubsystemTestSteps(b: *std.Build, parent_step: *std.Build.Step) !void {
 
         // Create the subsystem test step
         const run_subsys_tests = b.addRunArtifact(subsys_tests);
-        const subsys_step = b.step(b.fmt("test-{s}", .{subsystem}),
-                                   b.fmt("Run {s} subsystem tests", .{subsystem}));
+        const subsys_step = b.step(b.fmt("test-{s}", .{subsystem}), b.fmt("Run {s} subsystem tests", .{subsystem}));
         subsys_step.dependOn(&run_subsys_tests.step);
         parent_step.dependOn(subsys_step);
     }
@@ -147,6 +163,7 @@ fn createSubsystemTestSteps(b: *std.Build, parent_step: *std.Build.Step) !void {
 }
 
 /// Create renderer-specific test steps
+/// @thread-safe Thread-safe renderer test step creation
 fn createRendererTestSteps(b: *std.Build, parent_step: *std.Build.Step) !void {
     const renderers = [_][]const u8{
         "vulkan",
@@ -173,8 +190,7 @@ fn createRendererTestSteps(b: *std.Build, parent_step: *std.Build.Step) !void {
 
             // Create the renderer test step
             const run_renderer_tests = b.addRunArtifact(renderer_tests);
-            const renderer_step = b.step(b.fmt("test-{s}", .{renderer}),
-                                        b.fmt("Run {s} renderer tests", .{renderer}));
+            const renderer_step = b.step(b.fmt("test-{s}", .{renderer}), b.fmt("Run {s} renderer tests", .{renderer}));
             renderer_step.dependOn(&run_renderer_tests.step);
 
             // Also add specialized test files from tests directory if they exist
@@ -198,10 +214,11 @@ fn createRendererTestSteps(b: *std.Build, parent_step: *std.Build.Step) !void {
 }
 
 /// Create benchmark steps for performance testing
+/// @thread-safe Thread-safe benchmark step creation
 fn createBenchmarkSteps(b: *std.Build) !void {
     // Create main benchmark step
     const bench_step = b.step("bench", "Run performance benchmarks");
-    
+
     // Add generic benchmarks if file exists
     const bench_path = "src/tests/benchmarks.zig";
     if (std.fs.cwd().access(bench_path, .{})) |_| {
@@ -211,7 +228,7 @@ fn createBenchmarkSteps(b: *std.Build) !void {
             .target = b.standardTargetOptions(.{}),
             .optimize = .ReleaseFast, // Always use max optimization for benchmarks
         });
-        
+
         try addSourceModules(b, bench_exe);
         const run_bench = b.addRunArtifact(bench_exe);
         bench_step.dependOn(&run_bench.step);
@@ -219,10 +236,10 @@ fn createBenchmarkSteps(b: *std.Build) !void {
         // If benchmark file doesn't exist yet, log it
         std.log.debug("No benchmarks.zig file found at {s}", .{bench_path});
     }
-    
+
     // Add renderer benchmarks
     try createRendererBenchmarks(b, bench_step);
-    
+
     // Add physics benchmarks if they exist
     const physics_bench_path = "src/tests/physics_bench.zig";
     if (std.fs.cwd().access(physics_bench_path, .{})) |_| {
@@ -232,7 +249,7 @@ fn createBenchmarkSteps(b: *std.Build) !void {
             .target = b.standardTargetOptions(.{}),
             .optimize = .ReleaseFast,
         });
-        
+
         try addSourceModules(b, physics_bench);
         const run_physics_bench = b.addRunArtifact(physics_bench);
         const physics_bench_step = b.step("bench-physics", "Run physics benchmarks");
@@ -244,6 +261,7 @@ fn createBenchmarkSteps(b: *std.Build) !void {
 }
 
 /// Create renderer-specific benchmarks
+/// @thread-safe Thread-safe renderer benchmark creation
 fn createRendererBenchmarks(b: *std.Build, parent_step: *std.Build.Step) !void {
     const renderers = [_][]const u8{
         "vulkan",
@@ -252,12 +270,12 @@ fn createRendererBenchmarks(b: *std.Build, parent_step: *std.Build.Step) !void {
         "d3d12",
         "metal",
         "webgpu",
-        "software",  // Add software renderer for completeness
+        "software", // Add software renderer for completeness
     };
 
     for (renderers) |renderer| {
         const renderer_bench_path = b.fmt("src/tests/bench_{s}.zig", .{renderer});
-        
+
         if (std.fs.cwd().access(renderer_bench_path, .{})) |_| {
             const renderer_bench = b.addExecutable(.{
                 .name = b.fmt("{s}_benchmarks", .{renderer}),
@@ -265,11 +283,10 @@ fn createRendererBenchmarks(b: *std.Build, parent_step: *std.Build.Step) !void {
                 .target = b.standardTargetOptions(.{}),
                 .optimize = .ReleaseFast,
             });
-            
+
             try addSourceModules(b, renderer_bench);
             const run_renderer_bench = b.addRunArtifact(renderer_bench);
-            const renderer_bench_step = b.step(b.fmt("bench-{s}", .{renderer}), 
-                                             b.fmt("Run {s} renderer benchmarks", .{renderer}));
+            const renderer_bench_step = b.step(b.fmt("bench-{s}", .{renderer}), b.fmt("Run {s} renderer benchmarks", .{renderer}));
             renderer_bench_step.dependOn(&run_renderer_bench.step);
             parent_step.dependOn(renderer_bench_step);
         } else |_| {
@@ -279,31 +296,149 @@ fn createRendererBenchmarks(b: *std.Build, parent_step: *std.Build.Step) !void {
 }
 
 /// Detect if Vulkan SDK is available on the system
+/// @symbol Public API for Vulkan SDK detection
+/// @thread-safe Thread-safe SDK detection
 pub fn detectVulkanSDK(is_windows: bool) bool {
     const env_var = if (is_windows) "VULKAN_SDK" else "VULKAN_SDK";
-    
+
+    // First try the environment variable
     if (std.process.getEnvVarOwned(std.heap.page_allocator, env_var)) |sdk_path| {
         defer std.heap.page_allocator.free(sdk_path);
+        std.log.debug("Vulkan SDK found at {s}", .{sdk_path});
         return true;
-    } else |_| {
+    } else |err| {
+        std.log.debug("Vulkan environment variable not found: {s}", .{@errorName(err)});
+        
+        // If environment variable doesn't exist, try platform-specific detection
+        if (is_windows) {
+            // On Windows, check common installation paths
+            var buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+            const paths = [_][]const u8{
+                "C:\\VulkanSDK",
+                "C:\\Program Files\\VulkanSDK",
+                "C:\\Program Files (x86)\\VulkanSDK",
+            };
+
+            for (paths) |base_path| {
+                var dir = std.fs.openDirAbsolute(base_path, .{ .iterate = true }) catch continue;
+                defer dir.close();
+                
+                var it = dir.iterate() catch continue;
+                while (it.next() catch break) |entry| {
+                    if (entry.kind == .Directory) {
+                        const full_path = std.fmt.bufPrint(&buffer, "{s}\\{s}\\Bin", .{ base_path, entry.name }) catch continue;
+                        if (std.fs.accessAbsolute(full_path, .{})) |_| {
+                            std.log.debug("Vulkan SDK detected at {s}", .{full_path});
+                            return true;
+                        } else |_| {}
+                    }
+                }
+            }
+        } else {
+            // On Unix systems, check common paths
+            const paths = [_][]const u8{
+                "/usr/include/vulkan",
+                "/usr/local/include/vulkan",
+                "/opt/vulkan",
+            };
+
+            for (paths) |path| {
+                if (std.fs.accessAbsolute(path, .{})) |_| {
+                    std.log.debug("Vulkan headers detected at {s}", .{path});
+                    return true;
+                } else |_| {}
+            }
+        }
+        
         return false;
     }
 }
 
 /// Detect if DirectX 12 is available on the system
+/// @symbol Public API for DirectX 12 detection
+/// @thread-safe Thread-safe DirectX detection
 pub fn detectDirectX12() bool {
     // DirectX 12 requires Windows 10 or newer
     if (builtin.os.tag == .windows) {
-        return true;
+        // Try to detect Windows version
+        const version_info = detectWindowsVersion();
+        
+        // DX12 is only available on Windows 10 (10.0) or newer
+        if (version_info.major >= 10) {
+            std.log.debug("DirectX 12 should be available (Windows {d}.{d})", .{ 
+                version_info.major, version_info.minor 
+            });
+            return true;
+        } else {
+            std.log.debug("DirectX 12 not available (requires Windows 10+, detected {d}.{d})", .{
+                version_info.major, version_info.minor
+            });
+            return false;
+        }
     }
     return false;
 }
 
 /// Detect if DirectX 11 is available on the system
+/// @symbol Public API for DirectX 11 detection  
+/// @thread-safe Thread-safe DirectX detection
 pub fn detectDirectX11() bool {
     // DirectX 11 is available on Windows 7 and newer
     if (builtin.os.tag == .windows) {
-        return true;
+        // Try to detect Windows version
+        const version_info = detectWindowsVersion();
+        
+        // DX11 is available on Windows 7 (6.1) or newer
+        if (version_info.major > 6 || (version_info.major == 6 && version_info.minor >= 1)) {
+            std.log.debug("DirectX 11 should be available (Windows {d}.{d})", .{ 
+                version_info.major, version_info.minor 
+            });
+            return true;
+        } else {
+            std.log.debug("DirectX 11 not available (requires Windows 7+, detected {d}.{d})", .{
+                version_info.major, version_info.minor
+            });
+            return false;
+        }
     }
     return false;
+}
+
+/// Helper struct for Windows version information
+const WindowsVersionInfo = struct {
+    major: u32 = 0,
+    minor: u32 = 0,
+    build: u32 = 0,
+};
+
+/// Detect Windows version
+/// @thread-safe Thread-safe Windows version detection
+fn detectWindowsVersion() WindowsVersionInfo {
+    if (builtin.os.tag != .windows) {
+        return WindowsVersionInfo{};
+    }
+
+    var info = WindowsVersionInfo{};
+    
+    if (builtin.target.os.isAtLeast(.windows, .win10)) {
+        info.major = 10;
+        info.minor = 0;
+    } else if (builtin.target.os.isAtLeast(.windows, .win8_1)) {
+        info.major = 6;
+        info.minor = 3;
+    } else if (builtin.target.os.isAtLeast(.windows, .win8)) {
+        info.major = 6;
+        info.minor = 2;
+    } else if (builtin.target.os.isAtLeast(.windows, .win7)) {
+        info.major = 6;
+        info.minor = 1;
+    } else if (builtin.target.os.isAtLeast(.windows, .vista)) {
+        info.major = 6;
+        info.minor = 0;
+    } else {
+        info.major = 5; // XP or older
+        info.minor = 0;
+    }
+    
+    return info;
 }

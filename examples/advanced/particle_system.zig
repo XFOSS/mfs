@@ -34,7 +34,7 @@ const Particle = struct {
         self.life -= delta_time;
         self.position = self.position.add(self.velocity.scale(delta_time));
         self.velocity = self.velocity.add(math.Vec3.new(0.0, -9.8 * delta_time, 0.0)); // Apply gravity
-        
+
         // Fade out based on remaining life
         self.color.a = self.life / self.max_life;
     }
@@ -84,7 +84,7 @@ const ParticleEmitter = struct {
         while (i < self.particles.items.len) {
             var particle = &self.particles.items[i];
             particle.update(delta_time);
-            
+
             if (!particle.isAlive()) {
                 // Remove dead particles by swapping with the last element
                 _ = self.particles.swapRemove(i);
@@ -113,42 +113,31 @@ const ParticleEmitter = struct {
         // Generate random direction within spread cone
         const angle1 = random.float(f32) * std.math.tau;
         const angle2 = random.float(f32) * self.spread;
-        
+
         const x = @sin(angle2) * @cos(angle1);
         const y = @cos(angle2);
         const z = @sin(angle2) * @sin(angle1);
-        
+
         var direction = self.direction;
         if (direction.length() < 0.001) {
             direction = math.Vec3.new(0.0, 1.0, 0.0);
         }
-        
+
         // Create quaternion from up vector to direction
         const up = math.Vec3.new(0.0, 1.0, 0.0);
         const rotation = math.Quat.fromTwoVectors(up, direction.normalize());
         const random_dir = rotation.rotate(math.Vec3.new(x, y, z));
-        
+
         // Create particle with random variations
         const speed_var = self.particle_speed * (0.8 + random.float(f32) * 0.4);
         const size_var = self.particle_size * (0.8 + random.float(f32) * 0.4);
         const life_var = self.particle_life * (0.8 + random.float(f32) * 0.4);
-        
-        const color_var = math.Vec4.new(
-            self.particle_color.x * (0.9 + random.float(f32) * 0.2),
-            self.particle_color.y * (0.9 + random.float(f32) * 0.2),
-            self.particle_color.z * (0.9 + random.float(f32) * 0.2),
-            self.particle_color.w
-        );
-        
+
+        const color_var = math.Vec4.new(self.particle_color.x * (0.9 + random.float(f32) * 0.2), self.particle_color.y * (0.9 + random.float(f32) * 0.2), self.particle_color.z * (0.9 + random.float(f32) * 0.2), self.particle_color.w);
+
         const velocity = random_dir.scale(speed_var);
-        
-        try self.particles.append(Particle.init(
-            self.position,
-            velocity,
-            color_var,
-            size_var, 
-            life_var
-        ));
+
+        try self.particles.append(Particle.init(self.position, velocity, color_var, size_var, life_var));
     }
 
     pub fn setPosition(self: *ParticleEmitter, position: math.Vec3) void {
@@ -159,13 +148,7 @@ const ParticleEmitter = struct {
         self.direction = direction;
     }
 
-    pub fn setParticleProperties(
-        self: *ParticleEmitter, 
-        color: math.Vec4, 
-        size: f32, 
-        life: f32, 
-        speed: f32
-    ) void {
+    pub fn setParticleProperties(self: *ParticleEmitter, color: math.Vec4, size: f32, life: f32, speed: f32) void {
         self.particle_color = color;
         self.particle_size = size;
         self.particle_life = life;
@@ -237,12 +220,12 @@ const ParticleSystemDemo = struct {
 
     pub fn deinit(self: *ParticleSystemDemo) void {
         self.destroyResources();
-        
+
         for (self.particle_emitters.items) |*emitter| {
             emitter.deinit();
         }
         self.particle_emitters.deinit();
-        
+
         self.engine.deinit();
         self.allocator.destroy(self);
     }
@@ -292,11 +275,10 @@ const ParticleSystemDemo = struct {
         var fire_emitter = try ParticleEmitter.init(self.allocator, 1000);
         fire_emitter.setPosition(math.Vec3.new(0.0, 0.0, 0.0));
         fire_emitter.setDirection(math.Vec3.new(0.0, 1.0, 0.0));
-        fire_emitter.setParticleProperties(
-            math.Vec4.new(1.0, 0.5, 0.0, 1.0), // Orange
-            0.5,  // Size
-            1.5,  // Life
-            3.0   // Speed
+        fire_emitter.setParticleProperties(math.Vec4.new(1.0, 0.5, 0.0, 1.0), // Orange
+            0.5, // Size
+            1.5, // Life
+            3.0 // Speed
         );
         fire_emitter.setEmissionRate(40.0);
         try fire_emitter.burst(50);
@@ -306,11 +288,10 @@ const ParticleSystemDemo = struct {
         var smoke_emitter = try ParticleEmitter.init(self.allocator, 500);
         smoke_emitter.setPosition(math.Vec3.new(0.0, 0.8, 0.0));
         smoke_emitter.setDirection(math.Vec3.new(0.0, 1.0, 0.0));
-        smoke_emitter.setParticleProperties(
-            math.Vec4.new(0.6, 0.6, 0.6, 0.3), // Gray
-            1.0,  // Size
-            3.0,  // Life
-            1.5   // Speed
+        smoke_emitter.setParticleProperties(math.Vec4.new(0.6, 0.6, 0.6, 0.3), // Gray
+            1.0, // Size
+            3.0, // Life
+            1.5 // Speed
         );
         smoke_emitter.setEmissionRate(20.0);
         try self.particle_emitters.append(smoke_emitter);
@@ -319,11 +300,10 @@ const ParticleSystemDemo = struct {
         var fountain_emitter = try ParticleEmitter.init(self.allocator, 1000);
         fountain_emitter.setPosition(math.Vec3.new(-5.0, 0.0, -5.0));
         fountain_emitter.setDirection(math.Vec3.new(0.0, 1.0, 0.0));
-        fountain_emitter.setParticleProperties(
-            math.Vec4.new(0.2, 0.4, 1.0, 1.0), // Blue
-            0.3,  // Size
-            4.0,  // Life
-            8.0   // Speed
+        fountain_emitter.setParticleProperties(math.Vec4.new(0.2, 0.4, 1.0, 1.0), // Blue
+            0.3, // Size
+            4.0, // Life
+            8.0 // Speed
         );
         fountain_emitter.setEmissionRate(60.0);
         try self.particle_emitters.append(fountain_emitter);
@@ -333,11 +313,10 @@ const ParticleSystemDemo = struct {
         explosion_emitter.setPosition(math.Vec3.new(5.0, 0.0, 5.0));
         explosion_emitter.setDirection(math.Vec3.new(0.0, 0.0, 0.0));
         explosion_emitter.spread = std.math.pi; // Full sphere emission
-        explosion_emitter.setParticleProperties(
-            math.Vec4.new(1.0, 0.3, 0.0, 1.0), // Orange-red
-            0.4,  // Size
-            2.0,  // Life
-            10.0  // Speed
+        explosion_emitter.setParticleProperties(math.Vec4.new(1.0, 0.3, 0.0, 1.0), // Orange-red
+            0.4, // Size
+            2.0, // Life
+            10.0 // Speed
         );
         explosion_emitter.is_active = false; // Only bursts
         try explosion_emitter.burst(200);
@@ -384,22 +363,21 @@ const ParticleSystemDemo = struct {
             // Create a ray from the camera through the mouse position
             const mouse_pos = input.getMousePosition();
             const ray = self.camera.screenPointToRay(mouse_pos.x, mouse_pos.y);
-            
+
             // Create a temporary particle burst at the ray direction
             var burst_emitter = try ParticleEmitter.init(self.allocator, 100);
             defer burst_emitter.deinit();
-            
+
             burst_emitter.setPosition(ray.origin.add(ray.direction.scale(5.0)));
             burst_emitter.setDirection(math.Vec3.new(0.0, 1.0, 0.0));
-            burst_emitter.setParticleProperties(
-                math.Vec4.new(0.0, 1.0, 0.5, 1.0), // Turquoise
-                0.3,  // Size
-                1.0,  // Life
-                5.0   // Speed
+            burst_emitter.setParticleProperties(math.Vec4.new(0.0, 1.0, 0.5, 1.0), // Turquoise
+                0.3, // Size
+                1.0, // Life
+                5.0 // Speed
             );
             burst_emitter.is_active = false;
             try burst_emitter.burst(50);
-            
+
             try self.particle_emitters.append(burst_emitter);
         }
     }
@@ -426,7 +404,7 @@ const ParticleSystemDemo = struct {
         for (self.particle_emitters.items) |emitter| {
             for (emitter.particles.items) |particle| {
                 if (instance_count >= self.max_instances) break;
-                
+
                 instance_data[instance_count] = .{
                     .position = .{
                         particle.position.x,
@@ -460,13 +438,13 @@ const ParticleSystemDemo = struct {
         while (!self.engine.shouldClose()) {
             // Get delta time
             const delta_time = self.engine.getDeltaTime();
-            
+
             // Update
             try self.update(delta_time);
-            
+
             // Render
             try self.render();
-            
+
             // Poll events
             try self.engine.pollEvents();
         }

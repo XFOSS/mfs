@@ -101,9 +101,9 @@ pub const Benchmarker = struct {
 
         const iterations = self.config.iterations;
         const warmup_iterations = self.config.warmup_iterations;
-        
+
         // Warmup phase
-        std.debug.print("Warming up {s} for {d} iterations...\n", .{name, warmup_iterations});
+        std.debug.print("Warming up {s} for {d} iterations...\n", .{ name, warmup_iterations });
         var i: u32 = 0;
         while (i < warmup_iterations) : (i += 1) {
             // Call the function based on its parameter count
@@ -115,7 +115,7 @@ pub const Benchmarker = struct {
         }
 
         // Actual benchmark
-        std.debug.print("Running {s} for {d} iterations...\n", .{name, iterations});
+        std.debug.print("Running {s} for {d} iterations...\n", .{ name, iterations });
 
         var times = try self.config.allocator.alloc(u64, iterations);
         defer self.config.allocator.free(times);
@@ -188,7 +188,7 @@ pub const Benchmarker = struct {
         defer file.close();
 
         const writer = file.writer();
-        
+
         switch (self.config.output) {
             .console => {
                 // Already printed to console
@@ -196,7 +196,7 @@ pub const Benchmarker = struct {
             .csv => {
                 // Write CSV header
                 try writer.writeAll("name,median_ns,mean_ns,min_ns,max_ns,std_dev,iterations,warmup_iterations,date\n");
-                
+
                 // Write data rows
                 for (self.results.items) |result| {
                     try writer.print("{s},{d},{d},{d},{d},{d},{d},{d},{d}\n", .{
@@ -215,7 +215,7 @@ pub const Benchmarker = struct {
             .json => {
                 // Simple JSON serialization
                 try writer.writeAll("[\n");
-                
+
                 for (self.results.items, 0..) |result, i| {
                     if (i > 0) try writer.writeAll(",\n");
                     try writer.print(
@@ -244,7 +244,7 @@ pub const Benchmarker = struct {
                         },
                     );
                 }
-                
+
                 try writer.writeAll("\n]");
             },
         }
@@ -256,7 +256,7 @@ pub const Benchmarker = struct {
 fn benchmarkVectorMath() void {
     var v1 = math.Vec3.new(1.0, 2.0, 3.0);
     var v2 = math.Vec3.new(4.0, 5.0, 6.0);
-    
+
     var result = v1.add(v2);
     result = result.scale(2.0);
     result = result.normalize();
@@ -269,13 +269,13 @@ fn benchmarkMatrixMath() void {
     m1 = m1.translate(math.Vec3.new(1.0, 2.0, 3.0));
     m1 = m1.rotate(math.Vec3.new(0.0, 1.0, 0.0), 0.5);
     m1 = m1.scale(math.Vec3.new(2.0, 2.0, 2.0));
-    
+
     var m2 = math.Mat4.lookAt(
         math.Vec3.new(0.0, 5.0, 10.0),
         math.Vec3.new(0.0, 0.0, 0.0),
         math.Vec3.new(0.0, 1.0, 0.0),
     );
-    
+
     _ = m1.mul(m2);
     _ = m1.invert();
 }
@@ -283,13 +283,13 @@ fn benchmarkMatrixMath() void {
 fn benchmarkMemoryAllocations(iter: u32) void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
-    
+
     const allocator = arena.allocator();
-    
+
     // Simulate allocation patterns from engine components
     const size = (iter % 10 + 1) * 1024;
     const mem = allocator.alloc(u8, size) catch unreachable;
-    
+
     // Do some work with the memory to prevent optimization
     @memset(mem, @intCast(iter % 256));
 }
@@ -301,7 +301,7 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     // Create benchmark suite
     var benchmarker = try Benchmarker.init(.{
         .name = "MFS Engine Core Benchmarks",
@@ -312,24 +312,24 @@ pub fn main() !void {
         .allocator = allocator,
     });
     defer benchmarker.deinit();
-    
+
     // Run benchmarks
     try benchmarker.benchmark("Vector Math Operations", benchmarkVectorMath);
     try benchmarker.benchmark("Matrix Math Operations", benchmarkMatrixMath);
     try benchmarker.benchmark("Memory Allocation Patterns", benchmarkMemoryAllocations);
-    
+
     // Add physics benchmark if available
     if (@hasDecl(physics, "benchmarkPhysicsSimulation")) {
         try benchmarker.benchmark("Physics Simulation", physics.benchmarkPhysicsSimulation);
     }
-    
+
     // Save results to file
     try benchmarker.saveResults();
 }
 
 test "benchmarker basic functionality" {
     const testing = std.testing;
-    
+
     var benchmarker = try Benchmarker.init(.{
         .name = "Test Benchmark",
         .iterations = 100,
@@ -337,10 +337,10 @@ test "benchmarker basic functionality" {
         .allocator = testing.allocator,
     });
     defer benchmarker.deinit();
-    
+
     // Simple function to benchmark
     const result = try benchmarker.benchmark("Vector Addition", benchmarkVectorMath);
-    
+
     try testing.expect(result.median_ns > 0);
     try testing.expect(result.iterations == 100);
 }

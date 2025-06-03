@@ -17,7 +17,7 @@ pub const MemoryCategory = enum {
     UI,
     Scene,
     AI,
-    
+
     pub fn toString(self: MemoryCategory) []const u8 {
         return switch (self) {
             .General => "General",
@@ -47,21 +47,21 @@ pub fn createTrackedGPA() !TrackedGPA {
 pub const TrackedGPA = struct {
     gpa: std.heap.GeneralPurposeAllocator(.{}),
     tracked: TrackedAllocator,
-    
+
     pub fn init(backing_allocator: std.mem.Allocator, category: MemoryCategory) !TrackedGPA {
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
         var tracked = TrackedAllocator.init(gpa.allocator(), category.toString());
-        
+
         return TrackedGPA{
             .gpa = gpa,
             .tracked = tracked,
         };
     }
-    
+
     pub fn allocator(self: *TrackedGPA) std.mem.Allocator {
         return self.tracked.allocator();
     }
-    
+
     pub fn deinit(self: *TrackedGPA) bool {
         // Return leak detection status
         return self.gpa.deinit();
@@ -71,14 +71,14 @@ pub const TrackedGPA = struct {
 /// Track a memory allocation
 pub fn trackAlloc(ptr: ?*anyopaque, size: usize, category: MemoryCategory) void {
     if (!enable_memory_profiling) return;
-    
+
     Profiler.trackAllocation(ptr, size, category.toString(), null, null);
 }
 
 /// Track a memory deallocation
 pub fn trackFree(ptr: ?*anyopaque) void {
     if (!enable_memory_profiling) return;
-    
+
     Profiler.trackDeallocation(ptr);
 }
 

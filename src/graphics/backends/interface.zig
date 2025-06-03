@@ -1,7 +1,10 @@
 const std = @import("std");
+const gpu = @import("gpu");
 const types = @import("../types.zig");
 const capabilities = @import("../../platform/capabilities.zig");
 
+/// Error types for graphics backend operations
+/// @symbol Error types for backend implementations
 pub const GraphicsBackendError = error{
     InitializationFailed,
     DeviceCreationFailed,
@@ -14,8 +17,13 @@ pub const GraphicsBackendError = error{
     BackendNotAvailable,
 };
 
+/// Graphics backend type mapping to capabilities
+/// @symbol Backend type identification
 pub const BackendType = capabilities.GraphicsBackend;
 
+/// Swap chain configuration descriptor
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Swap chain configuration
 pub const SwapChainDesc = struct {
     width: u32,
     height: u32,
@@ -25,6 +33,9 @@ pub const SwapChainDesc = struct {
     window_handle: ?*anyopaque = null,
 };
 
+/// Render pass configuration descriptor
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Render pass configuration
 pub const RenderPassDesc = struct {
     color_targets: []const ColorTargetDesc = &.{},
     depth_target: ?DepthTargetDesc = null,
@@ -33,6 +44,9 @@ pub const RenderPassDesc = struct {
     clear_stencil: u32 = 0,
 };
 
+/// Color render target configuration descriptor
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Color target configuration
 pub const ColorTargetDesc = struct {
     texture: *types.Texture,
     mip_level: u32 = 0,
@@ -41,6 +55,9 @@ pub const ColorTargetDesc = struct {
     store_action: StoreAction = .store,
 };
 
+/// Depth stencil render target configuration descriptor
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Depth target configuration
 pub const DepthTargetDesc = struct {
     texture: *types.Texture,
     mip_level: u32 = 0,
@@ -51,18 +68,25 @@ pub const DepthTargetDesc = struct {
     stencil_store_action: StoreAction = .store,
 };
 
+/// Render target load action
+/// @symbol Render target load operations
 pub const LoadAction = enum {
     load,
     clear,
     dont_care,
 };
 
+/// Render target store action
+/// @symbol Render target store operations
 pub const StoreAction = enum {
     store,
     dont_care,
     resolve,
 };
 
+/// Graphics pipeline configuration descriptor
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Pipeline configuration
 pub const PipelineDesc = struct {
     vertex_shader: ?*types.Shader = null,
     fragment_shader: ?*types.Shader = null,
@@ -83,12 +107,17 @@ pub const VertexLayout = struct {
     stride: u32 = 0,
 };
 
+/// Vertex attribute descriptor for shader inputs
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Vertex attribute configuration
 pub const VertexAttribute = struct {
     location: u32,
     format: VertexFormat,
     offset: u32,
 };
 
+/// Supported vertex attribute data formats
+/// @symbol Vertex data format types
 pub const VertexFormat = enum {
     float1,
     float2,
@@ -110,6 +139,9 @@ pub const VertexFormat = enum {
     half4,
 };
 
+/// Pipeline blend state configuration
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Blend state configuration
 pub const BlendState = struct {
     enabled: bool = false,
     src_color: BlendFactor = .one,
@@ -121,6 +153,8 @@ pub const BlendState = struct {
     color_mask: ColorMask = .all,
 };
 
+/// Blend factors for color/alpha blending
+/// @symbol Blend factor enumeration
 pub const BlendFactor = enum {
     zero,
     one,
@@ -138,6 +172,8 @@ pub const BlendFactor = enum {
     inv_blend_alpha,
 };
 
+/// Blend operations for color/alpha blending
+/// @symbol Blend operation enumeration
 pub const BlendOp = enum {
     add,
     subtract,
@@ -146,6 +182,8 @@ pub const BlendOp = enum {
     max,
 };
 
+/// Color write mask for render targets
+/// @symbol Color component write control
 pub const ColorMask = packed struct {
     r: bool = true,
     g: bool = true,
@@ -156,6 +194,9 @@ pub const ColorMask = packed struct {
     pub const none = ColorMask{ .r = false, .g = false, .b = false, .a = false };
 };
 
+/// Depth and stencil test configuration
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Depth stencil state configuration
 pub const DepthStencilState = struct {
     depth_test_enabled: bool = false,
     depth_write_enabled: bool = true,
@@ -167,6 +208,9 @@ pub const DepthStencilState = struct {
     back_face: StencilOp = .{},
 };
 
+/// Stencil operation configuration
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Stencil operation configuration
 pub const StencilOp = struct {
     fail: StencilAction = .keep,
     depth_fail: StencilAction = .keep,
@@ -174,6 +218,8 @@ pub const StencilOp = struct {
     compare: CompareFunc = .always,
 };
 
+/// Stencil operations for different test outcomes
+/// @symbol Stencil action enumeration
 pub const StencilAction = enum {
     keep,
     zero,
@@ -185,6 +231,8 @@ pub const StencilAction = enum {
     decr_wrap,
 };
 
+/// Comparison functions for depth/stencil tests
+/// @symbol Comparison function enumeration
 pub const CompareFunc = enum {
     never,
     less,
@@ -196,6 +244,9 @@ pub const CompareFunc = enum {
     always,
 };
 
+/// Rasterizer configuration for primitive assembly and processing
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Rasterizer state configuration
 pub const RasterizerState = struct {
     fill_mode: FillMode = .solid,
     cull_mode: CullMode = .back,
@@ -209,23 +260,31 @@ pub const RasterizerState = struct {
     antialiased_line_enabled: bool = false,
 };
 
+/// Polygon fill modes
+/// @symbol Fill mode enumeration
 pub const FillMode = enum {
     solid,
     wireframe,
     point,
 };
 
+/// Face culling modes
+/// @symbol Cull mode enumeration
 pub const CullMode = enum {
     none,
     front,
     back,
 };
 
+/// Front face vertex winding order
+/// @symbol Front face enumeration
 pub const FrontFace = enum {
     clockwise,
     counter_clockwise,
 };
 
+/// Primitive topology types for vertex assembly
+/// @symbol Primitive topology enumeration
 pub const PrimitiveTopology = enum {
     points,
     lines,
@@ -240,6 +299,9 @@ pub const PrimitiveTopology = enum {
     patches,
 };
 
+/// Non-indexed draw command parameters
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Draw command parameters
 pub const DrawCommand = struct {
     vertex_count: u32,
     instance_count: u32 = 1,
@@ -247,6 +309,9 @@ pub const DrawCommand = struct {
     first_instance: u32 = 0,
 };
 
+/// Indexed draw command parameters
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Indexed draw command parameters
 pub const DrawIndexedCommand = struct {
     index_count: u32,
     instance_count: u32 = 1,
@@ -255,18 +320,27 @@ pub const DrawIndexedCommand = struct {
     first_instance: u32 = 0,
 };
 
+/// Compute dispatch command parameters
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Compute dispatch parameters
 pub const DispatchCommand = struct {
     group_count_x: u32,
     group_count_y: u32 = 1,
     group_count_z: u32 = 1,
 };
 
+/// Buffer copy operation parameters
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Buffer copy region parameters
 pub const BufferCopyRegion = struct {
     src_offset: u64 = 0,
     dst_offset: u64 = 0,
     size: u64,
 };
 
+/// Texture copy operation parameters
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Texture copy region parameters
 pub const TextureCopyRegion = struct {
     src_offset: [3]u32 = .{ 0, 0, 0 },
     dst_offset: [3]u32 = .{ 0, 0, 0 },
@@ -278,6 +352,9 @@ pub const TextureCopyRegion = struct {
     array_layer_count: u32 = 1,
 };
 
+/// Resource state transition barrier
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Resource barrier parameters
 pub const ResourceBarrier = struct {
     resource: ResourceHandle,
     old_state: ResourceState,
@@ -285,11 +362,16 @@ pub const ResourceBarrier = struct {
     subresource: SubresourceRange = .{},
 };
 
+/// Unified resource handle for debug operations
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Resource handle wrapper
 pub const ResourceHandle = union(enum) {
     buffer: *types.Buffer,
     texture: *types.Texture,
 };
 
+/// Resource usage states for synchronization
+/// @symbol Resource state enumeration
 pub const ResourceState = enum {
     undefined,
     common,
@@ -306,6 +388,9 @@ pub const ResourceState = enum {
     present,
 };
 
+/// Texture subresource range specification
+/// @thread-safe Thread-compatible data structure passed to thread-safe functions
+/// @symbol Subresource range parameters
 pub const SubresourceRange = struct {
     first_mip_level: u32 = 0,
     mip_level_count: u32 = std.math.maxInt(u32),
@@ -313,6 +398,9 @@ pub const SubresourceRange = struct {
     array_slice_count: u32 = std.math.maxInt(u32),
 };
 
+/// Pipeline state object 
+/// @thread-safe Not thread-safe, external synchronization required
+/// @symbol Graphics pipeline object
 pub const Pipeline = struct {
     id: u32,
     backend_handle: *anyopaque,
@@ -323,6 +411,9 @@ pub const Pipeline = struct {
     }
 };
 
+/// Command buffer object
+/// @thread-safe Not thread-safe, external synchronization required
+/// @symbol Graphics command buffer
 pub const CommandBuffer = struct {
     id: u32,
     backend_handle: *anyopaque,
@@ -334,6 +425,9 @@ pub const CommandBuffer = struct {
     }
 };
 
+/// Abstract graphics backend interface
+/// @thread-safe Depends on implementation, generally not thread-safe
+/// @symbol Graphics backend wrapper
 pub const GraphicsBackend = struct {
     allocator: std.mem.Allocator,
     backend_type: BackendType,
@@ -408,6 +502,9 @@ pub const GraphicsBackend = struct {
         end_debug_group: *const fn (impl: *anyopaque, cmd: *CommandBuffer) GraphicsBackendError!void,
     };
 
+    /// Clean up the graphics backend
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public backend cleanup API
     pub fn deinit(self: *Self) void {
         if (!self.initialized) return;
         self.vtable.deinit(self.impl_data);
@@ -415,6 +512,9 @@ pub const GraphicsBackend = struct {
     }
 
     // SwapChain management
+    /// Create a swap chain for presenting to a window
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public swap chain creation API
     pub fn createSwapChain(self: *Self, desc: *const SwapChainDesc) GraphicsBackendError!void {
         return self.vtable.create_swap_chain(self.impl_data, desc);
     }
@@ -584,11 +684,16 @@ pub const GraphicsBackend = struct {
     }
 };
 
+/// Index buffer data formats
+/// @symbol Index format enumeration
 pub const IndexFormat = enum {
     uint16,
     uint32,
 };
 
+/// Graphics backend capability and information structure
+/// @thread-safe Thread-compatible data structure
+/// @symbol Backend information structure
 pub const BackendInfo = struct {
     name: []const u8,
     version: []const u8,

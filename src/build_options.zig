@@ -9,8 +9,8 @@ pub const is_windows = builtin.os.tag == .windows;
 pub const is_macos = builtin.os.tag == .macos;
 pub const is_linux = builtin.os.tag == .linux;
 pub const is_web = builtin.os.tag == .wasi or builtin.os.tag == .emscripten;
-pub const is_mobile = false;  // Set by build system for iOS/Android targets
-pub const is_desktop = true;  // Default to desktop
+pub const is_mobile = false; // Set by build system for iOS/Android targets
+pub const is_desktop = true; // Default to desktop
 
 // Backend availability - defaults will be overridden by build system
 pub const vulkan_available = true;

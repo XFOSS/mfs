@@ -833,3 +833,10 @@ pub const TextInput = struct {
             .end => {
                 if (modifiers.shift) {
                     if (self.selection_start == null) {
+                        self.selection_start = self.cursor_pos;
+                    }
+                } else {
+                    self.selection_start = null;
+                }
+                self.cursor_pos = self.text.items.len;
+                return true;

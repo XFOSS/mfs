@@ -49,16 +49,16 @@ pub const MAX_HISTORY_ENTRIES = 256;
 
 /// Color definitions for different profile categories
 pub const Colors = struct {
-    pub const Rendering = 0x2E86C1;  // Blue
-    pub const Physics = 0x28B463;    // Green
-    pub const Audio = 0x8E44AD;      // Purple
-    pub const IO = 0xD35400;         // Orange
-    pub const Logic = 0xF1C40F;      // Yellow
-    pub const Memory = 0xE74C3C;     // Red
-    pub const System = 0x7F8C8D;     // Gray
-    pub const Network = 0x9B59B6;    // Violet
-    pub const AI = 0x2ECC71;         // Emerald
-    pub const UI = 0x3498DB;         // Light Blue
+    pub const Rendering = 0x2E86C1; // Blue
+    pub const Physics = 0x28B463; // Green
+    pub const Audio = 0x8E44AD; // Purple
+    pub const IO = 0xD35400; // Orange
+    pub const Logic = 0xF1C40F; // Yellow
+    pub const Memory = 0xE74C3C; // Red
+    pub const System = 0x7F8C8D; // Gray
+    pub const Network = 0x9B59B6; // Violet
+    pub const AI = 0x2ECC71; // Emerald
+    pub const UI = 0x3498DB; // Light Blue
 };
 
 /// Identifies a specific profiling zone
@@ -169,7 +169,7 @@ pub const Profiler = struct {
         total_allocated = 0;
         global_timer = try Timer.start();
         is_initialized = true;
-        
+
         // Start tracking memory usage immediately
         try trackCounter("Memory Used", 0);
         try markEvent("Profiler Initialized");
@@ -183,7 +183,7 @@ pub const Profiler = struct {
         {
             mutexes.memory.lock();
             defer mutexes.memory.unlock();
-            
+
             // Free source file and category strings
             var it = memory_allocations.valueIterator();
             while (it.next()) |alloc| {
@@ -195,7 +195,7 @@ pub const Profiler = struct {
                     allocator.?.free(alloc.category);
                 }
             }
-            
+
             memory_allocations.deinit();
         }
 
@@ -236,7 +236,7 @@ pub const Profiler = struct {
         }
 
         // Create the entry
-        const zone_id = @intCast(ZoneId, entries.items.len + 1);  // 1-based IDs, 0 is invalid
+        const zone_id = @intCast(ZoneId, entries.items.len + 1); // 1-based IDs, 0 is invalid
         zone_stack[stack_pos] = zone_id;
 
         // Get parent from zone stack if we have one
@@ -364,11 +364,7 @@ pub const Profiler = struct {
 
             const to_remove = entries.items.len - MAX_HISTORY_ENTRIES;
             if (to_remove > 0) {
-                std.mem.copy(
-                    ProfileEntry,
-                    entries.items[0..entries.items.len-to_remove],
-                    entries.items[to_remove..]
-                );
+                std.mem.copy(ProfileEntry, entries.items[0 .. entries.items.len - to_remove], entries.items[to_remove..]);
                 entries.shrinkRetainingCapacity(entries.items.len - to_remove);
             }
         }
@@ -379,11 +375,7 @@ pub const Profiler = struct {
 
             const to_remove = counters.items.len - MAX_HISTORY_ENTRIES;
             if (to_remove > 0) {
-                std.mem.copy(
-                    CounterEntry,
-                    counters.items[0..counters.items.len-to_remove],
-                    counters.items[to_remove..]
-                );
+                std.mem.copy(CounterEntry, counters.items[0 .. counters.items.len - to_remove], counters.items[to_remove..]);
                 counters.shrinkRetainingCapacity(counters.items.len - to_remove);
             }
         }
@@ -399,10 +391,10 @@ pub const Profiler = struct {
 
         mutexes.memory.lock();
         defer mutexes.memory.unlock();
-        
+
         // Track total allocated memory
         total_allocated += size;
-        
+
         // Store allocation record
         const alloc = MemoryAllocation{
             .ptr = ptr.?,
@@ -413,20 +405,20 @@ pub const Profiler = struct {
             .source_line = line,
             .category = if (category) |c| allocator.?.dupe(u8, c) catch "default" else "default",
         };
-        
+
         // Limit number of tracked allocations to avoid memory exhaustion
         if (memory_allocations.count() < MAX_MEMORY_ALLOCATIONS) {
             memory_allocations.put(ptr.?, alloc) catch {};
         }
-        
+
         // Update counter - we catch and ignore errors here since this function has void return
         _ = trackCounter("Memory Used", @as(f64, @floatFromInt(total_allocated))) catch {};
-        
+
         // Track allocation by category if we have one
         if (category) |cat| {
             const counter_name = std.fmt.allocPrint(allocator.?, "Memory: {s}", .{cat}) catch "Memory: unknown";
             defer if (std.mem.eql(u8, counter_name, "Memory: unknown")) {} else allocator.?.free(counter_name);
-            
+
             _ = trackCounter(counter_name, @as(f64, @floatFromInt(size))) catch {};
         }
     }
@@ -450,12 +442,12 @@ pub const Profiler = struct {
 
             // Update counter - ignore errors since this function has void return
             _ = trackCounter("Memory Used", @as(f64, @floatFromInt(total_allocated))) catch {};
-            
+
             // Track deallocation by category if we have one
             if (alloc.category.len > 0) {
                 const counter_name = std.fmt.allocPrint(allocator.?, "Memory: {s}", .{alloc.category}) catch "Memory: unknown";
                 defer if (std.mem.eql(u8, counter_name, "Memory: unknown")) {} else allocator.?.free(counter_name);
-                
+
                 // Use negative value to track deallocations
                 _ = trackCounter(counter_name, -@as(f64, @floatFromInt(alloc.size))) catch {};
             }
@@ -556,7 +548,7 @@ pub const Profiler = struct {
             });
         }
         mutexes.counters.unlock();
-        
+
         // Write memory allocations
         mutexes.memory.lock();
         var it = memory_allocations.valueIterator();
@@ -569,7 +561,7 @@ pub const Profiler = struct {
                 alloc.thread_id,
                 if (alloc.source_file) |f| f else "unknown",
             });
-            
+
             // Write deallocation if present
             if (alloc.freed and alloc.free_timestamp != null) {
                 try writer.print("{d},free,\"{s}\",{d},{d},0,{s}\n", .{
@@ -643,18 +635,11 @@ pub const TrackedAllocator = struct {
         ret_addr: usize,
     ) ?[*]u8 {
         const self = @ptrCast(*TrackedAllocator, @alignCast(@alignOf(TrackedAllocator), ctx));
-        const result = self.parent_allocator.vtable.alloc(
-            self.parent_allocator.ptr, len, log2_ptr_align, ret_addr
-        );
+        const result = self.parent_allocator.vtable.alloc(self.parent_allocator.ptr, len, log2_ptr_align, ret_addr);
 
         if (result != null) {
-            Profiler.trackAllocation(
-                result,
-                len,
-                self.category,
-                null, // TODO: Capture source location in future versions
-                null
-            );
+            Profiler.trackAllocation(result, len, self.category, null, // TODO: Capture source location in future versions
+                null);
         }
 
         return result;
@@ -672,9 +657,7 @@ pub const TrackedAllocator = struct {
         // If growing, count as new allocation
         if (new_len > buf.len) {
             Profiler.trackDeallocation(buf.ptr);
-            const result = self.parent_allocator.vtable.resize(
-                self.parent_allocator.ptr, buf, log2_buf_align, new_len, ret_addr
-            );
+            const result = self.parent_allocator.vtable.resize(self.parent_allocator.ptr, buf, log2_buf_align, new_len, ret_addr);
 
             if (result) {
                 Profiler.trackAllocation(buf.ptr, new_len);
@@ -683,9 +666,7 @@ pub const TrackedAllocator = struct {
             return result;
         } else {
             // If shrinking, just let it happen
-            return self.parent_allocator.vtable.resize(
-                self.parent_allocator.ptr, buf, log2_buf_align, new_len, ret_addr
-            );
+            return self.parent_allocator.vtable.resize(self.parent_allocator.ptr, buf, log2_buf_align, new_len, ret_addr);
         }
     }
 
@@ -697,13 +678,10 @@ pub const TrackedAllocator = struct {
     ) void {
         const self = @ptrCast(*TrackedAllocator, @alignCast(@alignOf(TrackedAllocator), ctx));
         Profiler.trackDeallocation(buf.ptr);
-        self.parent_allocator.vtable.free(
-            self.parent_allocator.ptr, buf, log2_buf_align, ret_addr
-        );
+        self.parent_allocator.vtable.free(self.parent_allocator.ptr, buf, log2_buf_align, ret_addr);
     }
 };
 
-/// Test the profiler functionality
 test "basic profiling" {
     // Initialize the profiler
     try Profiler.init(std.testing.allocator);

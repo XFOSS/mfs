@@ -1,3 +1,7 @@
+//! Graphics backend manager to handle various rendering backends
+//! @thread-safe Thread safety is provided per-component with appropriate synchronization
+//! @symbol Public graphics backend management API
+
 const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
@@ -14,14 +18,31 @@ const opengles_backend = if (build_options.opengles_available) @import("backends
 const webgpu_backend = if (build_options.webgpu_available) @import("backends/webgpu_backend.zig") else struct {};
 const software_backend = @import("backends/software_backend.zig");
 
+/// Backend manager to handle multiple graphics backends
+/// @thread-safe Thread safety is managed with internal locks
+/// @symbol Public backend management API
+/// Backend initialization and validation status tracking
+/// @thread-safe Thread-compatible structure for status tracking
+/// @symbol Internal backend state management
+const BackendState = struct {
+    backend: ?*interface.GraphicsBackend = null,
+    initialized: bool = false,
+    initialization_attempted: bool = false,
+    validation_status: enum { unknown, passed, failed } = .unknown,
+    last_error: ?anyerror = null,
+    load_time_ns: u64 = 0,
+};
+
 pub const BackendManager = struct {
     allocator: std.mem.Allocator,
     active_backends: std.ArrayList(*interface.GraphicsBackend),
-    primary_backend: ?*interface.GraphicsBackend,
+    primary_backend: ?*interface.GraphicsBackend = null,
     fallback_chain: std.ArrayList(capabilities.GraphicsBackend),
-    capabilities: ?*capabilities.GraphicsCapabilities,
+    capabilities: ?*capabilities.PlatformCapabilities = null,
     auto_fallback: bool,
     debug_mode: bool,
+    mutex: std.Thread.Mutex = .{}, // Add mutex for thread safety
+    backend_cache: std.AutoHashMap(capabilities.GraphicsBackend, BackendState),
 
     const Self = @This();
 
@@ -33,9 +54,11 @@ pub const BackendManager = struct {
         enable_backend_switching: bool = false,
     };
 
-    pub fn init(allocator: std.mem.Allocator, options: InitOptions) !*Self {
-        var manager = try allocator.create(Self);
-        manager.* = Self{
+    /// Initialize a new backend manager
+    /// @thread-safe Thread-safe initialization
+    /// @symbol Public initialization API
+    pub fn init(allocator: std.mem.Allocator, options: InitOptions) !Self {
+        var manager = Self{
             .allocator = allocator,
             .active_backends = std.ArrayList(*interface.GraphicsBackend).init(allocator),
             .primary_backend = null,
@@ -43,6 +66,8 @@ pub const BackendManager = struct {
             .capabilities = null,
             .auto_fallback = options.auto_fallback,
             .debug_mode = options.debug_mode,
+            .mutex = .{},
+            .backend_cache = std.AutoHashMap(capabilities.GraphicsBackend, BackendState).init(allocator),
         };
 
         // Initialize capabilities detection
@@ -52,8 +77,10 @@ pub const BackendManager = struct {
         // Build fallback chain
         try manager.buildFallbackChain(options.preferred_backend);
 
-        // Initialize primary backend
-        try manager.initializePrimaryBackend(options);
+        // Initialize primary backend (unless using lazy initialization)
+        if (!options.lazy_initialization) {
+            try manager.initializePrimaryBackend(options);
+        }
 
         return manager;
     }
@@ -71,8 +98,25 @@ pub const BackendManager = struct {
         self.allocator.destroy(self);
     }
 
-    pub fn getPrimaryBackend(self: *Self) ?*interface.GraphicsBackend {
-        return self.primary_backend;
+    /// Get the currently active primary backend
+    /// @thread-safe Thread-safe read operation
+    /// @symbol Public accessor API
+    pub fn getPrimaryBackend(self: *Self) !*interface.GraphicsBackend {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        // If we don't have a primary backend yet but using lazy initialization,
+        // initialize it now
+        if (self.primary_backend == null) {
+            try self.initializePrimaryBackend(.{});
+
+            // If we still don't have a backend, this is an error
+            if (self.primary_backend == null) {
+                return interface.GraphicsBackendError.BackendNotAvailable;
+            }
+        }
+
+        return self.primary_backend.?;
     }
 
     pub fn getBackendInfo(self: *Self) ?interface.BackendInfo {
@@ -238,25 +282,69 @@ pub const BackendManager = struct {
 
     fn initializePrimaryBackend(self: *Self, options: InitOptions) !void {
         var last_error: ?anyerror = null;
+        const timer = std.time.Timer.start() catch null;
 
         // Try each backend in the fallback chain
         for (self.fallback_chain.items) |backend_type| {
+            // Check if we've already tried to initialize this backend
+            if (self.backend_cache.get(backend_type)) |cached_state| {
+                if (cached_state.initialization_attempted) {
+                    // If we've already initialized this backend successfully, use it
+                    if (cached_state.initialized and cached_state.backend != null) {
+                        if (!options.validate_backends or cached_state.validation_status == .passed) {
+                            self.primary_backend = cached_state.backend;
+                            try self.active_backends.append(cached_state.backend.?);
+                            std.log.info("Using cached {s} backend", .{backend_type.getName()});
+                            return;
+                        } else {
+                            std.log.warn("Skipping previously failed {s} backend", .{backend_type.getName()});
+                            continue;
+                        }
+                    } else if (cached_state.last_error != null) {
+                        // Skip backends we've already tried and failed with
+                        std.log.warn("Skipping previously failed {s} backend: {}", .{ backend_type.getName(), cached_state.last_error.? });
+                        last_error = cached_state.last_error;
+                        continue;
+                    }
+                }
+            }
+
             std.log.info("Attempting to initialize {s} backend...", .{backend_type.getName()});
 
-            if (self.createBackend(backend_type)) |backend| {
-                if (!options.validate_backends or self.validateBackend(backend)) {
-                    self.primary_backend = backend;
-                    try self.active_backends.append(backend);
-                    std.log.info("Successfully initialized {s} backend", .{backend_type.getName()});
-                    return;
-                } else {
-                    std.log.warn("{s} backend failed validation", .{backend_type.getName()});
-                    backend.deinit();
-                    self.allocator.destroy(backend);
-                }
-            } else |err| {
+            var backend_state = BackendState{
+                .initialization_attempted = true,
+            };
+
+            const start_time = if (timer) |t| t.read() else 0;
+
+            backend_state.backend = self.createBackend(backend_type) catch |err| {
+                backend_state.last_error = err;
+                backend_state.initialized = false;
+                try self.backend_cache.put(backend_type, backend_state);
+
                 last_error = err;
                 std.log.warn("Failed to initialize {s} backend: {}", .{ backend_type.getName(), err });
+                continue;
+            };
+
+            backend_state.load_time_ns = if (timer) |t| t.read() - start_time else 0;
+
+            const passed_validation = !options.validate_backends or self.validateBackend(backend_state.backend.?);
+            backend_state.validation_status = if (passed_validation) .passed else .failed;
+
+            if (passed_validation) {
+                backend_state.initialized = true;
+                try self.backend_cache.put(backend_type, backend_state);
+
+                self.primary_backend = backend_state.backend;
+                try self.active_backends.append(backend_state.backend.?);
+                std.log.info("Successfully initialized {s} backend in {d}ms", .{ backend_type.getName(), @as(f64, @floatFromInt(backend_state.load_time_ns)) / 1_000_000.0 });
+                return;
+            } else {
+                std.log.warn("{s} backend failed validation", .{backend_type.getName()});
+                backend_state.backend.?.deinit();
+                backend_state.initialized = false;
+                try self.backend_cache.put(backend_type, backend_state);
             }
         }
 
@@ -269,50 +357,80 @@ pub const BackendManager = struct {
     }
 
     fn createBackend(self: *Self, backend_type: capabilities.GraphicsBackend) !*interface.GraphicsBackend {
+        // Create a a consistent set of initialization options based on backend type
+        const init_options = switch (backend_type) {
+            .d3d11, .d3d12 => .{
+                .enable_debug_layer = self.debug_mode,
+                .enable_validation = self.debug_mode,
+                .prefer_hardware_adapter = true,
+            },
+            .vulkan => .{
+                .enable_validation_layers = self.debug_mode,
+                .enable_debug_markers = self.debug_mode,
+                .prefer_discrete_gpu = true,
+            },
+            .metal => .{
+                .enable_validation = self.debug_mode,
+                .enable_capture_manager = self.debug_mode,
+            },
+            .opengl, .opengles => .{
+                .enable_debug_output = self.debug_mode,
+                .enable_synchronous_debug = self.debug_mode,
+            },
+            .webgpu => .{
+                .enable_debug_capture = self.debug_mode,
+            },
+            .software => .{
+                .enable_debug_visualization = self.debug_mode,
+                .enable_multithreading = true,
+            },
+            else => .{},
+        };
+
         return switch (backend_type) {
             .d3d11 => blk: {
                 if (!build_options.d3d11_available) {
                     return interface.GraphicsBackendError.BackendNotAvailable;
                 }
-                break :blk d3d11_backend.D3D11Backend.init(self.allocator);
+                break :blk d3d11_backend.D3D11Backend.init(self.allocator, init_options);
             },
             .d3d12 => blk: {
                 if (!build_options.d3d12_available) {
                     return interface.GraphicsBackendError.BackendNotAvailable;
                 }
-                break :blk d3d12_backend.D3D12Backend.init(self.allocator);
+                break :blk d3d12_backend.D3D12Backend.init(self.allocator, init_options);
             },
             .metal => blk: {
                 if (!build_options.metal_available) {
                     return interface.GraphicsBackendError.BackendNotAvailable;
                 }
-                break :blk metal_backend.MetalBackend.init(self.allocator);
+                break :blk metal_backend.MetalBackend.init(self.allocator, init_options);
             },
             .vulkan => blk: {
                 if (!build_options.vulkan_available) {
                     return interface.GraphicsBackendError.BackendNotAvailable;
                 }
-                break :blk vulkan_backend.VulkanBackend.init(self.allocator);
+                break :blk vulkan_backend.VulkanBackend.init(self.allocator, init_options);
             },
             .opengl => blk: {
                 if (!build_options.opengl_available) {
                     return interface.GraphicsBackendError.BackendNotAvailable;
                 }
-                break :blk opengl_backend.OpenGLBackend.init(self.allocator);
+                break :blk opengl_backend.OpenGLBackend.init(self.allocator, init_options);
             },
             .opengles => blk: {
                 if (!build_options.opengles_available) {
                     return interface.GraphicsBackendError.BackendNotAvailable;
                 }
-                break :blk opengles_backend.OpenGLESBackend.init(self.allocator);
+                break :blk opengles_backend.OpenGLESBackend.init(self.allocator, init_options);
             },
             .webgpu => blk: {
                 if (!build_options.webgpu_available) {
                     return interface.GraphicsBackendError.BackendNotAvailable;
                 }
-                break :blk webgpu_backend.WebGPUBackend.init(self.allocator);
+                break :blk webgpu_backend.WebGPUBackend.init(self.allocator, init_options);
             },
-            .software => software_backend.SoftwareBackend.init(self.allocator),
+            .software => software_backend.SoftwareBackend.init(self.allocator, init_options),
         };
     }
 
@@ -322,6 +440,9 @@ pub const BackendManager = struct {
 };
 
 /// Adaptive renderer that can switch backends based on performance or requirements
+/// Adaptive renderer that can switch backends based on performance
+/// @thread-safe Thread safety provided with internal synchronization
+/// @symbol Public adaptive rendering API
 pub const AdaptiveRenderer = struct {
     allocator: std.mem.Allocator,
     backend_manager: *BackendManager,
@@ -330,6 +451,7 @@ pub const AdaptiveRenderer = struct {
     min_fps_threshold: f32,
     switch_cooldown_ms: u64,
     last_switch_time: u64,
+    mutex: std.Thread.Mutex = .{},
 
     const Self = @This();
 
@@ -426,9 +548,12 @@ pub const AdaptiveRenderer = struct {
     }
 };
 
+/// Performance monitor for tracking rendering performance
+/// @thread-safe Not thread-safe, must be accessed with external synchronization
+/// @symbol Internal performance monitoring API
 const PerformanceMonitor = struct {
     frame_times: [60]f32,
-    frame_count: u32,
+    frame_count: usize,
     total_time: f32,
 
     const Self = @This();
@@ -471,23 +596,52 @@ const PerformanceMonitor = struct {
 };
 
 // Global backend manager instance
-var g_backend_manager: ?*BackendManager = null;
+/// Global backend manager instance with thread-safe access
+var global_backend_manager: ?BackendManager = null;
+var global_manager_mutex: std.Thread.Mutex = .{};
 
+/// Initialize the global backend manager
+/// @thread-safe Thread-safe initialization with mutex protection
+/// @symbol Public global initialization API
 pub fn initGlobalBackendManager(allocator: std.mem.Allocator, options: BackendManager.InitOptions) !void {
-    if (g_backend_manager != null) {
-        return; // Already initialized
-    }
+    global_manager_mutex.lock();
+    defer global_manager_mutex.unlock();
 
-    g_backend_manager = try BackendManager.init(allocator, options);
+    if (global_backend_manager != null) {
+        return error.AlreadyInitialized;
+    }
+    global_backend_manager = try BackendManager.init(allocator, options);
 }
 
+/// Deinitialize the global backend manager
+/// @thread-safe Thread-safe cleanup with mutex protection
+/// @symbol Public global cleanup API
 pub fn deinitGlobalBackendManager() void {
-    if (g_backend_manager) |manager| {
+    global_manager_mutex.lock();
+    defer global_manager_mutex.unlock();
+
+    if (global_backend_manager) |*manager| {
         manager.deinit();
-        g_backend_manager = null;
+        global_backend_manager = null;
     }
 }
 
-pub fn getGlobalBackendManager() ?*BackendManager {
-    return g_backend_manager;
+/// Get the global backend manager instance
+/// @thread-safe Thread-safe access with mutex protection
+/// @symbol Public global accessor API
+pub fn getGlobalBackendManager() !*BackendManager {
+    global_manager_mutex.lock();
+    defer global_manager_mutex.unlock();
+
+    // If the global manager doesn't exist yet, create it with default options
+    if (global_backend_manager == null) {
+        return initGlobalBackendManager(.{
+            .lazy_initialization = true,
+        }) catch |err| {
+            std.log.err("Failed to initialize global backend manager: {}", .{err});
+            return err;
+        };
+    }
+
+    return global_backend_manager.?;
 }

@@ -643,7 +643,7 @@ fn vulkanGetLastError(ctx: *anyopaque) ?[]const u8 {
     return context.last_error;
 }
 
-pub vulkan_backend_interface interface.BackendInterface{
+pub const vulkan_backend_interface: interface.BackendInterface = {
     .init_fn = vulkanInit,
     .deinit_fn = vulkanDeinit,
     .begin_frame_fn = vulkanBeginFrame,

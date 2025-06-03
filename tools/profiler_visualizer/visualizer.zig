@@ -155,11 +155,11 @@ const ProfileData = struct {
                 const size = try std.fmt.parseInt(usize, duration_str, 10);
                 const thread_id = try std.fmt.parseInt(u32, thread_id_str, 10);
                 const source_file = try allocator.dupe(u8, color_str);
-                
+
                 if (timestamp > result.max_time) {
                     result.max_time = timestamp;
                 }
-                
+
                 try result.allocations.append(.{
                     .ptr = undefined, // We don't have the actual pointer in the file
                     .size = size,
@@ -410,7 +410,7 @@ pub fn main() !void {
 
         // Draw UI controls
         drawControls(renderer, font, view);
-    
+
         // Draw memory usage view
         drawMemoryView(renderer, font, profile_data, view);
 
@@ -998,7 +998,7 @@ fn drawMemoryView(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: 
         }
 
         peak_memory = @max(peak_memory, total_memory);
-        
+
         memory_points.append(.{
             .timestamp = alloc.timestamp,
             .total = total_memory,
@@ -1011,16 +1011,16 @@ fn drawMemoryView(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: 
         if (font != null) {
             var buf: [64]u8 = undefined;
             const peak_str = std.fmt.bufPrintZ(&buf, "Peak: {d:.2} MB", .{@as(f64, @floatFromInt(peak_memory)) / (1024 * 1024)}) catch continue;
-            
+
             const color = c.SDL_Color{ .r = 200, .g = 200, .b = 200, .a = 255 };
             const surface = c.TTF_RenderText_Blended(font, peak_str, color);
-            
+
             if (surface != null) {
                 defer c.SDL_FreeSurface(surface);
                 const texture = c.SDL_CreateTextureFromSurface(renderer, surface);
                 if (texture != null) {
                     defer c.SDL_DestroyTexture(texture);
-                    
+
                     const rect = c.SDL_Rect{
                         .x = MARGIN + memory_width - surface.*.w - 10,
                         .y = MEMORY_TOP + 5,
@@ -1035,21 +1035,21 @@ fn drawMemoryView(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: 
         // Draw memory usage line graph
         const graph_height = MEMORY_HEIGHT - 40;
         const graph_top = MEMORY_TOP + 30;
-        
+
         _ = c.SDL_SetRenderDrawColor(renderer, 0, 180, 120, 255);
-        
+
         var prev_x: c_int = MARGIN;
         var prev_y: c_int = MEMORY_BOTTOM - 10;
-        
+
         for (memory_points.items) |point| {
             if (point.timestamp < view.view_start or point.timestamp > view.view_start + view.view_range) continue;
-            
+
             const x = timeToX(point.timestamp, view, memory_width);
             const normalized = if (peak_memory > 0) @as(f32, @floatFromInt(point.total)) / @as(f32, @floatFromInt(peak_memory)) else 0;
             const y = graph_top + graph_height - @as(c_int, @intFromFloat(normalized * @as(f32, @floatFromInt(graph_height))));
-            
+
             _ = c.SDL_RenderDrawLine(renderer, prev_x, prev_y, x, y);
-            
+
             prev_x = x;
             prev_y = y;
         }
@@ -1059,17 +1059,17 @@ fn drawMemoryView(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: 
     if (potential_leaks.items.len > 0) {
         const leak_count = @min(potential_leaks.items.len, 5);
         const list_top = MEMORY_BOTTOM - @as(c_int, @intCast(leak_count * 20)) - 5;
-        
+
         if (font != null) {
             const color = c.SDL_Color{ .r = 255, .g = 120, .b = 120, .a = 255 };
             const title_surface = c.TTF_RenderText_Blended(font, "Potential Leaks:", color);
-            
+
             if (title_surface != null) {
                 defer c.SDL_FreeSurface(title_surface);
                 const texture = c.SDL_CreateTextureFromSurface(renderer, title_surface);
                 if (texture != null) {
                     defer c.SDL_DestroyTexture(texture);
-                    
+
                     const rect = c.SDL_Rect{
                         .x = window_width - 300,
                         .y = list_top - 20,
@@ -1079,18 +1079,18 @@ fn drawMemoryView(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: 
                     _ = c.SDL_RenderCopy(renderer, texture, null, &rect);
                 }
             }
-            
+
             for (potential_leaks.items[0..leak_count], 0..) |leak, i| {
                 var buf: [128]u8 = undefined;
-                const leak_str = std.fmt.bufPrintZ(&buf, "{s}: {d} bytes", .{leak.category, leak.size}) catch continue;
-                
+                const leak_str = std.fmt.bufPrintZ(&buf, "{s}: {d} bytes", .{ leak.category, leak.size }) catch continue;
+
                 const leak_surface = c.TTF_RenderText_Blended(font, leak_str, color);
                 if (leak_surface != null) {
                     defer c.SDL_FreeSurface(leak_surface);
                     const texture = c.SDL_CreateTextureFromSurface(renderer, leak_surface);
                     if (texture != null) {
                         defer c.SDL_DestroyTexture(texture);
-                        
+
                         const rect = c.SDL_Rect{
                             .x = window_width - 290,
                             .y = list_top + @as(c_int, @intCast(i * 20)),

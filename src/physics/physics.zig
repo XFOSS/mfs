@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const math = @import("../math/math.zig");
+pub const math = @import("math/math.zig");
 const platform = @import("../platform/platform.zig");
 const Vector = math.Vector;
 const Quaternion = math.Quaternion;
@@ -9,7 +9,7 @@ const MemoryPool = std.heap.MemoryPool;
 
 /// SIMD vector type for 3D physics with optimized alignment
 /// Uses 4 components for better SIMD alignment, where the 4th component is typically 0
-pub const Vec3f = @Vector(4, f32) align(16);
+pub const Vec3f = @Vector(4, f32);
 
 /// Constants for physics calculations
 pub const PhysicsConstants = struct {
@@ -34,7 +34,7 @@ pub const PhysicsConfig = struct {
     cloth_damping: f32 = 0.98,
     constraint_iterations: u32 = 8,
     collision_iterations: u32 = 3,
-    timestep: f32 = 1.0/60.0, // Fixed timestep
+    timestep: f32 = 1.0 / 60.0, // Fixed timestep
     collision_margin: f32 = 0.01, // Small margin to improve numerical stability
     /// Cell size for spatial hashing (0 for auto)
     spatial_cell_size: f32 = 0,
@@ -50,11 +50,11 @@ pub const PhysicsConfig = struct {
 
 /// Types of physical objects in the simulation
 pub const ObjectType = enum(u8) {
-    Particle,   // Simple point mass
-    ClothNode,  // Node in cloth simulation
-    RigidBody,  // Solid body with rotational inertia
-    SoftBody,   // Deformable body
-    Trigger,    // Non-physical collision volume
+    Particle, // Simple point mass
+    ClothNode, // Node in cloth simulation
+    RigidBody, // Solid body with rotational inertia
+    SoftBody, // Deformable body
+    Trigger, // Non-physical collision volume
     StaticBody, // Immovable body
 };
 
@@ -174,11 +174,7 @@ pub const PhysicalObject = struct {
         // Different inertia calculation based on object type
         var rotational_energy: f32 = 0;
         if (self.obj_type == .RigidBody) {
-            rotational_energy = math.calcRotationalEnergy(
-                self.mass,
-                self.collision_radius,
-                angular_vel_sq
-            );
+            rotational_energy = math.calcRotationalEnergy(self.mass, self.collision_radius, angular_vel_sq);
         }
 
         return 0.5 * self.mass * vel_sq + rotational_energy;
@@ -215,7 +211,7 @@ pub const World = struct {
     } = .{},
 
     // Events and callbacks
-    collision_callbacks: std.ArrayList(fn(a: usize, b: usize) void),
+    collision_callbacks: std.ArrayList(fn (a: usize, b: usize) void),
 
     const Self = @This();
 
@@ -239,15 +235,11 @@ pub const World = struct {
             .object_count = 0,
             .constraint_count = 0,
             .initialized = true,
-            .collision_callbacks = std.ArrayList(fn(a: usize, b: usize) void).init(allocator),
+            .collision_callbacks = std.ArrayList(fn (a: usize, b: usize) void).init(allocator),
         };
 
         // Initialize spatial hash with configured parameters
-        world.spatial_hash = try SpatialHashGrid.init(
-            allocator,
-            optimized_config.world_size,
-            optimized_config.spatial_cell_size
-        );
+        world.spatial_hash = try SpatialHashGrid.init(allocator, optimized_config.world_size, optimized_config.spatial_cell_size);
 
         return world;
     }
@@ -283,7 +275,7 @@ pub const World = struct {
     }
 
     /// Register a collision callback function
-    pub fn registerCollisionCallback(self: *Self, callback: fn(a: usize, b: usize) void) !void {
+    pub fn registerCollisionCallback(self: *Self, callback: fn (a: usize, b: usize) void) !void {
         try self.collision_callbacks.append(callback);
     }
 
@@ -321,8 +313,8 @@ pub const World = struct {
         if (self.object_count + rows * cols > self.config.max_objects) return error.NotEnoughSpace;
 
         const total_constraints = (rows - 1) * cols + rows * (cols - 1) +
-                                 (rows - 1) * (cols - 1) * 2 +
-                                 (rows - 2) * cols + rows * (cols - 2);
+            (rows - 1) * (cols - 1) * 2 +
+            (rows - 2) * cols + rows * (cols - 2);
 
         if (self.constraint_count + total_constraints > self.config.max_constraints) {
             return error.NotEnoughConstraintSpace;
@@ -551,10 +543,7 @@ pub const World = struct {
             obj.applyForce(gravity_force);
 
             // Verlet integration with improved numerical stability
-            obj.velocity = Vector.clampMagnitude(
-                (obj.position - obj.old_position) / dt_vec,
-                PhysicsConstants.MAX_VELOCITY
-            );
+            obj.velocity = Vector.clampMagnitude((obj.position - obj.old_position) / dt_vec, PhysicsConstants.MAX_VELOCITY);
             const temp_pos = obj.position;
 
             // Update position with dampening
@@ -622,7 +611,7 @@ pub const World = struct {
                         }
 
                         // Apply friction to lateral velocity
-                        const lateral_vel = Vec3f{obj_a.velocity[0], 0, obj_a.velocity[2], 0};
+                        const lateral_vel = Vec3f{ obj_a.velocity[0], 0, obj_a.velocity[2], 0 };
                         const lateral_speed_sq = Vector.dot3(lateral_vel, lateral_vel);
 
                         if (lateral_speed_sq > PhysicsConstants.EPSILON) {
@@ -650,13 +639,14 @@ pub const World = struct {
 
                     // Skip collision if objects are in different collision groups
                     if ((obj_a.collision_group & obj_b.collision_mask) == 0 and
-                        (obj_b.collision_group & obj_a.collision_mask) == 0) {
+                        (obj_b.collision_group & obj_a.collision_mask) == 0)
+                    {
                         continue;
                     }
 
                     const diff = obj_a.position - obj_b.position;
                     // Ignore w component in distance calculation for 3D objects
-                    const dist_sq = diff[0]*diff[0] + diff[1]*diff[1] + diff[2]*diff[2];
+                    const dist_sq = diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2];
                     const min_dist = obj_a.collision_radius + obj_b.collision_radius;
 
                     if (dist_sq < min_dist * min_dist) {
@@ -720,11 +710,7 @@ pub const World = struct {
                             if (tangent_vel_sq > PhysicsConstants.EPSILON) {
                                 const tangent = Vector.normalize3(tangent_vel);
                                 const friction = @min(obj_a.friction, obj_b.friction);
-                                const friction_impulse = math.clamp(
-                                    friction * impulse,
-                                    0.0,
-                                    @sqrt(tangent_vel_sq)
-                                );
+                                const friction_impulse = math.clamp(friction * impulse, 0.0, @sqrt(tangent_vel_sq));
                                 const friction_vec = tangent * @splat(4, -friction_impulse);
 
                                 if (!obj_a.pinned) {
@@ -747,7 +733,7 @@ pub const World = struct {
     pub fn createRigidBodyBox(self: *Self, position: Vec3f, size: Vec3f, mass: f32) !*PhysicalObject {
         const obj = try self.createObject(position, mass, .RigidBody);
         // Use more accurate inertia tensor calculation for boxes
-        obj.collision_radius = @sqrt(size[0]*size[0] + size[1]*size[1] + size[2]*size[2]) * 0.5;
+        obj.collision_radius = @sqrt(size[0] * size[0] + size[1] * size[1] + size[2] * size[2]) * 0.5;
         return obj;
     }
 
@@ -771,9 +757,7 @@ pub const World = struct {
     pub fn createSoftBody(self: *Self, center: Vec3f, radius: f32, mass: f32, divisions: u32) !void {
         if (platform.hasAdvancedPhysics()) {
             // If platform supports advanced physics, delegate to its implementation
-            return platform.Physics.createTetrahedralMesh(
-                self, center, radius, mass, divisions
-            );
+            return platform.Physics.createTetrahedralMesh(self, center, radius, mass, divisions);
         }
 
         // Fallback implementation - create a simple particle-based soft body
@@ -786,7 +770,7 @@ pub const World = struct {
 
         const particle_mass = mass / @as(f32, @floatFromInt(total_particles));
         const step = radius * 2.0 / @as(f32, @floatFromInt(divisions - 1));
-        const offset = Vec3f{-radius, -radius, -radius, 0};
+        const offset = Vec3f{ -radius, -radius, -radius, 0 };
 
         // Create particles in a grid
         var particles = std.ArrayList(usize).init(self.allocator);
@@ -842,7 +826,7 @@ pub const World = struct {
 
     /// Get performance statistics as a JSON string
     pub fn getPerformanceStats(self: Self, allocator: Allocator) ![]const u8 {
-        return std.json.stringifyAlloc(allocator, self.perf_stats, .{.whitespace = .indent_2});
+        return std.json.stringifyAlloc(allocator, self.perf_stats, .{ .whitespace = .indent_2 });
     }
 };
 
@@ -982,9 +966,7 @@ const SpatialHashGrid = struct {
 
     /// Find the nearest object to the specified position
     /// Takes a callback to calculate actual distances with world objects
-    pub fn findNearest(self: *SpatialHashGrid, pos: Vec3f, max_distance: f32,
-                      distFunc: fn(idx: usize, pos: Vec3f, ctx: anytype) f32,
-                      context: anytype) !?usize {
+    pub fn findNearest(self: *SpatialHashGrid, pos: Vec3f, max_distance: f32, distFunc: fn (idx: usize, pos: Vec3f, ctx: anytype) f32, context: anytype) !?usize {
         const nearby = try self.queryNearby(pos, max_distance);
         defer {
             nearby.clearRetainingCapacity();

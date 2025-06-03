@@ -27,30 +27,40 @@ pub const BufferAllocation = struct {
     size: usize,
 
     /// Update data in this allocation
+    /// @thread-safe Thread safety depends on buffer implementation
+    /// @symbol Public allocation update API
     pub fn update(self: *const BufferAllocation, data: []const u8) !void {
         if (data.len > self.size) return BufferError.Overflow;
         return self.buffer.update(self.offset, data);
     }
 
     /// Update typed data in this allocation
+    /// @thread-safe Thread safety depends on buffer implementation
+    /// @symbol Public typed data update API
     pub fn updateTyped(self: *const BufferAllocation, value: anytype) !void {
         const bytes = std.mem.asBytes(&value);
         return self.update(bytes);
     }
 
     /// Map this allocation for CPU access
+    /// @thread-safe Thread safety depends on buffer implementation
+    /// @symbol Public memory mapping API
     pub fn map(self: *const BufferAllocation) ![]u8 {
         const full_map = try self.buffer.map();
         return full_map[self.offset..self.offset+self.size];
     }
 
     /// Release this allocation back to the pool
+    /// @thread-safe Thread safety depends on buffer implementation
+    /// @symbol Public allocation release API
     pub fn free(self: *const BufferAllocation) void {
         self.buffer.free(self.id);
     }
 };
 
 /// A buffer that uses a ring allocation strategy for frequent updates
+/// @thread-safe Thread-safe with proper frame synchronization
+/// @symbol Ring buffer for per-frame allocations
 pub const RingBuffer = struct {
     allocator: Allocator,
     buffer: *Buffer,
@@ -60,6 +70,9 @@ pub const RingBuffer = struct {
 
     const Self = @This();
 
+    /// Initialize a new ring buffer
+    /// @thread-safe Thread-safe initialization
+    /// @symbol Public ring buffer creation API
     pub fn init(allocator: Allocator, size: usize) !*Self {
         var buffer = try Buffer.init(allocator, size, .ring_buffer, .cpu_to_gpu);
         try buffer.initBuffer();
@@ -74,6 +87,9 @@ pub const RingBuffer = struct {
         return self;
     }
 
+    /// Clean up ring buffer resources
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public ring buffer cleanup API
     pub fn deinit(self: *Self) void {
         var it = self.frame_allocations.iterator();
         while (it.next()) |entry| {
@@ -84,7 +100,9 @@ pub const RingBuffer = struct {
         self.allocator.destroy(self);
     }
 
-    /// Begin a new frame
+    /// Begin a new frame for ring buffer management
+    /// @thread-safe Thread-safe with proper frame synchronization
+    /// @symbol Public frame boundary API
     pub fn beginFrame(self: *Self, frame_number: u64) void {
         self.current_frame = frame_number;
 
@@ -95,6 +113,8 @@ pub const RingBuffer = struct {
     }
 
     /// Allocate a region in the ring buffer
+    /// @thread-safe Thread-safe with proper frame synchronization
+    /// @symbol Public memory allocation API
     pub fn allocate(self: *Self, size: usize, alignment: usize) !BufferAllocation {
         // Align the head pointer
         const aligned_head = (self.head + alignment - 1) & ~(alignment - 1);
@@ -127,6 +147,8 @@ pub const RingBuffer = struct {
     }
 
     /// Record an allocation for the current frame
+    /// @thread-safe Thread-safe with proper frame synchronization
+    /// @symbol Internal allocation tracking API
     fn recordAllocation(self: *Self, offset: usize, size: usize) !void {
         var frame_list = if (self.frame_allocations.get(self.current_frame)) |list|
             list
@@ -139,6 +161,8 @@ pub const RingBuffer = struct {
 };
 
 /// A pool of similar-sized buffers for efficient allocation and reuse
+/// @thread-safe Thread-safe with internal mutex protection
+/// @symbol Buffer pool for resource reuse
 pub const BufferPool = struct {
     allocator: Allocator,
     buffers: std.ArrayList(*Buffer),
@@ -151,6 +175,9 @@ pub const BufferPool = struct {
 
     const Self = @This();
 
+    /// Initialize a buffer pool
+    /// @thread-safe Thread-safe initialization
+    /// @symbol Public buffer pool creation API
     pub fn init(allocator: Allocator, buffer_type: BufferType, buffer_size: usize, access: MemoryAccess) !*Self {
         var self = try allocator.create(Self);
         self.* = Self{
@@ -166,6 +193,9 @@ pub const BufferPool = struct {
         return self;
     }
 
+    /// Clean up buffer pool resources
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public buffer pool cleanup API
     pub fn deinit(self: *Self) void {
         for (self.buffers.items) |buffer| {
             buffer.deinit();
@@ -178,6 +208,8 @@ pub const BufferPool = struct {
     }
 
     /// Get a buffer from the pool
+    /// @thread-safe Thread-safe with internal mutex protection
+    /// @symbol Public buffer acquisition API
     pub fn acquire(self: *Self) !*Buffer {
         self.mutex.lock();
         defer self.mutex.unlock();
@@ -200,6 +232,8 @@ pub const BufferPool = struct {
     }
 
     /// Return a buffer to the pool
+    /// @thread-safe Thread-safe with internal mutex protection
+    /// @symbol Public buffer release API
     pub fn release(self: *Self, buffer: *Buffer) void {
         self.mutex.lock();
         defer self.mutex.unlock();
@@ -211,6 +245,8 @@ pub const BufferPool = struct {
     }
 
     /// Shrink the pool by removing excess free buffers
+    /// @thread-safe Thread-safe with internal mutex protection
+    /// @symbol Public pool management API
     pub fn shrink(self: *Self, max_free: usize) void {
         self.mutex.lock();
         defer self.mutex.unlock();
@@ -233,6 +269,7 @@ pub const BufferPool = struct {
 };
 
 /// BufferType provides a more specific usage classification than the raw BufferUsage
+/// @symbol Buffer type classification
 pub const BufferType = enum {
     vertex,
     index,
@@ -248,6 +285,8 @@ pub const BufferType = enum {
 };
 
 /// BufferUsageFlags defines how a buffer can be used in combination
+/// @thread-safe Thread-compatible structure
+/// @symbol Buffer usage flags
 pub const BufferUsageFlags = packed struct {
     vertex_buffer: bool = false,
     index_buffer: bool = false,
@@ -259,6 +298,8 @@ pub const BufferUsageFlags = packed struct {
     _padding: u25 = 0,
 
     /// Create usage flags from a primary buffer type
+    /// @thread-safe Thread-safe utility function
+    /// @symbol Usage flag creation API
     pub fn fromType(buffer_type: BufferType) BufferUsageFlags {
         return switch (buffer_type) {
             .vertex => .{ .vertex_buffer = true, .transfer_dst = true },
@@ -268,10 +309,14 @@ pub const BufferUsageFlags = packed struct {
             .indirect => .{ .indirect_buffer = true, .transfer_dst = true },
             .staging => .{ .transfer_src = true, .transfer_dst = true },
             .readback => .{ .transfer_dst = true },
+            .ring_buffer => .{ .vertex_buffer = true, .uniform_buffer = true, .transfer_dst = true },
+            .allocation_pool => .{ .vertex_buffer = true, .index_buffer = true, .uniform_buffer = true, .transfer_dst = true },
         };
     }
 
     /// Convert to the simplified BufferUsage enum used by the backend
+    /// @thread-safe Thread-safe utility function
+    /// @symbol Internal buffer usage conversion
     pub fn toBufferUsage(self: BufferUsageFlags) gpu.BufferUsage {
         if (self.vertex_buffer) return .vertex;
         if (self.index_buffer) return .index;
@@ -283,15 +328,16 @@ pub const BufferUsageFlags = packed struct {
 };
 
 /// Memory access type for buffers
+/// @symbol Memory access pattern enumeration
 pub const MemoryAccess = enum {
     gpu_only, // Only accessible by GPU, fastest
     cpu_to_gpu, // CPU can write, GPU can read
     gpu_to_cpu, // GPU can write, CPU can read (slower)
     cpu_and_gpu, // Both CPU and GPU can read and write (slowest)
 
-        /// Get the optimal buffer usage flags for this access type
-        /// @thread-safe Thread-safe utility function
-        /// @symbol Internal memory access helper
+    /// Get the optimal buffer usage flags for this access type
+    /// @thread-safe Thread-safe utility function
+    /// @symbol Internal memory access helper
     pub fn getOptimalFlags(self: MemoryAccess) BufferUsageFlags {
         return switch (self) {
             .gpu_only => .{ .transfer_dst = true },
@@ -303,6 +349,7 @@ pub const MemoryAccess = enum {
 };
 
 /// Memory alignment requirements
+/// @symbol Memory alignment constants
 pub const BufferAlignment = struct {
     /// Minimum alignment for uniform buffers
     pub const uniform: usize = 256;
@@ -312,6 +359,8 @@ pub const BufferAlignment = struct {
     pub const general: usize = 4;
 
     /// Get alignment for a specific buffer type
+    /// @thread-safe Thread-safe utility function
+    /// @symbol Alignment helper
     pub fn forType(buffer_type: BufferType) usize {
         return switch (buffer_type) {
             .uniform => uniform,
@@ -322,6 +371,8 @@ pub const BufferAlignment = struct {
 };
 
 /// Generic buffer object that wraps the raw backend buffer
+/// @thread-safe Not thread-safe in general, external synchronization required
+/// @symbol Core buffer resource
 pub const Buffer = struct {
     allocator: Allocator,
     buffer: ?*gpu.Buffer = null,
@@ -340,6 +391,8 @@ pub const Buffer = struct {
     const Self = @This();
 
     /// Create a buffer with the specified size and usage
+    /// @thread-safe Thread-safe initialization
+    /// @symbol Public buffer creation API
     pub fn init(allocator: Allocator, size: usize, buffer_type: BufferType, access: MemoryAccess) !*Self {
         if (size == 0) return BufferError.InvalidSize;
 
@@ -357,6 +410,8 @@ pub const Buffer = struct {
     }
 
     /// Create a buffer allocation pool for suballocations
+    /// @thread-safe Thread-safe initialization
+    /// @symbol Public buffer pool creation API
     pub fn initPool(allocator: Allocator, size: usize, buffer_type: BufferType, access: MemoryAccess, alignment: usize) !*Self {
         if (size == 0) return BufferError.InvalidSize;
 
@@ -378,6 +433,8 @@ pub const Buffer = struct {
     }
 
     /// Initialize the GPU buffer without data
+    /// @thread-safe Thread-safe with GPU access
+    /// @symbol Public buffer initialization API
     pub fn initBuffer(self: *Self) !void {
         if (self.buffer != null) {
             self.buffer.?.deinit();
@@ -389,6 +446,8 @@ pub const Buffer = struct {
     }
 
     /// Initialize the GPU buffer with initial data
+    /// @thread-safe Thread-safe with GPU access
+    /// @symbol Public initialized buffer creation API
     pub fn initWithData(self: *Self, data: []const u8) !void {
         if (data.len > self.size) return BufferError.InvalidSize;
 
@@ -402,6 +461,8 @@ pub const Buffer = struct {
     }
 
     /// Clean up resources
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public buffer cleanup API
     pub fn deinit(self: *Self) void {
         if (self.mapped) {
             self.unmap();
@@ -424,11 +485,15 @@ pub const Buffer = struct {
     }
 
     /// Mark this buffer as used in the current frame
+    /// @thread-safe Thread-safe tracking method
+    /// @symbol Public buffer usage tracking API
     pub fn markUsed(self: *Self, frame_number: u64) void {
         self.last_used_frame = frame_number;
     }
 
     /// Update buffer contents
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public buffer update API
     pub fn update(self: *Self, offset: usize, data: []const u8) !void {
         if (self.buffer == null) return BufferError.InvalidOperation;
         if (offset + data.len > self.size) return BufferError.Overflow;
@@ -437,12 +502,16 @@ pub const Buffer = struct {
     }
 
     /// Update a typed value
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public typed buffer update API
     pub fn updateTyped(self: *Self, offset: usize, value: anytype) !void {
         const bytes = std.mem.asBytes(&value);
         return self.update(offset, bytes);
     }
 
     /// Map buffer for CPU access
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public memory mapping API
     pub fn map(self: *Self) ![]u8 {
         if (self.buffer == null) return BufferError.InvalidOperation;
         if (self.mapped) return self.mapped_data.?;
@@ -466,6 +535,8 @@ pub const Buffer = struct {
     }
 
     /// Map a specific region of the buffer
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public memory range mapping API
     pub fn mapRange(self: *Self, offset: usize, size: usize) ![]u8 {
         if (offset + size > self.size) return BufferError.Overflow;
 
@@ -474,6 +545,8 @@ pub const Buffer = struct {
     }
 
     /// Unmap buffer
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public memory unmapping API
     pub fn unmap(self: *Self) void {
         if (!self.mapped) return;
 
@@ -488,6 +561,8 @@ pub const Buffer = struct {
     }
 
     /// Suballocate from this buffer pool
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public suballocation API
     pub fn allocate(self: *Self, size: usize) !BufferAllocation {
         if (!self.is_pool) return BufferError.InvalidOperation;
 
@@ -543,6 +618,8 @@ pub const Buffer = struct {
     }
 
     /// Free a suballocation
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public memory deallocation API
     pub fn free(self: *Self, allocation_id: usize) void {
         if (!self.is_pool) return;
 
@@ -556,6 +633,8 @@ pub const Buffer = struct {
     }
 
     /// Get total amount of free memory in the pool
+    /// @thread-safe Thread-safe query
+    /// @symbol Public memory query API
     pub fn getFreeSize(self: *Self) usize {
         if (!self.is_pool) return 0;
 
@@ -567,6 +646,8 @@ pub const Buffer = struct {
     }
 
     /// Copy from another buffer
+    /// @thread-safe Thread-safe with GPU synchronization
+    /// @symbol Public buffer copy API
     pub fn copyFrom(self: *Self, cmd: *gpu.CommandBuffer, source: *Buffer, src_offset: usize, dst_offset: usize, size: usize) !void {
         if (self.buffer == null or source.buffer == null) return BufferError.InvalidOperation;
         if (src_offset + size > source.size or dst_offset + size > self.size) return BufferError.Overflow;
@@ -582,6 +663,8 @@ pub const Buffer = struct {
 };
 
 /// Specialized buffer for vertex data
+/// @thread-safe Not thread-safe, external synchronization required
+/// @symbol Vertex buffer resource
 pub const VertexBuffer = struct {
     buffer: *Buffer,
     vertex_count: u32,
@@ -593,6 +676,9 @@ pub const VertexBuffer = struct {
 
     const Self = @This();
 
+    /// Create a new vertex buffer
+    /// @thread-safe Thread-safe with GPU synchronization
+    /// @symbol Public vertex buffer creation API
     pub fn init(allocator: Allocator, vertex_count: u32, vertex_size: u32, access: MemoryAccess) !*Self {
         const size = @as(usize, vertex_count) * @as(usize, vertex_size);
         var buffer = try Buffer.init(allocator, size, .vertex, access);
@@ -611,6 +697,8 @@ pub const VertexBuffer = struct {
     }
 
     /// Create a vertex buffer from a pool allocation
+    /// @thread-safe Thread-safe with proper pool management
+    /// @symbol Public vertex suballocation API
     pub fn initFromAllocation(allocator: Allocator, allocation: BufferAllocation, vertex_size: u32) !*Self {
         const vertex_count = @as(u32, @intCast(allocation.size / vertex_size));
 
@@ -626,6 +714,9 @@ pub const VertexBuffer = struct {
         return self;
     }
 
+    /// Create a vertex buffer with initial data
+    /// @thread-safe Thread-safe with GPU synchronization
+    /// @symbol Public initialized vertex buffer API
     pub fn initWithData(allocator: Allocator, vertices: []const u8, vertex_size: u32, access: MemoryAccess) !*Self {
         if (vertices.len % vertex_size != 0) return BufferError.InvalidSize;
 
@@ -645,10 +736,16 @@ pub const VertexBuffer = struct {
         return self;
     }
 
+    /// Set the vertex layout
+    /// @thread-safe Thread-safe method
+    /// @symbol Public vertex format API
     pub fn setLayout(self: *Self, layout: interface.VertexLayout) void {
         self.layout = layout;
     }
 
+    /// Clean up resources
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public buffer cleanup API
     pub fn deinit(self: *Self) void {
         // Only free the buffer if it's dedicated
         if (self.memory_type == .dedicated) {
@@ -661,6 +758,9 @@ pub const VertexBuffer = struct {
         self.buffer.allocator.destroy(self);
     }
 
+    /// Bind this vertex buffer to a command buffer
+    /// @thread-safe Thread-safe with GPU synchronization
+    /// @symbol Public buffer binding API
     pub fn bind(self: *Self, cmd: *gpu.CommandBuffer, slot: u32) !void {
         const offset = if (self.memory_type == .suballocated and self.allocation != null)
             self.allocation.?.offset
@@ -671,6 +771,8 @@ pub const VertexBuffer = struct {
     }
 
     /// Update vertex data
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public vertex data update API
     pub fn update(self: *Self, offset: u32, vertices: []const u8) !void {
         if (offset + @as(u32, @intCast(vertices.len)) > self.vertex_count * self.vertex_size) {
             return BufferError.Overflow;
@@ -684,6 +786,9 @@ pub const VertexBuffer = struct {
         return self.buffer.update(buffer_offset, vertices);
     }
 
+    /// Draw vertices using this buffer
+    /// @thread-safe Thread-safe with GPU synchronization
+    /// @symbol Public drawing API
     pub fn draw(self: *Self, cmd: *gpu.CommandBuffer) !void {
         const options = gpu.DrawOptions{
             .vertex_count = self.vertex_count,
@@ -696,6 +801,8 @@ pub const VertexBuffer = struct {
 };
 
 /// Specialized buffer for index data
+/// @thread-safe Not thread-safe, external synchronization required
+/// @symbol Index buffer resource
 pub const IndexBuffer = struct {
     buffer: *Buffer,
     index_count: u32,
@@ -706,6 +813,9 @@ pub const IndexBuffer = struct {
 
     const Self = @This();
 
+    /// Create an index buffer
+    /// @thread-safe Thread-safe with GPU synchronization
+    /// @symbol Public index buffer creation API
     pub fn init(allocator: Allocator, index_count: u32, format: interface.IndexFormat, access: MemoryAccess) !*Self {
         const element_size: usize = if (format == .uint16) 2 else 4;
         const size = @as(usize, index_count) * element_size;
@@ -726,6 +836,8 @@ pub const IndexBuffer = struct {
     }
 
     /// Create an index buffer from a pool allocation
+    /// @thread-safe Thread-safe with proper pool management
+    /// @symbol Public index suballocation API
     pub fn initFromAllocation(allocator: Allocator, allocation: BufferAllocation, format: interface.IndexFormat) !*Self {
         const element_size: usize = if (format == .uint16) 2 else 4;
         const index_count = @as(u32, @intCast(allocation.size / element_size));
@@ -742,6 +854,9 @@ pub const IndexBuffer = struct {
         return self;
     }
 
+    /// Create an index buffer with initial data
+    /// @thread-safe Thread-safe with GPU synchronization
+    /// @symbol Public initialized index buffer API
     pub fn initWithData(allocator: Allocator, indices: []const u8, format: interface.IndexFormat, access: MemoryAccess) !*Self {
         const element_size: usize = if (format == .uint16) 2 else 4;
         if (indices.len % element_size != 0) return BufferError.InvalidSize;
@@ -762,6 +877,9 @@ pub const IndexBuffer = struct {
         return self;
     }
 
+    /// Clean up resources
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public buffer cleanup API
     pub fn deinit(self: *Self) void {
         // Only free the buffer if it's dedicated
         if (self.memory_type == .dedicated) {
@@ -774,6 +892,9 @@ pub const IndexBuffer = struct {
         self.buffer.allocator.destroy(self);
     }
 
+    /// Bind this index buffer to a command buffer
+    /// @thread-safe Thread-safe with GPU synchronization
+    /// @symbol Public buffer binding API
     pub fn bind(self: *Self, cmd: *gpu.CommandBuffer) !void {
         const offset = if (self.memory_type == .suballocated and self.allocation != null)
             self.allocation.?.offset
@@ -784,6 +905,8 @@ pub const IndexBuffer = struct {
     }
 
     /// Update index data
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public index data update API
     pub fn update(self: *Self, offset_indices: u32, indices: []const u8) !void {
         const element_size: usize = if (self.index_format == .uint16) 2 else 4;
         const offset_bytes = offset_indices * element_size;
@@ -800,6 +923,9 @@ pub const IndexBuffer = struct {
         return self.buffer.update(buffer_offset, indices);
     }
 
+    /// Draw using this index buffer
+    /// @thread-safe Thread-safe with GPU synchronization
+    /// @symbol Public drawing API
     pub fn draw(self: *Self, cmd: *gpu.CommandBuffer) !void {
         const options = gpu.DrawIndexedOptions{
             .index_count = self.index_count,
@@ -813,6 +939,8 @@ pub const IndexBuffer = struct {
 };
 
 /// Specialized buffer for uniform data
+/// @thread-safe Not thread-safe, external synchronization required
+/// @symbol Uniform buffer resource
 pub const UniformBuffer = struct {
     buffer: *Buffer,
     binding_slot: u32,
@@ -822,6 +950,9 @@ pub const UniformBuffer = struct {
 
     const Self = @This();
 
+    /// Create a uniform buffer
+    /// @thread-safe Thread-safe with GPU synchronization
+    /// @symbol Public uniform buffer creation API
     pub fn init(allocator: Allocator, size: usize, binding_slot: u32) !*Self {
         // Ensure size is aligned to uniform buffer requirements
         const aligned_size = (size + BufferAlignment.uniform - 1) & ~(BufferAlignment.uniform - 1);
@@ -841,6 +972,8 @@ pub const UniformBuffer = struct {
     }
 
     /// Create a uniform buffer from a pool allocation
+    /// @thread-safe Thread-safe with proper pool management
+    /// @symbol Public uniform suballocation API
     pub fn initFromAllocation(allocator: Allocator, allocation: BufferAllocation, binding_slot: u32) !*Self {
         const self = try allocator.create(Self);
         self.* = Self{
@@ -853,6 +986,9 @@ pub const UniformBuffer = struct {
         return self;
     }
 
+    /// Create a uniform buffer with initial data
+    /// @thread-safe Thread-safe with GPU synchronization
+    /// @symbol Public initialized uniform buffer API
     pub fn initWithData(allocator: Allocator, data: []const u8, binding_slot: u32) !*Self {
         var buffer = try Buffer.init(allocator, data.len, .uniform, .cpu_to_gpu);
         errdefer buffer.deinit();
@@ -868,6 +1004,9 @@ pub const UniformBuffer = struct {
         return self;
     }
 
+    /// Clean up resources
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public buffer cleanup API
     pub fn deinit(self: *Self) void {
         // Only free the buffer if it's dedicated
         if (self.memory_type == .dedicated) {
@@ -880,6 +1019,9 @@ pub const UniformBuffer = struct {
         self.buffer.allocator.destroy(self);
     }
 
+    /// Update uniform buffer data
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public uniform data update API
     pub fn update(self: *Self, data: []const u8) !void {
         const offset = if (self.memory_type == .suballocated and self.allocation != null)
             self.allocation.?.offset
@@ -889,11 +1031,17 @@ pub const UniformBuffer = struct {
         try self.buffer.update(offset, data);
     }
 
+    /// Update typed uniform data
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public typed uniform update API
     pub fn updateTyped(self: *Self, data: anytype) !void {
         const bytes = std.mem.asBytes(&data);
         try self.update(bytes);
     }
 
+    /// Bind this uniform buffer to a command buffer
+    /// @thread-safe Thread-safe with GPU synchronization
+    /// @symbol Public buffer binding API
     pub fn bind(self: *Self, cmd: *gpu.CommandBuffer) !void {
         const offset = if (self.memory_type == .suballocated and self.allocation != null)
             self.allocation.?.offset
@@ -909,6 +1057,8 @@ pub const UniformBuffer = struct {
     }
 
     /// Map the uniform buffer for CPU writing
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public memory mapping API
     pub fn map(self: *Self) ![]u8 {
         if (self.memory_type == .suballocated and self.allocation != null) {
             return self.allocation.?.map();
@@ -918,6 +1068,8 @@ pub const UniformBuffer = struct {
     }
 
     /// Unmap the uniform buffer
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public memory unmapping API
     pub fn unmap(self: *Self) void {
         if (self.memory_type != .suballocated) {
             self.buffer.unmap();
@@ -926,6 +1078,8 @@ pub const UniformBuffer = struct {
 };
 
 /// Helper function to create a buffer that's properly aligned for GPU use
+/// @thread-safe Thread-safe helper function
+/// @symbol Public aligned buffer creation API
 pub fn createAlignedBuffer(comptime T: type, allocator: Allocator, binding_slot: u32) !*UniformBuffer {
     // Calculate the aligned size
     const base_size = @sizeOf(T);
@@ -935,7 +1089,9 @@ pub fn createAlignedBuffer(comptime T: type, allocator: Allocator, binding_slot:
     return UniformBuffer.init(allocator, aligned_size, binding_slot);
 }
 
-/// Setup a global buffer memory manager for efficient memory usage
+/// Buffer memory manager for efficient memory usage
+/// @thread-safe Thread-safe with internal mutex protection
+/// @symbol Global buffer memory management
 pub const BufferMemoryManager = struct {
     allocator: Allocator,
     // Pools for common buffer types
@@ -951,6 +1107,9 @@ pub const BufferMemoryManager = struct {
 
     const Self = @This();
 
+    /// Initialize the buffer memory manager
+    /// @thread-safe Thread-safe initialization
+    /// @symbol Public memory manager creation API
     pub fn init(allocator: Allocator) !*Self {
         // Create large allocation pools
         var vertex_pool = try Buffer.initPool(allocator, 64 * 1024 * 1024, .vertex, .cpu_to_gpu, 16);
@@ -974,6 +1133,96 @@ pub const BufferMemoryManager = struct {
         };
 
         return self;
+    }
+
+    /// Clean up all buffer pool resources
+    /// @thread-safe Not thread-safe, external synchronization required
+    /// @symbol Public memory manager cleanup API
+    pub fn deinit(self: *Self) void {
+        self.vertex_pool.deinit();
+        self.index_pool.deinit();
+        self.uniform_pool.deinit();
+        self.storage_pool.deinit();
+        
+        var it = self.uniform_buffer_pools.valueIterator();
+        while (it.next()) |pool| {
+            pool.*.deinit();
+        }
+
+        self.uniform_buffer_pools.deinit();
+        self.frame_ring.deinit();
+        self.allocator.destroy(self);
+    }
+    
+    /// Begin a new frame for ring buffer allocations
+    /// @thread-safe Thread-safe frame boundary
+    /// @symbol Public frame management API
+    pub fn beginFrame(self: *Self, frame_number: u64) void {
+        self.frame_ring.beginFrame(frame_number);
+    }
+    
+    /// Allocate per-frame data from ring buffer
+    /// @thread-safe Thread-safe with frame synchronization
+    /// @symbol Public per-frame allocation API
+    pub fn allocateFrameData(self: *Self, size: usize) ![]u8 {
+        const allocation = try self.frame_ring.allocate(size, 16);
+        return try allocation.map();
+    }
+    
+    /// Allocate a uniform buffer from the pool
+    /// @thread-safe Thread-safe with internal mutex protection
+    /// @symbol Public uniform buffer allocation API
+    pub fn allocateUniformBuffer(self: *Self, size: usize, binding_slot: u32) !*UniformBuffer {
+        // Ensure size is aligned to uniform buffer requirements
+        const aligned_size = (size + BufferAlignment.uniform - 1) & ~(BufferAlignment.uniform - 1);
+        
+        const allocation = try self.uniform_pool.allocate(aligned_size);
+        
+        return UniformBuffer.initFromAllocation(self.allocator, allocation, binding_slot);
+    }
+    
+    /// Allocate an index buffer from the pool
+    /// @thread-safe Thread-safe with internal mutex protection
+    /// @symbol Public index buffer allocation API
+    pub fn allocateIndexBuffer(self: *Self, index_count: u32, format: interface.IndexFormat) !*IndexBuffer {
+        const element_size: usize = if (format == .uint16) 2 else 4;
+        const size = @as(usize, index_count) * element_size;
+        
+        const allocation = try self.index_pool.allocate(size);
+        
+        return IndexBuffer.initFromAllocation(self.allocator, allocation, format);
+    }
+    
+    /// Allocate a vertex buffer from the pool
+    /// @thread-safe Thread-safe with internal mutex protection
+    /// @symbol Public vertex buffer allocation API
+    pub fn allocateVertexBuffer(self: *Self, vertex_count: u32, vertex_size: u32) !*VertexBuffer {
+        const size = @as(usize, vertex_count) * @as(usize, vertex_size);
+    
+        const allocation = try self.vertex_pool.allocate(size);
+    
+        return VertexBuffer.initFromAllocation(self.allocator, allocation, vertex_size);
+    }
+    
+    /// Get a pool for uniform buffers of a specific size
+    /// @thread-safe Thread-safe with internal mutex protection
+    /// @symbol Internal pool management API
+    pub fn getUniformBufferPool(self: *Self, size: usize) !*BufferPool {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+    
+        // Round up to the nearest aligned size
+        const aligned_size = (size + BufferAlignment.uniform - 1) & ~(BufferAlignment.uniform - 1);
+    
+        if (self.uniform_buffer_pools.get(aligned_size)) |pool| {
+            return pool;
+        }
+    
+        // Create a new pool
+        const pool = try BufferPool.init(self.allocator, .uniform, aligned_size, .cpu_to_gpu);
+        try self.uniform_buffer_pools.put(aligned_size, pool);
+    
+        return pool;
     }
 };
 
@@ -1007,108 +1256,3 @@ pub fn deinitGlobalBufferManager() void {
 pub fn getGlobalBufferManager() !*BufferMemoryManager {
     return global_buffer_manager orelse return BufferError.InvalidOperation;
 }
-
-/// BufferMemoryManager implementation
-impl BufferMemoryManager {
-    /// Clean up all buffer pool resources
-    /// @thread-safe Not thread-safe, external synchronization required
-    /// @symbol Public cleanup API
-    pub fn deinit(self: *Self) void {
-        self.vertex_pool.deinit();
-        self.index_pool.deinit();
-        self.uniform_pool.deinit();
-        self.storage_pool.deinit();
-        
-        var it = self.uniform_buffer_pools.valueIterator();
-        while (it.next()) |pool| {
-            pool.*.deinit();
-        }
-
-        self.uniform_buffer_pools.deinit();
-        self.frame_ring.deinit();
-        self.allocator.destroy(self);
-    }
-    
-    /// Begin a new frame for ring buffer allocations
-    pub fn beginFrame(self: *Self, frame_number: u64) void {
-        self.frame_ring.beginFrame(frame_number);
-    }
-    
-    /// Allocate per-frame data from ring buffer
-    pub fn allocateFrameData(self: *Self, size: usize) ![]u8 {
-        const allocation = try self.frame_ring.allocate(size, 16);
-        return try allocation.map();
-    }
-    
-    /// Allocate a uniform buffer from the pool
-    pub fn allocateUniformBuffer(self: *Self, size: usize, binding_slot: u32) !*UniformBuffer {
-        // Ensure size is aligned to uniform buffer requirements
-        const aligned_size = (size + BufferAlignment.uniform - 1) & ~(BufferAlignment.uniform - 1);
-        
-        const allocation = try self.uniform_pool.allocate(aligned_size);
-        
-        return UniformBuffer.initFromAllocation(self.allocator, allocation, binding_slot);
-    }
-    
-    /// Allocate an index buffer from the pool
-    pub fn allocateIndexBuffer(self: *Self, index_count: u32, format: interface.IndexFormat) !*IndexBuffer {
-        const element_size: usize = if (format == .uint16) 2 else 4;
-        const size = @as(usize, index_count) * element_size;
-        
-        const allocation = try self.index_pool.allocate(size);
-        
-        return IndexBuffer.initFromAllocation(self.allocator, allocation, format);
-    }
-    
-    /// Allocate a vertex buffer from the pool
-    /// @thread-safe Thread-safe allocation
-    /// @symbol Public vertex buffer allocation API
-    pub fn allocateVertexBuffer(self: *Self, vertex_count: u32, vertex_size: u32) !*VertexBuffer {
-        const size = @as(usize, vertex_count) * @as(usize, vertex_size);
-    
-        const allocation = try self.vertex_pool.allocate(size);
-    
-        return VertexBuffer.initFromAllocation(self.allocator, allocation, vertex_size);
-    }
-    
-    /// Get a pool for uniform buffers of a specific size
-    /// @thread-safe Thread-safe with internal mutex protection
-    /// @symbol Internal pool management API
-    pub fn getUniformBufferPool(self: *Self, size: usize) !*BufferPool {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-    
-        // Round up to the nearest aligned size
-        const aligned_size = (size + BufferAlignment.uniform - 1) & ~(BufferAlignment.uniform - 1);
-    
-        if (self.uniform_buffer_pools.get(aligned_size)) |pool| {
-            return pool;
-        }
-    
-        // Create a new pool
-        const pool = try BufferPool.init(self.allocator, .uniform, aligned_size, .cpu_to_gpu);
-        try self.uniform_buffer_pools.put(aligned_size, pool);
-    
-        return pool;
-    }
-}
- .{},
-            .frame_ring = frame_ring,
-        };HashMap(usize, *BufferPool).init(allocator),
-            .mutex =_buffer_pools = std.Autopool = storage_pool,
-            .uniformindex_pool = index_pool,
-            .uniform_pool = uniform_pool,
-            .storage_allocator = allocator,
-            .vertex_pool = vertex_pool,
-            .        self.* = Self{
-            .
-
-        var self = try allocator.create(Self);
- * 1024);, 8 * 1024 buffer
-        var frame_ring = try RingBuffer.init(allocator
-
-        // Create frame ring1024, .shader_storage, .cpu_to_gpu, BufferAlignment.storage); * 1024 * erAlignment.uniform);
-        var storage_pool = try Buffer.initPool(allocator, 32uniform, .cpu_to_gpu, Buff try Buffer.initPool(allocator, 16 * 1024 * 1024, ., 4);
-        var uniform_pool = * 1024 * 1024, .index, .cpu_to_gpu 16);
-        var index_pool = try Buffer.initPool(allocator, 32vertex, .cpu_to_gpu,(allocator, 64 * 1024 * 1024, ._pool = try Buffer.initPool        // Create large allocation pools
-        var vertex
