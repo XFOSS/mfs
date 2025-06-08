@@ -19,7 +19,7 @@ A cross-platform game engine and rendering framework written in Zig with a focus
 
 ### Prerequisites
 
-- [Zig](https://ziglang.org/) (0.11.0 or newer)
+- [Zig](https://ziglang.org/) (0.14.1 or newer)
 - For Vulkan: Vulkan SDK
 - For DirectX: Windows SDK
 - For Metal: macOS/Xcode
