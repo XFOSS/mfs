@@ -6,8 +6,8 @@ const Thread = std.Thread;
 const Mutex = std.Thread.Mutex;
 
 // Import engine modules
-const vk = @import("../vulkan/vk.zig");
-const material = @import("../vulkan/material.zig");
+const vk = @import("../graphics/backends/vulkan/vk.zig");
+const material = @import("../graphics/backends/vulkan/material.zig");
 const ui = @import("../ui/window.zig");
 const worker = @import("../ui/worker.zig");
 
@@ -192,7 +192,7 @@ pub const RenderComponent = struct {
 pub const EntityManager = struct {
     allocator: Allocator,
     entities: ArrayList(EntityId),
-    components: HashMap(ComponentId, ArrayList(Component), std.hash_map.AutoContext(ComponentId), std.hash_map.default_max_load_percentage),
+    components: HashMap(ComponentId, ArrayList(Component), std.hash_map.AutoContext(ComponentId)),
     next_entity_id: EntityId,
     next_component_id: ComponentId,
 
@@ -202,7 +202,7 @@ pub const EntityManager = struct {
         return Self{
             .allocator = allocator,
             .entities = ArrayList(EntityId).init(allocator),
-            .components = HashMap(ComponentId, ArrayList(Component), std.hash_map.AutoContext(ComponentId), std.hash_map.default_max_load_percentage).init(allocator),
+            .components = HashMap(ComponentId, ArrayList(Component), std.hash_map.AutoContext(ComponentId)).init(allocator),
             .next_entity_id = 1,
             .next_component_id = 1,
         };
@@ -383,8 +383,8 @@ pub const Asset = struct {
 
 pub const AssetManager = struct {
     allocator: Allocator,
-    assets: HashMap(u32, Asset, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage),
-    name_to_id: HashMap(u32, u32, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage),
+    assets: HashMap(u32, Asset, std.hash_map.AutoContext(u32)),
+    name_to_id: HashMap(u32, u32, std.hash_map.AutoContext(u32)),
     next_id: u32,
 
     const Self = @This();
@@ -392,8 +392,8 @@ pub const AssetManager = struct {
     pub fn init(allocator: Allocator) Self {
         return Self{
             .allocator = allocator,
-            .assets = HashMap(u32, Asset, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
-            .name_to_id = HashMap(u32, u32, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
+            .assets = HashMap(u32, Asset, std.hash_map.AutoContext(u32)).init(allocator),
+            .name_to_id = HashMap(u32, u32, std.hash_map.AutoContext(u32)).init(allocator),
             .next_id = 1,
         };
     }
@@ -491,7 +491,7 @@ pub const EventHandler = struct {
 
 pub const EventManager = struct {
     allocator: Allocator,
-    handlers: HashMap(EventType, ArrayList(EventHandler), std.hash_map.AutoContext(EventType), std.hash_map.default_max_load_percentage),
+    handlers: HashMap(EventType, ArrayList(EventHandler), std.hash_map.AutoContext(EventType)),
     event_queue: ArrayList(Event),
 
     const Self = @This();
@@ -499,7 +499,7 @@ pub const EventManager = struct {
     pub fn init(allocator: Allocator) Self {
         return Self{
             .allocator = allocator,
-            .handlers = HashMap(EventType, ArrayList(EventHandler), std.hash_map.AutoContext(EventType), std.hash_map.default_max_load_percentage).init(allocator),
+            .handlers = HashMap(EventType, ArrayList(EventHandler), std.hash_map.AutoContext(EventType)).init(allocator),
             .event_queue = ArrayList(Event).init(allocator),
         };
     }

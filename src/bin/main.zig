@@ -434,7 +434,7 @@ const AppState = struct {
     const AssetWatcher = struct {
         thread: std.Thread,
         should_stop: std.atomic.Value(bool),
-        file_times: std.HashMap([]const u8, i128, std.hash_map.StringContext, std.hash_map.default_max_load_percentage),
+        file_times: std.HashMap([]const u8, i128, std.hash_map.StringContext),
         mutex: std.Thread.Mutex,
         allocator: std.mem.Allocator,
 
@@ -442,7 +442,7 @@ const AppState = struct {
             var watcher = AssetWatcher{
                 .thread = undefined,
                 .should_stop = std.atomic.Value(bool).init(false),
-                .file_times = std.HashMap([]const u8, i128, std.hash_map.StringContext, std.hash_map.default_max_load_percentage).init(allocator),
+                .file_times = std.HashMap([]const u8, i128, std.hash_map.StringContext).init(allocator),
                 .mutex = std.Thread.Mutex{},
                 .allocator = allocator,
             };

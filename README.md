@@ -126,3 +126,144 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## Acknowledgments
 
 - [Zig language
+
+# MFS Physics Engine
+
+A high-performance 3D physics engine written in Zig, optimized for games and real-time simulations.
+
+## Features
+
+### Core Physics
+- SIMD-optimized vector operations
+- Rigid body dynamics with proper rotation
+- Continuous collision detection (CCD) to prevent tunneling
+- Sleep optimization for inactive objects
+- Spatial partitioning for efficient broad-phase collision detection
+- Material properties (friction, restitution, density)
+- Configurable time stepping
+
+### Collision Shapes
+- Spheres
+- Boxes
+- Capsules
+- Cylinders
+- Convex hulls
+
+### Constraints & Joints
+- Spring constraints
+- Distance constraints
+- Position constraints
+- Angular constraints
+- Fixed joints
+- Hinge joints
+- Slider joints
+- Ball and socket joints
+- Universal joints
+- 6-DOF joints
+
+### Event System
+- Trigger volumes
+- Collision callbacks
+- Enter/Exit/Stay events for triggers
+
+## Architecture
+
+The physics engine is organized into several key modules:
+
+### `physics_engine.zig`
+The main entry point for the physics system, containing:
+- `World`: Manages the physics simulation
+- `PhysicalObject`: Represents a physical entity in the world
+- `PhysicsConfig`: Configuration options for the simulation
+
+### `shapes.zig`
+Defines different collision shapes:
+- `Shape`: Tagged union of all shape types
+- `SphereShape`, `BoxShape`, `CapsuleShape`, etc.
+
+### `spatial_partition.zig`
+Implements spatial partitioning for efficient collision detection:
+- `SpatialGrid`: Grid-based partitioning system
+- `AABB`: Axis-aligned bounding box implementation
+
+### `continuous_collision.zig`
+Implements continuous collision detection to prevent fast objects from tunneling:
+- `ContinuousCollision`: CCD algorithms and sweep tests
+- `SweepResult`: Result of a linear cast through the world
+
+### `collision_resolver.zig`
+Handles collision detection and resolution:
+- `CollisionResolver`: Detects and resolves collisions
+- `CollisionData`: Contains information about a collision
+
+### `constraints.zig`
+Implements various constraints between objects:
+- `Constraint`: Tagged union of all constraint types
+- `SpringConstraint`, `DistanceConstraint`, etc.
+
+### `joints.zig`
+Implements joint types for more complex articulated structures:
+- `Joint`: Tagged union of all joint types
+- `FixedJoint`, `HingeJoint`, `SliderJoint`, etc.
+- `JointManager`: Manages collections of joints
+
+### `triggers.zig`
+Implements non-physical trigger volumes for event triggering:
+- `TriggerVolume`: Detects when objects enter/exit a region
+- `TriggerEvent`: Event data for trigger callbacks
+- `TriggerManager`: Manages collections of triggers
+
+## Usage
+
+See `src/tests/physics_test.zig` for example usage of the physics engine.
+
+Basic usage:
+
+```zig
+// Initialize physics world
+var config = physics.PhysicsConfig{
+    .gravity = Vec4{ 0, -9.81, 0, 0 },
+};
+var world = try physics.World.init(allocator, config);
+defer world.deinit();
+
+// Create objects
+const sphere_idx = try world.createSphere(
+    Vec4{ 0, 10, 0, 0 },  // position
+    1.0,                  // radius
+    1.0,                  // mass
+    material
+);
+
+const box_idx = try world.createBox(
+    Vec4{ 5, 10, 0, 0 },  // position
+    Vec4{ 2, 2, 2, 0 },   // size
+    5.0,                  // mass
+    material
+);
+
+// Add constraints
+try world.addSpringConstraint(
+    sphere_idx,
+    box_idx,
+    5.0,   // rest length
+    10.0,  // stiffness
+    0.5    // damping
+);
+
+// Update simulation
+while (running) {
+    try world.update(dt);
+    // Render objects...
+}
+```
+
+## Future Improvements
+
+- Soft body dynamics
+- Cloth simulation
+- Fluid dynamics
+- Heightfield terrain
+- Compound shapes
+- Mesh-based collision
+- GPU acceleration for large-scale simulations

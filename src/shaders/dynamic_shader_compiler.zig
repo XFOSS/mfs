@@ -9,7 +9,8 @@ const Atomic = std.atomic.Atomic;
 const math = std.math;
 const fs = std.fs;
 const time = std.time;
-const process = std.process;
+// Note: std.process.Child.* APIs were deprecated in Zig 0.14. Replace with std.ChildProcess helpers.
+// Removed legacy alias to std.process; we now invoke std.ChildProcess directly when spawning child processes.
 const print = std.debug.print;
 
 pub const ShaderType = enum(u8) {
@@ -415,8 +416,8 @@ pub const FileWatcher = struct {
     thread: ?Thread,
     should_stop: Atomic(bool),
     mutex: Mutex,
-    watched_files: HashMap([]const u8, WatchedFile, std.hash_map.StringContext, std.hash_map.default_max_load_percentage),
-    callbacks: HashMap([]const u8, HotReloadCallback, std.hash_map.StringContext, std.hash_map.default_max_load_percentage),
+    watched_files: HashMap([]const u8, WatchedFile, std.hash_map.StringContext),
+    callbacks: HashMap([]const u8, HotReloadCallback, std.hash_map.StringContext),
 
     const WatchedFile = struct {
         path: []const u8,
@@ -430,8 +431,8 @@ pub const FileWatcher = struct {
             .thread = null,
             .should_stop = Atomic(bool).init(false),
             .mutex = Mutex{},
-            .watched_files = HashMap([]const u8, WatchedFile, std.hash_map.StringContext, std.hash_map.default_max_load_percentage).init(allocator),
-            .callbacks = HashMap([]const u8, HotReloadCallback, std.hash_map.StringContext, std.hash_map.default_max_load_percentage).init(allocator),
+            .watched_files = HashMap([]const u8, WatchedFile, std.hash_map.StringContext).init(allocator),
+            .callbacks = HashMap([]const u8, HotReloadCallback, std.hash_map.StringContext).init(allocator),
         };
     }
 
@@ -528,7 +529,7 @@ pub const FileWatcher = struct {
 pub const ShaderCache = struct {
     allocator: Allocator,
     cache_dir: []const u8,
-    entries: HashMap(u64, CacheEntry, std.hash_map.AutoContext(u64), std.hash_map.default_max_load_percentage),
+    entries: HashMap(u64, CacheEntry, std.hash_map.AutoContext(u64)),
     mutex: Mutex,
     max_cache_size: usize,
     current_cache_size: usize,
@@ -550,7 +551,7 @@ pub const ShaderCache = struct {
         return ShaderCache{
             .allocator = allocator,
             .cache_dir = try allocator.dupe(u8, cache_dir),
-            .entries = HashMap(u64, CacheEntry, std.hash_map.AutoContext(u64), std.hash_map.default_max_load_percentage).init(allocator),
+            .entries = HashMap(u64, CacheEntry, std.hash_map.AutoContext(u64)).init(allocator),
             .mutex = Mutex{},
             .max_cache_size = max_size,
             .current_cache_size = 0,
@@ -661,8 +662,8 @@ pub const ShaderCache = struct {
 pub const DynamicShaderCompiler = struct {
     allocator: Allocator,
     cache: ShaderCache,
-    sources: HashMap([]const u8, ShaderSource, std.hash_map.StringContext, std.hash_map.default_max_load_percentage),
-    compiled_shaders: HashMap([]const u8, CompiledShader, std.hash_map.StringContext, std.hash_map.default_max_load_percentage),
+    sources: HashMap([]const u8, ShaderSource, std.hash_map.StringContext),
+    compiled_shaders: HashMap([]const u8, CompiledShader, std.hash_map.StringContext),
     file_watcher: FileWatcher,
     include_paths: ArrayList([]const u8),
     mutex: Mutex,
@@ -694,8 +695,8 @@ pub const DynamicShaderCompiler = struct {
         var compiler = Self{
             .allocator = allocator,
             .cache = cache,
-            .sources = HashMap([]const u8, ShaderSource, std.hash_map.StringContext, std.hash_map.default_max_load_percentage).init(allocator),
-            .compiled_shaders = HashMap([]const u8, CompiledShader, std.hash_map.StringContext, std.hash_map.default_max_load_percentage).init(allocator),
+            .sources = HashMap([]const u8, ShaderSource, std.hash_map.StringContext).init(allocator),
+            .compiled_shaders = HashMap([]const u8, CompiledShader, std.hash_map.StringContext).init(allocator),
             .file_watcher = file_watcher,
             .include_paths = ArrayList([]const u8).init(allocator),
             .mutex = Mutex{},
@@ -877,11 +878,10 @@ pub const DynamicShaderCompiler = struct {
 
     fn findZigCompiler(self: *Self) ![]const u8 {
         // Try to find zig in PATH
-        const result = process.Child.exec(.{
+        const result = try std.ChildProcess.exec(.{
             .allocator = self.allocator,
             .argv = &[_][]const u8{ "zig", "version" },
-        }) catch return error.CompilationFailed;
-
+        });
         defer self.allocator.free(result.stdout);
         defer self.allocator.free(result.stderr);
 
@@ -1080,7 +1080,7 @@ pub const DynamicShaderCompiler = struct {
         }
 
         // Execute Zig compiler
-        const result = try process.Child.exec(.{
+        const result = try std.ChildProcess.exec(.{
             .allocator = self.allocator,
             .argv = argv.items,
         });

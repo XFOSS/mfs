@@ -1,6 +1,11 @@
+//! OpenGL backend implementation using the standard OpenGL API
 const std = @import("std");
+const builtin = @import("builtin");
+const build_options = @import("build_options");
 const Allocator = std.mem.Allocator;
-const types = @import("types.zig");
+const types = @import("../types.zig");
+const common = @import("common.zig");
+const interface = @import("interface.zig");
 const c = @cImport({
     @cInclude("GL/gl.h");
     @cInclude("GL/glext.h");
@@ -33,8 +38,15 @@ pub const OpenGLBackend = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, width: u32, height: u32) !*Self {
-        var backend = try allocator.create(Self);
+    /// Create and initialize an OpenGL backend, returning a pointer to the interface.GraphicsBackend
+    pub fn createBackend(allocator: Allocator) !*interface.GraphicsBackend {
+        if (!build_options.opengl_available) {
+            return error.BackendNotAvailable;
+        }
+
+        const width = 800; // Default window size, should be configurable through window creation
+        const height = 600;
+        const backend = try allocator.create(Self);
         backend.* = Self{
             .allocator = allocator,
             .extensions = std.StringHashMap(bool).init(allocator),
@@ -81,7 +93,7 @@ pub const OpenGLBackend = struct {
     pub fn createTexture(self: *Self, texture: *types.Texture, data: ?[]const u8) !void {
         if (!self.initialized) return OpenGLError.InitializationFailed;
 
-        var texture_id: u32 = 0;
+        var texture_id: u32 = undefined;
         c.glGenTextures(1, &texture_id);
         if (texture_id == 0) return OpenGLError.TextureCreationFailed;
 
@@ -96,31 +108,10 @@ pub const OpenGLBackend = struct {
 
         c.glBindTexture(gl_target, texture_id);
 
-        const gl_format = switch (texture.format) {
-            .rgba8 => c.GL_RGBA,
-            .rgb8 => c.GL_RGB,
-            .bgra8 => c.GL_BGRA,
-            .r8 => c.GL_RED,
-            .rg8 => c.GL_RG,
-            .depth24_stencil8 => c.GL_DEPTH_STENCIL,
-            .depth32f => c.GL_DEPTH_COMPONENT,
-        };
+        const gl_format = common.convertTextureFormat(texture.format);
+        const gl_internal_format = common.convertTextureFormat(texture.format);
 
-        const gl_internal_format = switch (texture.format) {
-            .rgba8 => c.GL_RGBA8,
-            .rgb8 => c.GL_RGB8,
-            .bgra8 => c.GL_RGBA8,
-            .r8 => c.GL_R8,
-            .rg8 => c.GL_RG8,
-            .depth24_stencil8 => c.GL_DEPTH24_STENCIL8,
-            .depth32f => c.GL_DEPTH_COMPONENT32F,
-        };
-
-        const gl_type = switch (texture.format) {
-            .rgba8, .rgb8, .bgra8, .r8, .rg8 => c.GL_UNSIGNED_BYTE,
-            .depth24_stencil8 => c.GL_UNSIGNED_INT_24_8,
-            .depth32f => c.GL_FLOAT,
-        };
+        const gl_type = common.getBytesPerPixel(texture.format);
 
         if (texture.texture_type == .texture_2d) {
             c.glTexImage2D(
@@ -167,11 +158,11 @@ pub const OpenGLBackend = struct {
         c.glShaderSource(shader_id, 1, &source_ptr, &source_len);
         c.glCompileShader(shader_id);
 
-        var compile_status: c.GLint = 0;
+        var compile_status: c.GLint = undefined;
         c.glGetShaderiv(shader_id, c.GL_COMPILE_STATUS, &compile_status);
 
         if (compile_status == c.GL_FALSE) {
-            var log_length: c.GLint = 0;
+            var log_length: c.GLint = undefined;
             c.glGetShaderiv(shader_id, c.GL_INFO_LOG_LENGTH, &log_length);
 
             if (log_length > 0) {
@@ -195,7 +186,7 @@ pub const OpenGLBackend = struct {
     pub fn createBuffer(self: *Self, buffer: *types.Buffer, data: ?[]const u8) !void {
         if (!self.initialized) return OpenGLError.InitializationFailed;
 
-        var buffer_id: u32 = 0;
+        var buffer_id: u32 = undefined;
         c.glGenBuffers(1, &buffer_id);
         if (buffer_id == 0) return OpenGLError.BufferCreationFailed;
 
@@ -222,7 +213,7 @@ pub const OpenGLBackend = struct {
     pub fn createRenderTarget(self: *Self, render_target: *types.RenderTarget) !void {
         if (!self.initialized) return OpenGLError.InitializationFailed;
 
-        var framebuffer_id: u32 = 0;
+        var framebuffer_id: u32 = undefined;
         c.glGenFramebuffers(1, &framebuffer_id);
         if (framebuffer_id == 0) return OpenGLError.FramebufferCreationFailed;
 
@@ -326,7 +317,7 @@ pub const OpenGLBackend = struct {
     pub fn clear(self: *Self, color: bool, depth: bool, stencil: bool) void {
         if (!self.initialized) return;
 
-        var clear_mask: c.GLbitfield = 0;
+        const clear_mask: c.GLbitfield = 0;
         if (color) clear_mask |= c.GL_COLOR_BUFFER_BIT;
         if (depth) clear_mask |= c.GL_DEPTH_BUFFER_BIT;
         if (stencil) clear_mask |= c.GL_STENCIL_BUFFER_BIT;
@@ -386,10 +377,10 @@ pub const OpenGLBackend = struct {
 
     // Utility functions for common operations
     pub fn createSimpleProgram(self: *Self, vertex_source: []const u8, fragment_source: []const u8) !u32 {
-        var vertex_shader = try types.Shader.init(self.allocator, .vertex, vertex_source);
+        const vertex_shader = try types.Shader.init(self.allocator, .vertex, vertex_source);
         defer vertex_shader.deinit();
 
-        var fragment_shader = try types.Shader.init(self.allocator, .fragment, fragment_source);
+        const fragment_shader = try types.Shader.init(self.allocator, .fragment, fragment_source);
         defer fragment_shader.deinit();
 
         try self.createShader(vertex_shader);
@@ -402,11 +393,11 @@ pub const OpenGLBackend = struct {
         c.glAttachShader(program_id, fragment_shader.id);
         c.glLinkProgram(program_id);
 
-        var link_status: c.GLint = 0;
+        var link_status: c.GLint = undefined;
         c.glGetProgramiv(program_id, c.GL_LINK_STATUS, &link_status);
 
         if (link_status == c.GL_FALSE) {
-            var log_length: c.GLint = 0;
+            var log_length: c.GLint = undefined;
             c.glGetProgramiv(program_id, c.GL_INFO_LOG_LENGTH, &log_length);
 
             if (log_length > 0) {

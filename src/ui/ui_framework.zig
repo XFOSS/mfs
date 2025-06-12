@@ -56,18 +56,18 @@ pub const Theme = struct {
     pub fn dark() Theme {
         return Theme{
             .type = .dark,
-            .primary = Color.fromHex(0xFFBB86FC),     // Purple
-            .secondary = Color.fromHex(0xFF03DAC6),   // Teal
-            .accent = Color.fromHex(0xFFCF6679),      // Pink
-            .background = Color.fromHex(0xFF121212),  // Dark gray
-            .surface = Color.fromHex(0xFF1E1E1E),     // Lighter dark gray
-            .on_primary = Color.fromHex(0xFF000000),  // Black
+            .primary = Color.fromHex(0xFFBB86FC), // Purple
+            .secondary = Color.fromHex(0xFF03DAC6), // Teal
+            .accent = Color.fromHex(0xFFCF6679), // Pink
+            .background = Color.fromHex(0xFF121212), // Dark gray
+            .surface = Color.fromHex(0xFF1E1E1E), // Lighter dark gray
+            .on_primary = Color.fromHex(0xFF000000), // Black
             .on_secondary = Color.fromHex(0xFF000000), // Black
-            .on_surface = Color.fromHex(0xFFFFFFFF),  // White
+            .on_surface = Color.fromHex(0xFFFFFFFF), // White
             .error_color = Color.fromHex(0xFFCF6679), // Red
-            .warning = Color.fromHex(0xFFFFC107),     // Orange
-            .success = Color.fromHex(0xFF4CAF50),     // Green
-            .disabled = Color.fromHex(0xFF505050),    // Dark gray
+            .warning = Color.fromHex(0xFFFFC107), // Orange
+            .success = Color.fromHex(0xFF4CAF50), // Green
+            .disabled = Color.fromHex(0xFF505050), // Dark gray
             .disabled_text = Color.fromHex(0xFFA0A0A0), // Light gray
         };
     }
@@ -75,18 +75,18 @@ pub const Theme = struct {
     pub fn light() Theme {
         return Theme{
             .type = .light,
-            .primary = Color.fromHex(0xFF6200EE),     // Purple
-            .secondary = Color.fromHex(0xFF03DAC6),   // Teal
-            .accent = Color.fromHex(0xFFFF4081),      // Pink
-            .background = Color.fromHex(0xFFFFFFFF),  // White
-            .surface = Color.fromHex(0xFFF5F5F5),     // Light gray
-            .on_primary = Color.fromHex(0xFFFFFFFF),  // White
+            .primary = Color.fromHex(0xFF6200EE), // Purple
+            .secondary = Color.fromHex(0xFF03DAC6), // Teal
+            .accent = Color.fromHex(0xFFFF4081), // Pink
+            .background = Color.fromHex(0xFFFFFFFF), // White
+            .surface = Color.fromHex(0xFFF5F5F5), // Light gray
+            .on_primary = Color.fromHex(0xFFFFFFFF), // White
             .on_secondary = Color.fromHex(0xFF000000), // Black
-            .on_surface = Color.fromHex(0xFF000000),  // Black
+            .on_surface = Color.fromHex(0xFF000000), // Black
             .error_color = Color.fromHex(0xFFB00020), // Red
-            .warning = Color.fromHex(0xFFFF6F00),     // Orange
-            .success = Color.fromHex(0xFF388E3C),     // Green
-            .disabled = Color.fromHex(0xFFE0E0E0),    // Light gray
+            .warning = Color.fromHex(0xFFFF6F00), // Orange
+            .success = Color.fromHex(0xFF388E3C), // Green
+            .disabled = Color.fromHex(0xFFE0E0E0), // Light gray
             .disabled_text = Color.fromHex(0xFF909090), // Dark gray
         };
     }
@@ -140,35 +140,35 @@ pub const KeyCode = enum(u32) {
     c = 'C',
     // ... other letter keys
     z = 'Z',
-    
+
     num_0 = '0',
     num_1 = '1',
     // ... other number keys
     num_9 = '9',
-    
+
     escape = 0x1B,
     enter = 0x0D,
     tab = 0x09,
     space = 0x20,
     backspace = 0x08,
-    
+
     // Arrow keys
     arrow_up = 0x26,
     arrow_down = 0x28,
     arrow_left = 0x25,
     arrow_right = 0x27,
-    
+
     // Function keys
     f1 = 0x70,
     f2 = 0x71,
     // ... other function keys
     f12 = 0x7B,
-    
+
     // Modifiers
     shift = 0x10,
     control = 0x11,
     alt = 0x12,
-    
+
     // Other common keys
     insert = 0x2D,
     delete = 0x2E,
@@ -176,9 +176,9 @@ pub const KeyCode = enum(u32) {
     end = 0x23,
     page_up = 0x21,
     page_down = 0x22,
-    
+
     // Add more keys as needed
-    
+
     _,
 };
 
@@ -187,11 +187,11 @@ pub const KeyModifiers = struct {
     control: bool = false,
     alt: bool = false,
     system: bool = false,
-    
+
     pub fn none() KeyModifiers {
         return KeyModifiers{};
     }
-    
+
     pub fn isModified(self: KeyModifiers) bool {
         return self.shift or self.control or self.alt or self.system;
     }
@@ -200,29 +200,29 @@ pub const KeyModifiers = struct {
 pub const Event = struct {
     event_type: EventType,
     target_id: ?u32 = null,
-    
+
     // Mouse specific data
     mouse_x: f32 = 0,
     mouse_y: f32 = 0,
     mouse_button: ?MouseButton = null,
-    
+
     // Keyboard specific data
     key_code: ?KeyCode = null,
     key_modifiers: KeyModifiers = KeyModifiers{},
     text_input: ?[]const u8 = null,
-    
+
     // Scroll data
     scroll_delta_x: f32 = 0,
     scroll_delta_y: f32 = 0,
-    
+
     // Resize data
     new_width: u32 = 0,
     new_height: u32 = 0,
-    
+
     pub fn init(event_type: EventType) Event {
         return Event{ .event_type = event_type };
     }
-    
+
     pub fn initMouse(event_type: EventType, x: f32, y: f32, button: ?MouseButton) Event {
         return Event{
             .event_type = event_type,
@@ -231,7 +231,7 @@ pub const Event = struct {
             .mouse_button = button,
         };
     }
-    
+
     pub fn initKey(event_type: EventType, key: KeyCode, modifiers: KeyModifiers) Event {
         return Event{
             .event_type = event_type,
@@ -239,14 +239,14 @@ pub const Event = struct {
             .key_modifiers = modifiers,
         };
     }
-    
+
     pub fn initText(text: []const u8) Event {
         return Event{
             .event_type = .text_input,
             .text_input = text,
         };
     }
-    
+
     pub fn initScroll(delta_x: f32, delta_y: f32) Event {
         return Event{
             .event_type = .scroll,
@@ -254,7 +254,7 @@ pub const Event = struct {
             .scroll_delta_y = delta_y,
         };
     }
-    
+
     pub fn initResize(width: u32, height: u32) Event {
         return Event{
             .event_type = .resize,
@@ -272,9 +272,9 @@ pub const Element = struct {
     enabled: bool = true,
     parent: ?*Element = null,
     children: ArrayList(*Element),
-    
+
     const Self = @This();
-    
+
     pub fn init(allocator: Allocator, id: u32, x: f32, y: f32, width: f32, height: f32) Self {
         return Self{
             .id = id,
@@ -282,19 +282,19 @@ pub const Element = struct {
             .children = ArrayList(*Element).init(allocator),
         };
     }
-    
+
     pub fn deinit(self: *Self) void {
         for (self.children.items) |child| {
             child.deinit();
         }
         self.children.deinit();
     }
-    
+
     pub fn addChild(self: *Self, child: *Element) !void {
         child.parent = self;
         try self.children.append(child);
     }
-    
+
     pub fn removeChild(self: *Self, child: *Element) void {
         for (self.children.items, 0..) |item, i| {
             if (item == child) {
@@ -304,35 +304,35 @@ pub const Element = struct {
             }
         }
     }
-    
+
     pub fn setBounds(self: *Self, x: f32, y: f32, width: f32, height: f32) void {
         self.rect = Rect.init(x, y, width, height);
     }
-    
+
     pub fn globalPosition(self: *const Self) struct { x: f32, y: f32 } {
         var x = self.rect.x;
         var y = self.rect.y;
-        
+
         var current = self.parent;
         while (current) |parent| {
             x += parent.rect.x;
             y += parent.rect.y;
             current = parent.parent;
         }
-        
+
         return .{ .x = x, .y = y };
     }
-    
+
     pub fn contains(self: *const Self, x: f32, y: f32) bool {
         const pos = self.globalPosition();
         return x >= pos.x and x < pos.x + self.rect.width and
-               y >= pos.y and y < pos.y + self.rect.height;
+            y >= pos.y and y < pos.y + self.rect.height;
     }
-    
+
     pub fn setVisible(self: *Self, visible: bool) void {
         self.visible = visible;
     }
-    
+
     pub fn setEnabled(self: *Self, enabled: bool) void {
         self.enabled = enabled;
     }
@@ -342,39 +342,39 @@ pub const Element = struct {
 pub const ElementFactory = struct {
     allocator: Allocator,
     next_id: u32 = 1,
-    
+
     const Self = @This();
-    
+
     pub fn init(allocator: Allocator) Self {
         return Self{
             .allocator = allocator,
         };
     }
-    
+
     pub fn createButton(self: *Self, text: []const u8, x: f32, y: f32, width: f32, height: f32) !*Button {
         const button = try self.allocator.create(Button);
         button.* = Button.init(self.allocator, self.getNextId(), text, x, y, width, height);
         return button;
     }
-    
+
     pub fn createLabel(self: *Self, text: []const u8, x: f32, y: f32, width: f32, height: f32) !*Label {
         const label = try self.allocator.create(Label);
         label.* = Label.init(self.allocator, self.getNextId(), text, x, y, width, height);
         return label;
     }
-    
+
     pub fn createPanel(self: *Self, x: f32, y: f32, width: f32, height: f32) !*Panel {
         const panel = try self.allocator.create(Panel);
         panel.* = Panel.init(self.allocator, self.getNextId(), x, y, width, height);
         return panel;
     }
-    
+
     pub fn createTextInput(self: *Self, placeholder: []const u8, x: f32, y: f32, width: f32, height: f32) !*TextInput {
         const text_input = try self.allocator.create(TextInput);
         text_input.* = TextInput.init(self.allocator, self.getNextId(), placeholder, x, y, width, height);
         return text_input;
     }
-    
+
     fn getNextId(self: *Self) u32 {
         const id = self.next_id;
         self.next_id += 1;
@@ -395,42 +395,42 @@ pub const Button = struct {
     hover_color: Color = Color.fromRgba(0.3, 0.5, 0.9, 1.0),
     pressed_color: Color = Color.fromRgba(0.1, 0.3, 0.7, 1.0),
     border_radius: f32 = 4.0,
-    
+
     const Self = @This();
-    
+
     pub fn init(allocator: Allocator, id: u32, text: []const u8, x: f32, y: f32, width: f32, height: f32) Self {
         var text_copy = allocator.dupe(u8, text) catch unreachable;
-        
+
         return Self{
             .element = Element.init(allocator, id, x, y, width, height),
             .text = text_copy,
             .text_allocated = true,
         };
     }
-    
+
     pub fn deinit(self: *Self) void {
         if (self.text_allocated) {
             self.element.children.allocator.free(self.text);
         }
         self.element.deinit();
     }
-    
+
     pub fn setText(self: *Self, allocator: Allocator, text: []const u8) !void {
         if (self.text_allocated) {
             allocator.free(self.text);
         }
-        
+
         self.text = try allocator.dupe(u8, text);
         self.text_allocated = true;
     }
-    
+
     pub fn setOnClick(self: *Self, callback: *const fn (button: *Button) void) void {
         self.on_click = callback;
     }
-    
+
     pub fn handleEvent(self: *Self, event: Event) bool {
         if (!self.element.enabled) return false;
-        
+
         switch (event.event_type) {
             .mouse_down => {
                 if (self.element.contains(event.mouse_x, event.mouse_y)) {
@@ -457,54 +457,50 @@ pub const Button = struct {
             },
             else => {},
         }
-        
+
         return false;
     }
-    
+
     pub fn render(self: *const Self, commands: *ArrayList(DrawCommand), theme: Theme) !void {
         // Skip if not visible
         if (!self.element.visible) return;
-        
+
         const pos = self.element.globalPosition();
-        
+
         // Determine button color based on state
-        var color = if (!self.element.enabled) 
-            theme.disabled 
-        else if (self.is_pressed) 
+        var color = if (!self.element.enabled)
+            theme.disabled
+        else if (self.is_pressed)
             self.pressed_color
-        else if (self.is_hovered) 
+        else if (self.is_hovered)
             self.hover_color
-        else 
+        else
             self.background_color;
-        
+
         // Draw button background
-        try commands.append(DrawCommand{ 
-            .rect = .{
-                .rect = Rect.init(pos.x, pos.y, self.element.rect.width, self.element.rect.height),
-                .color = color,
-                .border_radius = self.border_radius,
-                .border_width = 0,
-            } 
-        });
-        
+        try commands.append(DrawCommand{ .rect = .{
+            .rect = Rect.init(pos.x, pos.y, self.element.rect.width, self.element.rect.height),
+            .color = color,
+            .border_radius = self.border_radius,
+            .border_width = 0,
+        } });
+
         // Draw button text
         const text_color = if (!self.element.enabled) theme.disabled_text else self.text_color;
-        
-        try commands.append(DrawCommand{
-            .text = .{
-                .rect = Rect.init(pos.x, pos.y, self.element.rect.width, self.element.rect.height),
-                .text = self.text,
-                .color = text_color,
-                .font = FontInfo{
-                    .name = "Segoe UI",
-                    .style = FontStyle{
-                        .size = 14.0,
-                        .weight = 400,
-                    },
+
+        try commands.append(DrawCommand{ .text = .{
+            .rect = Rect.init(pos.x, pos.y, self.element.rect.width, self.element.rect.height),
+            .text = self.text,
+            .color = text_color,
+            .font = FontInfo{
+                .name = "Segoe UI",
+                .style = FontStyle{
+                    .size = 14.0,
+                    .weight = 400,
                 },
-                .align_ = .center,
-            }
-        });
+            },
+            .align_ = .center,
+        } });
     }
 };
 
@@ -517,56 +513,54 @@ pub const Label = struct {
     text_align: TextAlign = .left,
     font_size: f32 = 14.0,
     font_weight: u32 = 400,
-    
+
     const Self = @This();
-    
+
     pub fn init(allocator: Allocator, id: u32, text: []const u8, x: f32, y: f32, width: f32, height: f32) Self {
         var text_copy = allocator.dupe(u8, text) catch unreachable;
-        
+
         return Self{
             .element = Element.init(allocator, id, x, y, width, height),
             .text = text_copy,
             .text_allocated = true,
         };
     }
-    
+
     pub fn deinit(self: *Self) void {
         if (self.text_allocated) {
             self.element.children.allocator.free(self.text);
         }
         self.element.deinit();
     }
-    
+
     pub fn setText(self: *Self, allocator: Allocator, text: []const u8) !void {
         if (self.text_allocated) {
             allocator.free(self.text);
         }
-        
+
         self.text = try allocator.dupe(u8, text);
         self.text_allocated = true;
     }
-    
+
     pub fn render(self: *const Self, commands: *ArrayList(DrawCommand), theme: Theme) !void {
         if (!self.element.visible) return;
-        
+
         const pos = self.element.globalPosition();
         const text_color = if (!self.element.enabled) theme.disabled_text else self.text_color;
-        
-        try commands.append(DrawCommand{
-            .text = .{
-                .rect = Rect.init(pos.x, pos.y, self.element.rect.width, self.element.rect.height),
-                .text = self.text,
-                .color = text_color,
-                .font = FontInfo{
-                    .name = "Segoe UI",
-                    .style = FontStyle{
-                        .size = self.font_size,
-                        .weight = self.font_weight,
-                    },
+
+        try commands.append(DrawCommand{ .text = .{
+            .rect = Rect.init(pos.x, pos.y, self.element.rect.width, self.element.rect.height),
+            .text = self.text,
+            .color = text_color,
+            .font = FontInfo{
+                .name = "Segoe UI",
+                .style = FontStyle{
+                    .size = self.font_size,
+                    .weight = self.font_weight,
                 },
-                .align_ = self.text_align,
-            }
-        });
+            },
+            .align_ = self.text_align,
+        } });
     }
 };
 
@@ -583,35 +577,33 @@ pub const Panel = struct {
         .bottom = 8,
         .left = 8,
     },
-    
+
     const Self = @This();
-    
+
     pub fn init(allocator: Allocator, id: u32, x: f32, y: f32, width: f32, height: f32) Self {
         return Self{
             .element = Element.init(allocator, id, x, y, width, height),
         };
     }
-    
+
     pub fn deinit(self: *Self) void {
         self.element.deinit();
     }
-    
+
     pub fn render(self: *const Self, commands: *ArrayList(DrawCommand), theme: Theme) !void {
         if (!self.element.visible) return;
-        
+
         const pos = self.element.globalPosition();
-        
+
         // Draw panel background
-        try commands.append(DrawCommand{
-            .rect = .{
-                .rect = Rect.init(pos.x, pos.y, self.element.rect.width, self.element.rect.height),
-                .color = if (!self.element.enabled) theme.disabled else self.background_color,
-                .border_radius = self.border_radius,
-                .border_width = self.border_width,
-                .border_color = self.border_color,
-            }
-        });
-        
+        try commands.append(DrawCommand{ .rect = .{
+            .rect = Rect.init(pos.x, pos.y, self.element.rect.width, self.element.rect.height),
+            .color = if (!self.element.enabled) theme.disabled else self.background_color,
+            .border_radius = self.border_radius,
+            .border_width = self.border_width,
+            .border_color = self.border_color,
+        } });
+
         // Render all children
         for (self.element.children.items) |child| {
             // This assumes that child is one of our UI elements with a render method
@@ -626,25 +618,20 @@ pub const Panel = struct {
             }
         }
     }
-    
+
     pub fn layoutChildren(self: *Self) void {
         const content_x = self.element.rect.x + self.padding.left;
         const content_y = self.element.rect.y + self.padding.top;
         const content_width = self.element.rect.width - (self.padding.left + self.padding.right);
         const content_height = self.element.rect.height - (self.padding.top + self.padding.bottom);
-        
+
         // Simple vertical layout
         if (self.element.children.items.len > 0) {
             const child_height = content_height / @as(f32, @floatFromInt(self.element.children.items.len));
-            
+
             for (self.element.children.items, 0..) |child, i| {
                 const y_offset = @as(f32, @floatFromInt(i)) * child_height;
-                child.setBounds(
-                    content_x, 
-                    content_y + y_offset, 
-                    content_width, 
-                    child_height
-                );
+                child.setBounds(content_x, content_y + y_offset, content_width, child_height);
             }
         }
     }
@@ -668,12 +655,12 @@ pub const TextInput = struct {
     border_radius: f32 = 4.0,
     on_change: ?*const fn (input: *TextInput) void = null,
     on_submit: ?*const fn (input: *TextInput) void = null,
-    
+
     const Self = @This();
-    
+
     pub fn init(allocator: Allocator, id: u32, placeholder: []const u8, x: f32, y: f32, width: f32, height: f32) Self {
         var placeholder_copy = allocator.dupe(u8, placeholder) catch unreachable;
-        
+
         return Self{
             .element = Element.init(allocator, id, x, y, width, height),
             .text = ArrayList(u8).init(allocator),
@@ -681,7 +668,7 @@ pub const TextInput = struct {
             .placeholder_allocated = true,
         };
     }
-    
+
     pub fn deinit(self: *Self) void {
         self.text.deinit();
         if (self.placeholder_allocated) {
@@ -689,25 +676,25 @@ pub const TextInput = struct {
         }
         self.element.deinit();
     }
-    
+
     pub fn setText(self: *Self, text: []const u8) !void {
         self.text.clearRetainingCapacity();
         try self.text.appendSlice(text);
         self.cursor_pos = self.text.items.len;
         self.selection_start = null;
-        
+
         if (self.on_change) |callback| {
             callback(self);
         }
     }
-    
+
     pub fn getText(self: *const Self) []const u8 {
         return self.text.items;
     }
-    
+
     pub fn handleEvent(self: *Self, event: Event) bool {
         if (!self.element.enabled) return false;
-        
+
         switch (event.event_type) {
             .mouse_down => {
                 if (self.element.contains(event.mouse_x, event.mouse_y)) {
@@ -738,10 +725,10 @@ pub const TextInput = struct {
             },
             else => {},
         }
-        
+
         return false;
     }
-    
+
     fn handleKeyPress(self: *Self, key: KeyCode, modifiers: KeyModifiers) bool {
         switch (key) {
             .backspace => {
@@ -797,7 +784,7 @@ pub const TextInput = struct {
                     // Clear selection
                     self.selection_start = null;
                 }
-                
+
                 if (self.cursor_pos > 0) {
                     self.cursor_pos -= 1;
                 }
@@ -813,7 +800,7 @@ pub const TextInput = struct {
                     // Clear selection
                     self.selection_start = null;
                 }
-                
+
                 if (self.cursor_pos < self.text.items.len) {
                     self.cursor_pos += 1;
                 }
@@ -840,3 +827,11 @@ pub const TextInput = struct {
                 }
                 self.cursor_pos = self.text.items.len;
                 return true;
+            },
+            else => {},
+        }
+        return false;
+    }
+
+    // Additional methods would go here (render, focus handling, etc.)
+};

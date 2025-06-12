@@ -596,7 +596,7 @@ fn vulkanInit(allocator: std.mem.Allocator, window_handle: usize) !*anyopaque {
 }
 
 fn vulkanDeinit(ctx: *anyopaque) void {
-    const backend: *VulkanBackend = @ptrCast(@alignCast(ctx));
+    const backend: *VulkanBackend = @ptrCast(@alignCast(@alignOf(VulkanBackend), ctx));
     const allocator = backend.allocator;
     backend.deinit();
     allocator.destroy(backend);
@@ -639,12 +639,12 @@ fn vulkanResize(ctx: *anyopaque, width: u32, height: u32) void {
 
 // Helper function to get last error from context
 fn vulkanGetLastError(ctx: *anyopaque) ?[]const u8 {
-    const context = @ptrCast(*VulkanContext, @alignCast(@alignOf(VulkanContext), ctx));
+    const context: *VulkanContext = @ptrCast(@alignCast(@alignOf(VulkanContext), ctx));
     return context.last_error;
 }
 
 pub const vulkan_backend_interface: interface.BackendInterface = {
-    .init_fn = vulkanInit;
+    .init_fn = vulkanInit,
     .deinit_fn = vulkanDeinit,
     .begin_frame_fn = vulkanBeginFrame,
     .end_frame_fn = vulkanEndFrame,

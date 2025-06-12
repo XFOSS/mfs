@@ -765,8 +765,8 @@ pub const ShaderNode = struct {
 
 pub const ShaderGraph = struct {
     allocator: Allocator,
-    nodes: HashMap(u32, ShaderNode, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage),
-    connections: HashMap(u32, Connection, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage),
+    nodes: HashMap(u32, ShaderNode, std.hash_map.AutoContext(u32)),
+    connections: HashMap(u32, Connection, std.hash_map.AutoContext(u32)),
     next_node_id: u32 = 1,
     next_connection_id: u32 = 1,
     shader_type: ShaderType,
@@ -776,8 +776,8 @@ pub const ShaderGraph = struct {
     pub fn init(allocator: Allocator, name: []const u8, shader_type: ShaderType) !ShaderGraph {
         return ShaderGraph{
             .allocator = allocator,
-            .nodes = HashMap(u32, ShaderNode, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
-            .connections = HashMap(u32, Connection, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
+            .nodes = HashMap(u32, ShaderNode, std.hash_map.AutoContext(u32)).init(allocator),
+            .connections = HashMap(u32, Connection, std.hash_map.AutoContext(u32)).init(allocator),
             .shader_type = shader_type,
             .name = try allocator.dupe(u8, name),
         };
@@ -1080,7 +1080,7 @@ pub const ShaderGraph = struct {
 
 pub const NodeShaderEditor = struct {
     allocator: Allocator,
-    graphs: HashMap([]const u8, ShaderGraph, std.hash_map.StringContext, std.hash_map.default_max_load_percentage),
+    graphs: HashMap([]const u8, ShaderGraph, std.hash_map.StringContext),
     active_graph: ?[]const u8,
     compiler: *DynamicShaderCompiler,
     node_library: ArrayList(NodeType),
@@ -1088,7 +1088,7 @@ pub const NodeShaderEditor = struct {
     pub fn init(allocator: Allocator, compiler: *DynamicShaderCompiler) !NodeShaderEditor {
         var editor = NodeShaderEditor{
             .allocator = allocator,
-            .graphs = HashMap([]const u8, ShaderGraph, std.hash_map.StringContext, std.hash_map.default_max_load_percentage).init(allocator),
+            .graphs = HashMap([]const u8, ShaderGraph, std.hash_map.StringContext).init(allocator),
             .active_graph = null,
             .compiler = compiler,
             .node_library = ArrayList(NodeType).init(allocator),

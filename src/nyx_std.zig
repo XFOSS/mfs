@@ -16,9 +16,9 @@ const Vec8f = Vector(8, f32);
 
 // Core modules with enhanced imports
 pub const math = @import("math/math.zig");
-pub const physics = @import("physics/physics_improved.zig");
+pub const physics = @import("physics/physics_engine.zig");
 pub const neural = @import("neural/brain.zig");
-pub const scene = @import("scene/scene.zig");
+pub const scene = @import("scene/core/scene.zig");
 pub const rendering = @import("render.zig");
 pub const platform = @import("platform/platform.zig");
 pub const gpu = @import("gpu.zig");
@@ -849,14 +849,14 @@ pub const ResourceManagerStats = struct {
 
 pub const ResourceManager = struct {
     allocator: Allocator,
-    assets: std.AutoHashMap(u64, *Asset),
+    assets: std.HashMap(u64, *Asset, std.hash_map.AutoContext(u64)),
     stats: ResourceManagerStats,
     mutex: Mutex,
 
     pub fn init(allocator: Allocator) ResourceManager {
         return ResourceManager{
             .allocator = allocator,
-            .assets = std.HashMap(u64, *Asset, std.hash_map.DefaultHashContext, std.hash_map.default_max_load_percentage).init(allocator),
+            .assets = std.HashMap(u64, *Asset, std.hash_map.AutoContext(u64)).init(allocator),
             .stats = ResourceManagerStats{
                 .asset_count = 0,
                 .memory_used = 0,

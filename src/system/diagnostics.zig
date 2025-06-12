@@ -121,11 +121,11 @@ pub const DiagnosticSystem = struct {
     error_tracking_enabled: bool,
 
     // Memory tracking
-    allocations: std.HashMap(usize, MemoryAllocation, std.hash_map.DefaultContext(usize), std.hash_map.default_max_load_percentage),
+    allocations: std.HashMap(usize, MemoryAllocation, std.hash_map.DefaultContext(usize)),
     memory_stats: MemoryStats,
 
     // Error tracking
-    errors: std.HashMap(u64, ErrorRecord, std.hash_map.DefaultContext(u64), std.hash_map.default_max_load_percentage),
+    errors: std.HashMap(u64, ErrorRecord, std.hash_map.DefaultContext(u64)),
 
     // Performance tracking
     performance: PerformanceMetrics,
@@ -143,8 +143,8 @@ pub const DiagnosticSystem = struct {
             .memory_tracking_enabled = config.memory_tracking_enabled,
             .performance_tracking_enabled = config.performance_tracking_enabled,
             .error_tracking_enabled = config.error_tracking_enabled,
-            .allocations = std.HashMap(usize, MemoryAllocation, std.hash_map.DefaultContext(usize), std.hash_map.default_max_load_percentage).init(allocator),
-            .errors = std.HashMap(u64, ErrorRecord, std.hash_map.DefaultContext(u64), std.hash_map.default_max_load_percentage).init(allocator),
+            .allocations = std.HashMap(usize, MemoryAllocation, std.hash_map.DefaultContext(usize)).init(allocator),
+            .errors = std.HashMap(u64, ErrorRecord, std.hash_map.DefaultContext(u64)).init(allocator),
             .memory_stats = MemoryStats{},
             .performance = PerformanceMetrics{},
             .console_output = config.console_output,

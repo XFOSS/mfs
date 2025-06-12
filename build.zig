@@ -1,10 +1,10 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const build_helpers = @import("build_helpers.zig");
-const build_simple_cube = @import("build_simple_cube.zig");
-const build_spinning_cube = @import("build_spinning_cube.zig");
-const build_game_engine = @import("build_game_engine.zig");
+const build_helpers = @import("build/build_helpers.zig");
+const build_simple_cube = @import("build/build_simple_cube.zig");
+const build_spinning_cube = @import("build/build_spinning_cube.zig");
+const build_game_engine = @import("build/build_game_engine.zig");
 
 /// Common configuration for creating executables
 const ExecutableConfig = struct {
@@ -28,7 +28,7 @@ const RunStepConfig = struct {
 fn createExecutable(b: *std.Build, config: ExecutableConfig) !*std.Build.Step.Compile {
     const exe = b.addExecutable(.{
         .name = config.name,
-        .root_source_file = .{ .path = config.root_source_file },
+        .root_source_file = b.path(config.root_source_file),
         .target = config.target,
         .optimize = config.optimize,
     });
@@ -90,19 +90,19 @@ pub fn build(b: *std.Build) void {
 
     const lib = b.addStaticLibrary(.{
         .name = "mfs",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     // Add math module
     lib.addModule("math", b.createModule(.{
-        .source_file = .{ .path = "src/math/math.zig" },
+        .source_file = b.path("src/math/math.zig"),
     }));
 
     // Add scene module
     lib.addModule("scene", b.createModule(.{
-        .source_file = .{ .path = "src/scene/scene.zig" },
+        .source_file = b.path("src/scene/scene.zig"),
         .dependencies = &.{
             .{ .name = "math", .module = lib.modules.get("math").? },
         },
@@ -110,7 +110,7 @@ pub fn build(b: *std.Build) void {
 
     // Add render module
     lib.addModule("render", b.createModule(.{
-        .source_file = .{ .path = "src/render/render.zig" },
+        .source_file = b.path("src/render/render.zig"),
         .dependencies = &.{
             .{ .name = "math", .module = lib.modules.get("math").? },
             .{ .name = "scene", .module = lib.modules.get("scene").? },
@@ -119,7 +119,7 @@ pub fn build(b: *std.Build) void {
 
     // Add audio module
     lib.addModule("audio", b.createModule(.{
-        .source_file = .{ .path = "src/audio/audio.zig" },
+        .source_file = b.path("src/audio/audio.zig"),
         .dependencies = &.{
             .{ .name = "math", .module = lib.modules.get("math").? },
             .{ .name = "scene", .module = lib.modules.get("scene").? },
@@ -128,7 +128,7 @@ pub fn build(b: *std.Build) void {
 
     // Add input module
     lib.addModule("input", b.createModule(.{
-        .source_file = .{ .path = "src/input/input.zig" },
+        .source_file = b.path("src/input/input.zig"),
         .dependencies = &.{
             .{ .name = "math", .module = lib.modules.get("math").? },
         },
@@ -136,7 +136,7 @@ pub fn build(b: *std.Build) void {
 
     // Add window module
     lib.addModule("window", b.createModule(.{
-        .source_file = .{ .path = "src/window/window.zig" },
+        .source_file = b.path("src/window/window.zig"),
         .dependencies = &.{
             .{ .name = "math", .module = lib.modules.get("math").? },
             .{ .name = "input", .module = lib.modules.get("input").? },
@@ -145,7 +145,7 @@ pub fn build(b: *std.Build) void {
 
     // Add engine module
     lib.addModule("engine", b.createModule(.{
-        .source_file = .{ .path = "src/engine/engine.zig" },
+        .source_file = b.path("src/engine/engine.zig"),
         .dependencies = &.{
             .{ .name = "math", .module = lib.modules.get("math").? },
             .{ .name = "scene", .module = lib.modules.get("scene").? },
@@ -159,7 +159,7 @@ pub fn build(b: *std.Build) void {
     // Add executable
     const exe = b.addExecutable(.{
         .name = "mfs",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -179,7 +179,7 @@ pub fn build(b: *std.Build) void {
 
     // Add test command
     const unit_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -376,7 +376,7 @@ fn buildWebDemoIfTargeted(
 
         // Copy web assets (JavaScript glue, HTML, etc.)
         const copy_web_files = b.addInstallDirectory(.{
-            .source_dir = .{ .path = "web" },
+            .source_dir = b.path("web"),
             .install_dir = .prefix,
             .install_subdir = "",
         });
@@ -394,7 +394,7 @@ fn createBenchmarkStep(
 ) !*std.Build.Step {
     const bench_exe = b.addExecutable(.{
         .name = "benchmarks",
-        .root_source_file = .{ .path = "src/tests/benchmarks.zig" },
+        .root_source_file = b.path("src/tests/benchmarks.zig"),
         .target = target,
         .optimize = .ReleaseFast, // Always optimize benchmarks
     });
@@ -423,7 +423,7 @@ fn buildAndRegisterTools(
     // Add asset processor tool
     const asset_processor = b.addExecutable(.{
         .name = "asset_processor",
-        .root_source_file = .{ .path = "tools/asset_processor/asset_processor.zig" },
+        .root_source_file = b.path("tools/asset_processor/asset_processor.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -444,7 +444,7 @@ fn buildAndRegisterTools(
     // Build profiler visualizer
     const profiler_visualizer = b.addExecutable(.{
         .name = "profiler_visualizer",
-        .root_source_file = .{ .path = "tools/profiler_visualizer/visualizer.zig" },
+        .root_source_file = b.path("tools/profiler_visualizer/visualizer.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -464,7 +464,7 @@ fn buildAndRegisterTools(
 fn installShadersAndAssets(b: *std.Build, exe: *std.Build.Step.Compile) void {
     // Install shader files
     const shader_dir = b.addInstallDirectory(.{
-        .source_dir = .{ .path = "shaders" },
+        .source_dir = b.path("shaders"),
         .install_dir = .bin,
         .install_subdir = "shaders",
     });
@@ -474,7 +474,7 @@ fn installShadersAndAssets(b: *std.Build, exe: *std.Build.Step.Compile) void {
     const assets_path = "assets";
     if (std.fs.cwd().access(assets_path, .{})) |_| {
         const assets_dir = b.addInstallDirectory(.{
-            .source_dir = .{ .path = assets_path },
+            .source_dir = b.path(assets_path),
             .install_dir = .bin,
             .install_subdir = "assets",
         });
@@ -482,7 +482,7 @@ fn installShadersAndAssets(b: *std.Build, exe: *std.Build.Step.Compile) void {
 
         // Make processed assets depend on raw assets
         const processed_assets_dir = b.addInstallDirectory(.{
-            .source_dir = .{ .path = "zig-out/assets" },
+            .source_dir = b.path("zig-out/assets"),
             .install_dir = .bin,
             .install_subdir = "processed_assets",
         });
@@ -496,7 +496,7 @@ fn installShadersAndAssets(b: *std.Build, exe: *std.Build.Step.Compile) void {
     const tutorial_shaders_path = "examples/tutorials/shaders";
     if (std.fs.cwd().access(tutorial_shaders_path, .{})) |_| {
         const tutorial_shaders_dir = b.addInstallDirectory(.{
-            .source_dir = .{ .path = tutorial_shaders_path },
+            .source_dir = b.path(tutorial_shaders_path),
             .install_dir = .bin,
             .install_subdir = "shaders/tutorials",
         });

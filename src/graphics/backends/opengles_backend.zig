@@ -1,7 +1,10 @@
+//! OpenGL ES backend implementation for mobile and embedded platforms
 const std = @import("std");
 const builtin = @import("builtin");
+const build_options = @import("build_options");
 const interface = @import("interface.zig");
 const types = @import("../types.zig");
+const common = @import("common.zig");
 
 // OpenGL ES C bindings
 const c = @cImport({
@@ -73,7 +76,12 @@ pub const OpenGLESBackend = struct {
         .end_debug_group = endDebugGroupImpl,
     };
 
-    pub fn init(allocator: std.mem.Allocator) !*interface.GraphicsBackend {
+    /// Create and initialize an OpenGL ES backend, returning a pointer to the interface.GraphicsBackend
+    pub fn createBackend(allocator: std.mem.Allocator) !*interface.GraphicsBackend {
+        if (!build_options.opengles_available) {
+            return error.BackendNotAvailable;
+        }
+
         if (builtin.os.tag != .linux and builtin.os.tag != .ios) {
             return interface.GraphicsBackendError.BackendNotAvailable;
         }
@@ -107,8 +115,8 @@ pub const OpenGLESBackend = struct {
                 return interface.GraphicsBackendError.InitializationFailed;
             }
 
-            var major: c.EGLint = 0;
-            var minor: c.EGLint = 0;
+            var major: c.EGLint = undefined;
+            var minor: c.EGLint = undefined;
             if (c.eglInitialize(self.egl_display, &major, &minor) == c.EGL_FALSE) {
                 return interface.GraphicsBackendError.InitializationFailed;
             }
@@ -126,7 +134,7 @@ pub const OpenGLESBackend = struct {
             };
 
             var config: c.EGLConfig = undefined;
-            var num_configs: c.EGLint = 0;
+            var num_configs: c.EGLint = undefined;
             if (c.eglChooseConfig(self.egl_display, &config_attribs[0], &config, 1, &num_configs) == c.EGL_FALSE) {
                 return interface.GraphicsBackendError.InitializationFailed;
             }
@@ -240,7 +248,7 @@ pub const OpenGLESBackend = struct {
     fn createTextureImpl(impl: *anyopaque, texture: *types.Texture, data: ?[]const u8) interface.GraphicsBackendError!void {
         _ = impl;
 
-        var texture_id: u32 = 0;
+        var texture_id: u32 = undefined;
         c.glGenTextures(1, &texture_id);
         if (texture_id == 0) return interface.GraphicsBackendError.ResourceCreationFailed;
 
@@ -293,7 +301,7 @@ pub const OpenGLESBackend = struct {
     fn createBufferImpl(impl: *anyopaque, buffer: *types.Buffer, data: ?[]const u8) interface.GraphicsBackendError!void {
         _ = impl;
 
-        var buffer_id: u32 = 0;
+        var buffer_id: u32 = undefined;
         c.glGenBuffers(1, &buffer_id);
         if (buffer_id == 0) return interface.GraphicsBackendError.ResourceCreationFailed;
 
@@ -336,10 +344,10 @@ pub const OpenGLESBackend = struct {
         c.glCompileShader(shader_id);
 
         // Check compilation status
-        var status: i32 = 0;
+        var status: i32 = undefined;
         c.glGetShaderiv(shader_id, c.GL_COMPILE_STATUS, &status);
         if (status == c.GL_FALSE) {
-            var log_length: i32 = 0;
+            var log_length: i32 = undefined;
             c.glGetShaderiv(shader_id, c.GL_INFO_LOG_LENGTH, &log_length);
 
             if (log_length > 0) {

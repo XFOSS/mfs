@@ -41,7 +41,7 @@ pub const BufferAllocation = struct {
     /// Map this allocation for CPU access
     pub fn map(self: *const BufferAllocation) ![]u8 {
         const full_map = try self.buffer.map();
-        return full_map[self.offset..self.offset+self.size];
+        return full_map[self.offset .. self.offset + self.size];
     }
 
     /// Release this allocation back to the pool
@@ -289,9 +289,9 @@ pub const MemoryAccess = enum {
     gpu_to_cpu, // GPU can write, CPU can read (slower)
     cpu_and_gpu, // Both CPU and GPU can read and write (slowest)
 
-        /// Get the optimal buffer usage flags for this access type
-        /// @thread-safe Thread-safe utility function
-        /// @symbol Internal memory access helper
+    /// Get the optimal buffer usage flags for this access type
+    /// @thread-safe Thread-safe utility function
+    /// @symbol Internal memory access helper
     pub fn getOptimalFlags(self: MemoryAccess) BufferUsageFlags {
         return switch (self) {
             .gpu_only => .{ .transfer_dst = true },
@@ -367,10 +367,7 @@ pub const Buffer = struct {
         self.allocations = std.AutoArrayHashMap(usize, BufferRegion).init(allocator);
 
         // Initially the entire buffer is free
-        try self.free_regions.?.append(BufferRegion{
-            .offset = 0,
-            .size = size
-        });
+        try self.free_regions.?.append(BufferRegion{ .offset = 0, .size = size });
 
         try self.initBuffer();
 
@@ -470,7 +467,7 @@ pub const Buffer = struct {
         if (offset + size > self.size) return BufferError.Overflow;
 
         const full_map = try self.map();
-        return full_map[offset..offset+size];
+        return full_map[offset .. offset + size];
     }
 
     /// Unmap buffer
@@ -1089,23 +1086,3 @@ pub fn getUniformBufferPool(self: *BufferMemoryManager, size: usize) !*BufferPoo
 
     return pool;
 }
- .{},
-            .frame_ring = frame_ring,
-        };HashMap(usize, *BufferPool).init(allocator),
-            .mutex =_buffer_pools = std.Autopool = storage_pool,
-            .uniformindex_pool = index_pool,
-            .uniform_pool = uniform_pool,
-            .storage_allocator = allocator,
-            .vertex_pool = vertex_pool,
-            .        self.* = Self{
-            .
-
-        var self = try allocator.create(Self);
- * 1024);, 8 * 1024 buffer
-        var frame_ring = try RingBuffer.init(allocator
-
-        // Create frame ring1024, .shader_storage, .cpu_to_gpu, BufferAlignment.storage); * 1024 * erAlignment.uniform);
-        var storage_pool = try Buffer.initPool(allocator, 32uniform, .cpu_to_gpu, Buff try Buffer.initPool(allocator, 16 * 1024 * 1024, ., 4);
-        var uniform_pool = * 1024 * 1024, .index, .cpu_to_gpu 16);
-        var index_pool = try Buffer.initPool(allocator, 32vertex, .cpu_to_gpu,(allocator, 64 * 1024 * 1024, ._pool = try Buffer.initPool        // Create large allocation pools
-        var vertex

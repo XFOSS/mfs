@@ -1,7 +1,10 @@
+//! Metal backend implementation for macOS and iOS using the Metal API
 const std = @import("std");
 const builtin = @import("builtin");
+const build_options = @import("build_options");
 const interface = @import("interface.zig");
 const types = @import("../types.zig");
+const common = @import("common.zig");
 
 /// Metal backend is only available on macOS and iOS
 const is_metal_platform = (builtin.os.tag == .macos or builtin.os.tag == .ios);
@@ -219,8 +222,11 @@ pub const MetalBackend = struct {
         .end_debug_group = endDebugGroupImpl,
     };
 
-    /// Initialize the Metal backend
-    pub fn init(allocator: std.mem.Allocator) !*interface.GraphicsBackend {
+    /// Create and initialize a Metal backend, returning a pointer to the interface.GraphicsBackend
+    pub fn createBackend(allocator: std.mem.Allocator) !*interface.GraphicsBackend {
+        if (!build_options.metal_available) {
+            return error.BackendNotAvailable;
+        }
         if (!is_metal_platform) {
             return error.BackendNotAvailable;
         }
@@ -1586,6 +1592,7 @@ pub const MetalBackend = struct {
     fn bindUniformBufferImpl(impl: *anyopaque, cmd: *interface.CommandBuffer, buffer: *types.Buffer, offset: u64, size: u64, slot: u32, shader_stage: types.ShaderStage) !void {
         const self: *Self = @ptrCast(@alignCast(impl));
         _ = cmd;
+        _ = size;
 
         if (buffer.id == 0) {
             return error.InvalidOperation;

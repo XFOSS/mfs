@@ -357,81 +357,16 @@ pub const BackendManager = struct {
     }
 
     fn createBackend(self: *Self, backend_type: capabilities.GraphicsBackend) !*interface.GraphicsBackend {
-        // Create a a consistent set of initialization options based on backend type
-        const init_options = switch (backend_type) {
-            .d3d11, .d3d12 => .{
-                .enable_debug_layer = self.debug_mode,
-                .enable_validation = self.debug_mode,
-                .prefer_hardware_adapter = true,
-            },
-            .vulkan => .{
-                .enable_validation_layers = self.debug_mode,
-                .enable_debug_markers = self.debug_mode,
-                .prefer_discrete_gpu = true,
-            },
-            .metal => .{
-                .enable_validation = self.debug_mode,
-                .enable_capture_manager = self.debug_mode,
-            },
-            .opengl, .opengles => .{
-                .enable_debug_output = self.debug_mode,
-                .enable_synchronous_debug = self.debug_mode,
-            },
-            .webgpu => .{
-                .enable_debug_capture = self.debug_mode,
-            },
-            .software => .{
-                .enable_debug_visualization = self.debug_mode,
-                .enable_multithreading = true,
-            },
-            else => .{},
-        };
-
-        return switch (backend_type) {
-            .d3d11 => blk: {
-                if (!build_options.d3d11_available) {
-                    return interface.GraphicsBackendError.BackendNotAvailable;
-                }
-                break :blk d3d11_backend.D3D11Backend.init(self.allocator, init_options);
-            },
-            .d3d12 => blk: {
-                if (!build_options.d3d12_available) {
-                    return interface.GraphicsBackendError.BackendNotAvailable;
-                }
-                break :blk d3d12_backend.D3D12Backend.init(self.allocator, init_options);
-            },
-            .metal => blk: {
-                if (!build_options.metal_available) {
-                    return interface.GraphicsBackendError.BackendNotAvailable;
-                }
-                break :blk metal_backend.MetalBackend.init(self.allocator, init_options);
-            },
-            .vulkan => blk: {
-                if (!build_options.vulkan_available) {
-                    return interface.GraphicsBackendError.BackendNotAvailable;
-                }
-                break :blk vulkan_backend.VulkanBackend.init(self.allocator, init_options);
-            },
-            .opengl => blk: {
-                if (!build_options.opengl_available) {
-                    return interface.GraphicsBackendError.BackendNotAvailable;
-                }
-                break :blk opengl_backend.OpenGLBackend.init(self.allocator, init_options);
-            },
-            .opengles => blk: {
-                if (!build_options.opengles_available) {
-                    return interface.GraphicsBackendError.BackendNotAvailable;
-                }
-                break :blk opengles_backend.OpenGLESBackend.init(self.allocator, init_options);
-            },
-            .webgpu => blk: {
-                if (!build_options.webgpu_available) {
-                    return interface.GraphicsBackendError.BackendNotAvailable;
-                }
-                break :blk webgpu_backend.WebGPUBackend.init(self.allocator, init_options);
-            },
-            .software => software_backend.SoftwareBackend.init(self.allocator, init_options),
-        };
+        switch (backend_type) {
+            .d3d11 => return d3d11_backend.createBackend(self.allocator),
+            .d3d12 => return d3d12_backend.createBackend(self.allocator),
+            .metal => return metal_backend.createBackend(self.allocator),
+            .vulkan => return vulkan_backend.createBackend(self.allocator),
+            .opengl => return opengl_backend.createBackend(self.allocator),
+            .opengles => return opengles_backend.createBackend(self.allocator),
+            .webgpu => return webgpu_backend.createBackend(self.allocator),
+            .software => return software_backend.createBackend(self.allocator),
+        }
     }
 
     pub fn createAdaptiveRenderer(self: *Self) !AdaptiveRenderer {

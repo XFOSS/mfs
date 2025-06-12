@@ -88,7 +88,7 @@ fn runBuildTest(test_case: BuildTest) !bool {
     // Add dry-run flag to speed up testing
     try cmd_args.append("--help");
 
-    const result = std.process.Child.run(.{
+    const result = std.ChildProcess.exec(.{
         .allocator = allocator,
         .argv = cmd_args.items,
         .cwd = "..",

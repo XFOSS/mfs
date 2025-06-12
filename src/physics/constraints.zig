@@ -8,18 +8,48 @@ const PhysicsConstants = physics.PhysicsConstants;
 const PhysicalObject = physics.PhysicalObject;
 const ObjectType = physics.ObjectType;
 
-/// Common interface for all constraint types
-pub const Constraint = struct {
-    /// Evaluate the constraint and apply correction impulses
-    applyConstraint: *const fn (*anyopaque, []PhysicalObject, f32) void,
-    /// Calculate how much the constraint is violated (0 = satisfied)
-    getViolation: *const fn (*const anyopaque) f32,
-    /// Get a unique type identifier for this constraint
-    getTypeId: *const fn () u32,
+/// Unified constraint interface using tagged union for type safety and extensibility
+pub const Constraint = union(enum) {
+    Spring: *SpringConstraint,
+    Distance: *DistanceConstraint,
+    Position: *PositionConstraint,
+    Angle: *AngleConstraint,
 
-    /// Generic constraint data
-    data: *anyopaque,
-    active: bool = true,
+    pub fn apply(self: Constraint, objects: []PhysicalObject, dt: f32) void {
+        switch (self) {
+            .Spring => |spring| spring.solve(objects, dt),
+            .Distance => |distance| distance.solve(objects, dt),
+            .Position => |position| position.solve(objects, dt),
+            .Angle => |angle| angle.solve(objects, dt),
+        }
+    }
+
+    pub fn violation(self: Constraint, objects: []const PhysicalObject) f32 {
+        return switch (self) {
+            .Spring => |spring| spring.violation(objects),
+            .Distance => |distance| distance.violation(objects),
+            .Position => |position| position.violation(objects),
+            .Angle => |angle| angle.violation(objects),
+        };
+    }
+
+    pub fn typeId(self: Constraint) u32 {
+        return switch (self) {
+            .Spring => 1,
+            .Distance => 2,
+            .Position => 3,
+            .Angle => 4,
+        };
+    }
+
+    pub fn isActive(self: Constraint) bool {
+        return switch (self) {
+            .Spring => |spring| spring.active,
+            .Distance => |distance| distance.active,
+            .Position => |position| position.active,
+            .Angle => |angle| angle.active,
+        };
+    }
 };
 
 /// A spring constraint between two objects
@@ -87,7 +117,7 @@ pub const SpringConstraint = struct {
         }
 
         // Break the spring if beyond threshold
-        if (self.break_threshold > 0 and @fabs(stretch) > self.break_threshold) {
+        if (self.break_threshold > 0 and std.math.fabs(stretch) > self.break_threshold) {
             self.active = false;
             return;
         }
@@ -156,7 +186,7 @@ pub const SpringConstraint = struct {
             delta[2] * delta[2]);
 
         // Calculate violation amount
-        return @fabs(current_length - self.rest_length);
+        return std.math.fabs(current_length - self.rest_length);
     }
 };
 
@@ -284,7 +314,7 @@ pub const DistanceConstraint = struct {
             delta[2] * delta[2]);
 
         // Return absolute violation
-        return @fabs(current_length - self.distance);
+        return std.math.fabs(current_length - self.distance);
     }
 };
 
@@ -295,6 +325,8 @@ pub const PositionConstraint = struct {
     stiffness: f32 = 1.0,
     active: bool = true,
 
+    /// Solves the position constraint by directly moving the object towards the target position
+    /// dt parameter is unused since this is an instantaneous correction, but kept for interface consistency
     pub fn solve(self: *PositionConstraint, objects: []PhysicalObject, dt: f32) void {
         if (!self.active) return;
 
@@ -409,73 +441,49 @@ pub const AngleConstraint = struct {
         const angle = q_rel.getAngle();
 
         // Return absolute violation
-        return @fabs(angle - self.target_angle);
+        return std.math.fabs(angle - self.target_angle);
     }
 };
 
 /// ConstraintManager for handling various constraint types
 pub const ConstraintManager = struct {
     allocator: std.mem.Allocator,
-    springs: std.ArrayList(SpringConstraint),
-    distances: std.ArrayList(DistanceConstraint),
-    positions: std.ArrayList(PositionConstraint),
-    angles: std.ArrayList(AngleConstraint),
+    constraints: std.ArrayList(Constraint),
 
     pub fn init(allocator: std.mem.Allocator) ConstraintManager {
-        return .{
+        return ConstraintManager{
             .allocator = allocator,
-            .springs = std.ArrayList(SpringConstraint).init(allocator),
-            .distances = std.ArrayList(DistanceConstraint).init(allocator),
-            .positions = std.ArrayList(PositionConstraint).init(allocator),
-            .angles = std.ArrayList(AngleConstraint).init(allocator),
+            .constraints = std.ArrayList(Constraint).init(allocator),
         };
     }
 
     pub fn deinit(self: *ConstraintManager) void {
-        self.springs.deinit();
-        self.distances.deinit();
-        self.positions.deinit();
-        self.angles.deinit();
+        self.constraints.deinit();
     }
 
-    pub fn addSpring(self: *ConstraintManager, constraint: SpringConstraint) !*SpringConstraint {
-        try self.springs.append(constraint);
-        return &self.springs.items[self.springs.items.len - 1];
+    pub fn addSpring(self: *ConstraintManager, spring: *SpringConstraint) !void {
+        try self.constraints.append(Constraint{ .Spring = spring });
     }
 
-    pub fn addDistance(self: *ConstraintManager, constraint: DistanceConstraint) !*DistanceConstraint {
-        try self.distances.append(constraint);
-        return &self.distances.items[self.distances.items.len - 1];
+    pub fn addDistance(self: *ConstraintManager, distance: *DistanceConstraint) !void {
+        try self.constraints.append(Constraint{ .Distance = distance });
     }
 
-    pub fn addPosition(self: *ConstraintManager, constraint: PositionConstraint) !*PositionConstraint {
-        try self.positions.append(constraint);
-        return &self.positions.items[self.positions.items.len - 1];
+    pub fn addPosition(self: *ConstraintManager, position: *PositionConstraint) !void {
+        try self.constraints.append(Constraint{ .Position = position });
     }
 
-    pub fn addAngle(self: *ConstraintManager, constraint: AngleConstraint) !*AngleConstraint {
-        try self.angles.append(constraint);
-        return &self.angles.items[self.angles.items.len - 1];
+    pub fn addAngle(self: *ConstraintManager, angle: *AngleConstraint) !void {
+        try self.constraints.append(Constraint{ .Angle = angle });
     }
 
     pub fn solveAll(self: *ConstraintManager, objects: []PhysicalObject, dt: f32, iterations: u32) void {
         var iter: u32 = 0;
         while (iter < iterations) : (iter += 1) {
-            // Solve all constraints
-            for (self.springs.items) |*spring| {
-                spring.solve(objects, dt);
-            }
-
-            for (self.distances.items) |*distance| {
-                distance.solve(objects, dt);
-            }
-
-            for (self.positions.items) |*position| {
-                position.solve(objects, dt);
-            }
-
-            for (self.angles.items) |*angle| {
-                angle.solve(objects, dt);
+            for (self.constraints.items) |constraint| {
+                if (constraint.isActive()) {
+                    constraint.apply(objects, dt);
+                }
             }
         }
     }

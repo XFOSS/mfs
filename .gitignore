@@ -1,7 +1,0 @@
-**/*.DS_Store
-
-# Zig build artifacts
-.zig-cache/
-zig-out/
-**/*.auth
-**/*.token
