@@ -4,6 +4,7 @@ const ArrayList = std.ArrayList;
 const HashMap = std.HashMap;
 const vk = @import("vk.zig");
 const material = @import("material.zig");
+const resource_utils = @import("resource_utils.zig");
 
 // Enhanced Vulkan backend with modern rendering features
 pub const VulkanDevice = struct {
@@ -65,41 +66,101 @@ pub const VulkanDevice = struct {
     }
 };
 
+pub fn checkVkResult(result: vk.VkResult) !void {
+    if (result != vk.VK_SUCCESS) {
+        return error.VulkanError;
+    }
+}
+
+pub fn findMemoryType(device: *const VulkanDevice, type_filter: u32, properties: vk.VkMemoryPropertyFlags) !u32 {
+    var mem_properties: vk.VkPhysicalDeviceMemoryProperties = undefined;
+    vk.vkGetPhysicalDeviceMemoryProperties(device.physical_device, &mem_properties);
+
+    for (0..mem_properties.memoryTypeCount) |i| {
+        if ((type_filter & (@as(u32, 1) << @intCast(i))) != 0 and
+            (mem_properties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            return @intCast(i);
+        }
+    }
+    return error.NoSuitableMemoryType;
+}
+
+pub const BufferUtils = struct {
+    pub fn createBuffer(device: *const VulkanDevice, size: u64, usage: vk.VkBufferUsageFlags, memory_properties: vk.VkMemoryPropertyFlags) !vk.VkBuffer {
+        const buffer_info = vk.VkBufferCreateInfo{
+            .sType = vk.VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = size,
+            .usage = usage,
+            .sharingMode = vk.VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = null,
+            .pNext = null,
+            .flags = 0,
+        };
+
+        var buffer: vk.VkBuffer = undefined;
+        try checkVkResult(vk.vkCreateBuffer(device.device, &buffer_info, null, &buffer));
+        return buffer;
+    }
+
+    pub fn allocateBufferMemory(device: *const VulkanDevice, buffer: vk.VkBuffer, memory_properties: vk.VkMemoryPropertyFlags) !vk.VkDeviceMemory {
+        var mem_requirements: vk.VkMemoryRequirements = undefined;
+        vk.vkGetBufferMemoryRequirements(device.device, buffer, &mem_requirements);
+
+        const memory_type_index = try findMemoryType(device, mem_requirements.memoryTypeBits, memory_properties);
+        const alloc_info = vk.VkMemoryAllocateInfo{
+            .sType = vk.VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            .allocationSize = mem_requirements.size,
+            .memoryTypeIndex = memory_type_index,
+            .pNext = null,
+        };
+
+        var memory: vk.VkDeviceMemory = undefined;
+        try checkVkResult(vk.vkAllocateMemory(device.device, &alloc_info, null, &memory));
+        try checkVkResult(vk.vkBindBufferMemory(device.device, buffer, memory, 0));
+        return memory;
+    }
+
+    pub fn copyDataToBuffer(device: *const VulkanDevice, buffer_memory: vk.VkDeviceMemory, data: []const u8) !void {
+        var mapped_memory: ?*anyopaque = undefined;
+        try checkVkResult(vk.vkMapMemory(device.device, buffer_memory, 0, @intCast(data.len), 0, &mapped_memory));
+        @memcpy(@as([*]u8, @ptrCast(mapped_memory.?))[0..data.len], data);
+        vk.vkUnmapMemory(device.device, buffer_memory);
+    }
+};
+
 pub const Buffer = struct {
     buffer: vk.VkBuffer,
     memory: vk.VkDeviceMemory,
-    size: vk.VkDeviceSize,
+    size: u64,
 
     const Self = @This();
 
-    pub fn init(device: *const VulkanDevice, size: vk.VkDeviceSize, usage: u32, properties: u32) !Self {
-        _ = usage; // autofix
-        _ = device;
-        _ = properties;
+    pub fn init(device: *const VulkanDevice, size: u64, usage: vk.VkBufferUsageFlags, memory_properties: vk.VkMemoryPropertyFlags) !Self {
+        const buffer = try BufferUtils.createBuffer(device, size, usage, memory_properties);
+        errdefer vk.vkDestroyBuffer(device.device, buffer, null);
+
+        const memory = try BufferUtils.allocateBufferMemory(device, buffer, memory_properties);
+        errdefer vk.vkFreeMemory(device.device, memory, null);
+
         return Self{
-            .buffer = @ptrFromInt(0x5000),
-            .memory = @ptrFromInt(0x6000),
+            .buffer = buffer,
+            .memory = memory,
             .size = size,
         };
     }
 
     pub fn deinit(self: *Self, device: *const VulkanDevice) void {
-        _ = device;
-        _ = self;
-        // Implementation would destroy buffer and free memory
+        vk.vkDestroyBuffer(device.device, self.buffer, null);
+        vk.vkFreeMemory(device.device, self.memory, null);
     }
 
-    pub fn map(self: *Self, device: *const VulkanDevice) ![]u8 {
-        _ = device;
-        const allocator = std.heap.page_allocator;
-        return try allocator.alloc(u8, @intCast(self.size));
-    }
-
-    pub fn unmap(self: *Self, device: *const VulkanDevice, data: []u8) void {
-        _ = device;
-        _ = self;
-        const allocator = std.heap.page_allocator;
-        allocator.free(data);
+    pub fn uploadData(self: *Self, device: *const VulkanDevice, data: []const u8) !void {
+        if (data.len > self.size) {
+            return error.BufferTooSmall;
+        }
+        try BufferUtils.copyDataToBuffer(device, self.memory, data);
     }
 };
 
@@ -475,46 +536,29 @@ pub const VulkanRenderer = struct {
     scene: Scene,
     allocator: Allocator,
     current_frame: u32,
+    depth_image: Image,
+    depth_image_view: vk.VkImageView,
+    width: u32,
+    height: u32,
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, instance: vk.VkInstance, surface: vk.VkSurfaceKHR, width: u32, height: u32) !Self {
-        const device = try VulkanDevice.init(instance, surface);
-        const swapchain = try Swapchain.init(allocator, &device, surface, width, height);
-        const render_pass = try RenderPass.init(&device, swapchain.format);
-
-        const framebuffers = try allocator.alloc(Framebuffer, swapchain.images.len);
-        for (framebuffers, 0..) |*fb, i| {
-            fb.* = try Framebuffer.init(&device, &render_pass, swapchain.image_views[i], width, height);
-        }
-
-        const command_pool = try CommandPool.init(&device, device.graphics_queue_family);
-        const command_buffers = try allocator.alloc(vk.VkCommandBuffer, swapchain.images.len);
-        for (command_buffers, 0..) |*cb, i| {
-            cb.* = try command_pool.allocateCommandBuffer(&device);
-            _ = i;
-        }
-
-        // Default shaders (would be loaded from files in real implementation)
-        const vertex_shader = "vertex_shader_code";
-        const fragment_shader = "fragment_shader_code";
-        const pipeline = try Pipeline.init(&device, &render_pass, vertex_shader, fragment_shader);
-
-        const camera = Camera.init([3]f32{ 0.0, 0.0, 5.0 }, std.math.pi / 4.0, @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(height)));
-        const scene = Scene.init(allocator, camera);
-
-        return Self{
-            .device = device,
-            .swapchain = swapchain,
-            .render_pass = render_pass,
-            .framebuffers = framebuffers,
-            .command_pool = command_pool,
-            .command_buffers = command_buffers,
-            .pipeline = pipeline,
-            .scene = scene,
+    pub fn init(allocator: Allocator, instance: vk.VkInstance, surface: vk.VkSurfaceKHR, width: u32, height: u32) !*Self {
+        var self = try allocator.create(Self);
+        self.* = Self{
             .allocator = allocator,
+            .device = try VulkanDevice.init(instance, surface),
+            .swapchain = try Swapchain.init(allocator, &self.device, surface, width, height),
             .current_frame = 0,
+            .width = width,
+            .height = height,
         };
+
+        try self.createDepthResources();
+        try self.createRenderPass();
+        try self.createFramebuffers();
+
+        return self;
     }
 
     pub fn deinit(self: *Self) void {
@@ -583,6 +627,28 @@ pub const VulkanRenderer = struct {
     pub fn updateCamera(self: *Self, position: [3]f32, rotation: [3]f32) void {
         self.scene.camera.position = position;
         self.scene.camera.rotation = rotation;
+    }
+
+    fn createDepthResources(self: *Self) !void {
+        const depth_format = try self.findDepthFormat();
+        self.depth_image = try resource_utils.ResourceUtils.createImage(&self.device, self.width, self.height, depth_format, vk.VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        self.depth_image_view = try resource_utils.ResourceUtils.createImageView(&self.device, self.depth_image.image, depth_format, vk.VK_IMAGE_ASPECT_DEPTH_BIT);
+    }
+
+    fn createRenderPass(self: *Self) !void {
+        self.render_pass = try resource_utils.ResourceUtils.createRenderPass(&self.device, self.swapchain.format, try self.findDepthFormat());
+    }
+
+    fn createFramebuffers(self: *Self) !void {
+        for (self.framebuffers, 0..) |*fb, i| {
+            fb.* = try resource_utils.ResourceUtils.createFramebuffer(&self.device, &self.render_pass, self.swapchain.image_views[i], self.depth_image_view, self.width, self.height);
+        }
+    }
+
+    fn findDepthFormat(self: *Self) !vk.VkFormat {
+        _ = self; // Suppress unused parameter warning until implementation is added
+        // Implementation would find a suitable depth format
+        return vk.VK_FORMAT_D32_SFLOAT;
     }
 };
 

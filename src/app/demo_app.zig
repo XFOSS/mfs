@@ -5,7 +5,19 @@ const capabilities = @import("../platform/capabilities.zig");
 const backend_manager = @import("../graphics/backend_manager.zig");
 const interface = @import("../graphics/backends/interface.zig");
 const types = @import("../graphics/types.zig");
+const resource_demo = @import("../app/resource_demo.zig");
 
+/// =============================
+/// DemoApp: High-level Application
+/// =============================
+/// Orchestrates initialization, main loop, backend switching, and delegates resource demos.
+///
+/// Usage:
+///   var app = try DemoApp.init(allocator);
+///   defer app.deinit();
+///   try app.run();
+///   try app.createResourceDemonstration();
+///
 pub const DemoApp = struct {
     allocator: std.mem.Allocator,
     backend_manager: ?*backend_manager.BackendManager,
@@ -19,6 +31,10 @@ pub const DemoApp = struct {
 
     const Self = @This();
 
+    // =============================
+    // Initialization & Deinitialization
+    // =============================
+    /// Initialize the demo application and all subsystems
     pub fn init(allocator: std.mem.Allocator) !*Self {
         // First create the backend manager to avoid potential null states
         const manager_options = backend_manager.BackendManager.InitOptions{
@@ -48,6 +64,7 @@ pub const DemoApp = struct {
         return app;
     }
 
+    /// Clean up all resources and subsystems
     pub fn deinit(self: *Self) void {
         if (self.backend_manager) |manager| {
             manager.deinit();
@@ -55,6 +72,10 @@ pub const DemoApp = struct {
         self.allocator.destroy(self);
     }
 
+    // =============================
+    // Main Loop
+    // =============================
+    /// Run the main demo loop (prints system info, handles rendering, backend switching, etc.)
     pub fn run(self: *Self) !void {
         std.log.info("=== MFS Graphics Demo Starting ===", .{});
 
@@ -92,6 +113,10 @@ pub const DemoApp = struct {
         std.log.info("Demo completed after {} frames", .{self.frame_count});
     }
 
+    // =============================
+    // System Information
+    // =============================
+    /// Print system/platform and backend information
     fn printSystemInfo(self: *Self) void {
         std.log.info("=== System Information ===", .{});
         std.log.info("Platform: {s} ({s})", .{ @tagName(builtin.os.tag), @tagName(builtin.cpu.arch) });
@@ -121,6 +146,10 @@ pub const DemoApp = struct {
         }
     }
 
+    // =============================
+    // Swap Chain & Window Management
+    // =============================
+    /// Create or recreate the swap chain for the current backend
     fn createSwapChain(self: *Self) !void {
         if (self.backend_manager) |manager| {
             if (manager.getPrimaryBackend()) |backend| {
@@ -143,6 +172,26 @@ pub const DemoApp = struct {
         }
     }
 
+    /// Handle window resizing and update swap chain
+    fn resizeWindow(self: *Self, new_width: u32, new_height: u32) !void {
+        self.window_width = new_width;
+        self.window_height = new_height;
+
+        if (self.backend_manager) |manager| {
+            if (manager.getPrimaryBackend()) |backend| {
+                backend.resizeSwapChain(new_width, new_height) catch |err| {
+                    std.log.warn("Failed to resize swap chain: {}", .{err});
+                };
+
+                std.log.info("Window resized to: {}x{}", .{ new_width, new_height });
+            }
+        }
+    }
+
+    // =============================
+    // Rendering
+    // =============================
+    /// Update per-frame logic (resize, backend switch, etc.)
     fn update(self: *Self) !void {
         // Simulate window resize every 200 frames
         if (self.frame_count > 0 and self.frame_count % 200 == 0) {
@@ -158,6 +207,7 @@ pub const DemoApp = struct {
         }
     }
 
+    /// Render a frame using the adaptive renderer and backend
     fn render(self: *Self) !void {
         // Adaptive renderer is guaranteed to be non-null after init
         const frame_data = struct {
@@ -178,6 +228,7 @@ pub const DemoApp = struct {
         }
     }
 
+    /// Perform basic rendering commands (triangle, clear, etc.)
     fn performBasicRendering(self: *Self, backend: *interface.GraphicsBackend) !void {
         // Create command buffer
         var cmd_buffer = backend.createCommandBuffer() catch return;
@@ -231,21 +282,10 @@ pub const DemoApp = struct {
         backend.present() catch {};
     }
 
-    fn resizeWindow(self: *Self, new_width: u32, new_height: u32) !void {
-        self.window_width = new_width;
-        self.window_height = new_height;
-
-        if (self.backend_manager) |manager| {
-            if (manager.getPrimaryBackend()) |backend| {
-                backend.resizeSwapChain(new_width, new_height) catch |err| {
-                    std.log.warn("Failed to resize swap chain: {}", .{err});
-                };
-
-                std.log.info("Window resized to: {}x{}", .{ new_width, new_height });
-            }
-        }
-    }
-
+    // =============================
+    // Backend Switching
+    // =============================
+    /// Demonstrate backend switching logic
     fn demonstrateBackendSwitching(self: *Self) !void {
         if (self.backend_manager) |manager| {
             const current_backend = manager.getPrimaryBackend().?.backend_type;
@@ -273,6 +313,10 @@ pub const DemoApp = struct {
         }
     }
 
+    // =============================
+    // Performance & FPS
+    // =============================
+    /// Update FPS statistics and print to log
     fn updateFPS(self: *Self) void {
         const current_time = @as(u64, @intCast(std.time.milliTimestamp()));
         const delta_time = current_time - self.last_time;
@@ -295,73 +339,20 @@ pub const DemoApp = struct {
         self.last_time = current_time;
     }
 
+    // =============================
+    // Resource Demonstration
+    // =============================
+    /// Demonstrate resource creation and management using a separate module
     pub fn createResourceDemonstration(self: *Self) !void {
-        if (self.backend_manager) |manager| {
-            if (manager.getPrimaryBackend()) |backend| {
-                std.log.info("=== Resource Creation Demo ===", .{});
+        try resource_demo.run(self);
+    }
 
-                // Create test texture
-                var texture = try types.Texture.init(self.allocator, 256, 256, .rgba8);
-                defer texture.deinit();
-
-                // Create texture data (simple gradient)
-                const texture_data = try self.allocator.alloc(u8, 256 * 256 * 4);
-                defer self.allocator.free(texture_data);
-
-                for (0..256) |y| {
-                    for (0..256) |x| {
-                        const offset = (y * 256 + x) * 4;
-                        texture_data[offset + 0] = @intCast(x); // R
-                        texture_data[offset + 1] = @intCast(y); // G
-                        texture_data[offset + 2] = 128; // B
-                        texture_data[offset + 3] = 255; // A
-                    }
-                }
-
-                backend.createTexture(texture, texture_data) catch |err| {
-                    std.log.warn("Failed to create texture: {}", .{err});
-                };
-
-                std.log.info("✓ Created 256x256 RGBA texture", .{});
-
-                // Create test buffer
-                var buffer = try types.Buffer.init(self.allocator, 1024, .vertex);
-                defer buffer.deinit();
-
-                const buffer_data = try self.allocator.alloc(u8, 1024);
-                defer self.allocator.free(buffer_data);
-                @memset(buffer_data, 0x42);
-
-                backend.createBuffer(buffer, buffer_data) catch |err| {
-                    std.log.warn("Failed to create buffer: {}", .{err});
-                };
-
-                std.log.info("✓ Created 1KB vertex buffer", .{});
-
-                // Create test shader
-                var shader = try types.Shader.init(self.allocator, .vertex,
-                    \\#version 330 core
-                    \\layout (location = 0) in vec3 aPos;
-                    \\void main() {
-                    \\    gl_Position = vec4(aPos, 1.0);
-                    \\}
-                );
-                defer shader.deinit();
-
-                backend.createShader(shader) catch |err| {
-                    std.log.warn("Failed to create shader: {}", .{err});
-                };
-
-                std.log.info("✓ Created vertex shader", .{});
-
-                // Cleanup resources
-                backend.destroyTexture(texture);
-                backend.destroyBuffer(buffer);
-                backend.destroyShader(shader);
-
-                std.log.info("✓ Successfully cleaned up all resources", .{});
-            }
-        }
+    /// Test backend switching and resource creation, logging results
+    pub fn testBackendSwitchingAndResources(self: *Self) !void {
+        std.log.info("=== Testing Backend Switching and Resource Creation ===", .{});
+        try self.demonstrateBackendSwitching();
+        try self.createResourceDemonstration();
+        std.log.info("=== Backend Switching and Resource Creation Test Complete ===", .{});
     }
 };
 
@@ -380,6 +371,9 @@ pub fn main() !void {
 
     // Demonstrate resource creation
     try app.createResourceDemonstration();
+
+    // Run backend switching and resource creation test
+    try app.testBackendSwitchingAndResources();
 
     std.log.info("=== Demo Complete ===", .{});
 }

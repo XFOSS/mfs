@@ -75,14 +75,26 @@
     // the build root itself.
     // A directory listed here means that all files within, recursively, are included.
     .paths = .{
+        // Core build files
         "build.zig",
         "build.zig.zon",
+        "build_helpers.zig",
+
+        // Source code
         "src",
-        // "tools",
-        // "shaders",
-        // "scripts",
-        // "examples",
-        //"LICENSE",
+        "tools",
+        "shaders",
+        "examples",
+        "tests",
+
+        // Documentation and metadata
         "README.md",
+        "LICENSE",
+        ".gitignore",
+        "scripts",
+
+        // Configuration files
+        ".editorconfig",
+        ".gitattributes",
     },
 }
