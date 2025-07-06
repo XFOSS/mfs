@@ -25,13 +25,18 @@ pub const UUID = struct {
 
     /// Generate a new UUID from a seed (deterministic)
     pub fn generateFromSeed(seed: u64) Self {
-        var prng = std.rand.DefaultPrng.init(seed);
-        var uuid = Self{ .bytes = undefined };
-        prng.fill(&uuid.bytes);
+        // The old std.rand API has been removed in recent Zig versions.
+        // Use the unified std.Random interface instead to ensure forward-compatibility.
 
-        // Set version (4) and variant bits
-        uuid.bytes[6] = (uuid.bytes[6] & 0x0f) | 0x40;
-        uuid.bytes[8] = (uuid.bytes[8] & 0x3f) | 0x80;
+        var prng = std.Random.DefaultPrng.init(seed);
+        const random = prng.random();
+
+        var uuid = Self{ .bytes = undefined };
+        random.bytes(&uuid.bytes);
+
+        // Set RFC-4122 version (4) and variant bits
+        uuid.bytes[6] = (uuid.bytes[6] & 0x0f) | 0x40; // Version 4
+        uuid.bytes[8] = (uuid.bytes[8] & 0x3f) | 0x80; // Variant 10
 
         return uuid;
     }
