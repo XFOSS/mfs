@@ -13,9 +13,9 @@ const Mat4 = math.Mat4;
 pub const CollisionPair = struct {
     entity_a: Entity,
     entity_b: Entity,
-    point: Vec3,
     normal: Vec3,
     penetration: f32,
+    contact_point: Vec3,
 };
 
 pub const PhysicsSystem = struct {
@@ -26,6 +26,8 @@ pub const PhysicsSystem = struct {
     fixed_time_step: f32,
     collision_pairs: ArrayList(CollisionPair),
     broad_phase_pairs: ArrayList(struct { Entity, Entity }),
+    dynamic_bodies: ArrayList(struct { Entity, *PhysicsComponent, *TransformComponent }),
+    static_bodies: ArrayList(struct { Entity, *PhysicsComponent, *TransformComponent }),
 
     pub fn init(allocator: Allocator, scene: *Scene) !PhysicsSystem {
         return PhysicsSystem{
@@ -36,12 +38,16 @@ pub const PhysicsSystem = struct {
             .fixed_time_step = 1.0 / 60.0,
             .collision_pairs = ArrayList(CollisionPair).init(allocator),
             .broad_phase_pairs = ArrayList(struct { Entity, Entity }).init(allocator),
+            .dynamic_bodies = ArrayList(struct { Entity, *PhysicsComponent, *TransformComponent }).init(allocator),
+            .static_bodies = ArrayList(struct { Entity, *PhysicsComponent, *TransformComponent }).init(allocator),
         };
     }
 
     pub fn deinit(self: *PhysicsSystem) void {
         self.collision_pairs.deinit();
         self.broad_phase_pairs.deinit();
+        self.dynamic_bodies.deinit();
+        self.static_bodies.deinit();
     }
 
     pub fn setGravity(self: *PhysicsSystem, gravity: Vec3) void {
@@ -61,13 +67,14 @@ pub const PhysicsSystem = struct {
         self.collision_pairs.clearRetainingCapacity();
         self.broad_phase_pairs.clearRetainingCapacity();
 
+        // Reuse pre-allocated body lists instead of allocating each frame
+        self.dynamic_bodies.clearRetainingCapacity();
+        self.static_bodies.clearRetainingCapacity();
+
+        var dynamic_bodies = &self.dynamic_bodies;
+        var static_bodies = &self.static_bodies;
+
         // Find all physics bodies
-        var dynamic_bodies = ArrayList(struct { Entity, *PhysicsComponent, *TransformComponent }).init(self.allocator);
-        defer dynamic_bodies.deinit();
-
-        var static_bodies = ArrayList(struct { Entity, *PhysicsComponent, *TransformComponent }).init(self.allocator);
-        defer static_bodies.deinit();
-
         var it = self.scene.iterator(.{ .physics = true, .transform = true });
         while (it.next()) |entity| {
             const physics = self.scene.getComponent(entity, PhysicsComponent) orelse continue;
