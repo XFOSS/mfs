@@ -5,6 +5,7 @@ const AutoHashMap = std.AutoHashMap;
 
 pub const EntityId = u64;
 pub const ComponentTypeId = u32;
+pub const SystemId = u32;
 
 pub const Component = union(enum) {
     transform: Transform,

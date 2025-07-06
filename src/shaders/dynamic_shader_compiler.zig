@@ -9,8 +9,7 @@ const Atomic = std.atomic.Atomic;
 const math = std.math;
 const fs = std.fs;
 const time = std.time;
-// Note: std.process.Child.* APIs were deprecated in Zig 0.14. Replace with std.ChildProcess helpers.
-// Removed legacy alias to std.process; we now invoke std.ChildProcess directly when spawning child processes.
+// Updated to use std.ChildProcess.exec instead of deprecated std.process.Child APIs
 const print = std.debug.print;
 
 pub const ShaderType = enum(u8) {
@@ -29,61 +28,39 @@ pub const ShaderType = enum(u8) {
     intersection = 12,
     callable = 13,
 
-    pub fn toSpvExecutionModel(self: ShaderType) u32 {
+    /// Metadata for each shader stage. Using a single table eliminates three almost-identical switch
+    /// statements previously scattered across helper functions.
+    const StageMeta = struct { extension: []const u8, entry_point: []const u8, spv_model: u32 };
+
+    fn meta(self: ShaderType) StageMeta {
         return switch (self) {
-            .vertex => 0, // Vertex
-            .tessellation_control => 1, // TessellationControl
-            .tessellation_evaluation => 2, // TessellationEvaluation
-            .geometry => 3, // Geometry
-            .fragment => 4, // Fragment
-            .compute => 5, // GLCompute
-            .task => 5761, // TaskNV
-            .mesh => 5267, // MeshNV
-            .raygen => 5313, // RayGenerationKHR
-            .anyhit => 5314, // AnyHitKHR
-            .closesthit => 5315, // ClosestHitKHR
-            .miss => 5316, // MissKHR
-            .intersection => 5317, // IntersectionKHR
-            .callable => 5318, // CallableKHR
+            .vertex => .{ ".vert", "vs_main", 0 },
+            .tessellation_control => .{ ".tesc", "tcs_main", 1 },
+            .tessellation_evaluation => .{ ".tese", "tes_main", 2 },
+            .geometry => .{ ".geom", "gs_main", 3 },
+            .fragment => .{ ".frag", "fs_main", 4 },
+            .compute => .{ ".comp", "cs_main", 5 },
+            .task => .{ ".task", "task_main", 5761 },
+            .mesh => .{ ".mesh", "mesh_main", 5267 },
+            .raygen => .{ ".rgen", "rgen_main", 5313 },
+            .anyhit => .{ ".rahit", "ahit_main", 5314 },
+            .closesthit => .{ ".rchit", "chit_main", 5315 },
+            .miss => .{ ".rmiss", "miss_main", 5316 },
+            .intersection => .{ ".rint", "isect_main", 5317 },
+            .callable => .{ ".rcall", "call_main", 5318 },
         };
+    }
+
+    pub fn toSpvExecutionModel(self: ShaderType) u32 {
+        return self.meta().spv_model;
     }
 
     pub fn getDefaultEntryPoint(self: ShaderType) []const u8 {
-        return switch (self) {
-            .vertex => "vs_main",
-            .fragment => "fs_main",
-            .geometry => "gs_main",
-            .tessellation_control => "tcs_main",
-            .tessellation_evaluation => "tes_main",
-            .compute => "cs_main",
-            .task => "task_main",
-            .mesh => "mesh_main",
-            .raygen => "rgen_main",
-            .anyhit => "ahit_main",
-            .closesthit => "chit_main",
-            .miss => "miss_main",
-            .intersection => "isect_main",
-            .callable => "call_main",
-        };
+        return self.meta().entry_point;
     }
 
     pub fn getFileExtension(self: ShaderType) []const u8 {
-        return switch (self) {
-            .vertex => ".vert",
-            .fragment => ".frag",
-            .geometry => ".geom",
-            .tessellation_control => ".tesc",
-            .tessellation_evaluation => ".tese",
-            .compute => ".comp",
-            .task => ".task",
-            .mesh => ".mesh",
-            .raygen => ".rgen",
-            .anyhit => ".rahit",
-            .closesthit => ".rchit",
-            .miss => ".rmiss",
-            .intersection => ".rint",
-            .callable => ".rcall",
-        };
+        return self.meta().extension;
     }
 };
 
@@ -303,7 +280,7 @@ pub const ShaderSource = struct {
             .shader_type = shader_type,
             .last_modified = std.time.timestamp(),
             .dependencies = ArrayList([]const u8).init(allocator),
-            .hash = std.hash_map.hashString(content),
+            .hash = std.hash.hashString(content),
         };
     }
 
@@ -322,7 +299,7 @@ pub const ShaderSource = struct {
         self.allocator.free(self.content);
         self.content = try self.allocator.dupe(u8, content);
         self.last_modified = std.time.timestamp();
-        self.hash = std.hash_map.hashString(content);
+        self.hash = std.hash.hashString(content);
     }
 
     pub fn addDependency(self: *ShaderSource, dependency: []const u8) !void {
@@ -416,8 +393,8 @@ pub const FileWatcher = struct {
     thread: ?Thread,
     should_stop: Atomic(bool),
     mutex: Mutex,
-    watched_files: HashMap([]const u8, WatchedFile, std.hash_map.StringContext),
-    callbacks: HashMap([]const u8, HotReloadCallback, std.hash_map.StringContext),
+    watched_files: HashMap([]const u8, WatchedFile, std.hash_map.AutoContext([]const u8)),
+    callbacks: HashMap([]const u8, HotReloadCallback, std.hash_map.AutoContext([]const u8)),
 
     const WatchedFile = struct {
         path: []const u8,
@@ -431,8 +408,8 @@ pub const FileWatcher = struct {
             .thread = null,
             .should_stop = Atomic(bool).init(false),
             .mutex = Mutex{},
-            .watched_files = HashMap([]const u8, WatchedFile, std.hash_map.StringContext).init(allocator),
-            .callbacks = HashMap([]const u8, HotReloadCallback, std.hash_map.StringContext).init(allocator),
+            .watched_files = HashMap([]const u8, WatchedFile, std.hash_map.AutoContext([]const u8)).init(allocator),
+            .callbacks = HashMap([]const u8, HotReloadCallback, std.hash_map.AutoContext([]const u8)).init(allocator),
         };
     }
 
@@ -662,8 +639,8 @@ pub const ShaderCache = struct {
 pub const DynamicShaderCompiler = struct {
     allocator: Allocator,
     cache: ShaderCache,
-    sources: HashMap([]const u8, ShaderSource, std.hash_map.StringContext),
-    compiled_shaders: HashMap([]const u8, CompiledShader, std.hash_map.StringContext),
+    sources: HashMap([]const u8, ShaderSource, std.hash_map.AutoContext([]const u8)),
+    compiled_shaders: HashMap([]const u8, CompiledShader, std.hash_map.AutoContext([]const u8)),
     file_watcher: FileWatcher,
     include_paths: ArrayList([]const u8),
     mutex: Mutex,
@@ -695,8 +672,8 @@ pub const DynamicShaderCompiler = struct {
         var compiler = Self{
             .allocator = allocator,
             .cache = cache,
-            .sources = HashMap([]const u8, ShaderSource, std.hash_map.StringContext).init(allocator),
-            .compiled_shaders = HashMap([]const u8, CompiledShader, std.hash_map.StringContext).init(allocator),
+            .sources = HashMap([]const u8, ShaderSource, std.hash_map.AutoContext([]const u8)).init(allocator),
+            .compiled_shaders = HashMap([]const u8, CompiledShader, std.hash_map.AutoContext([]const u8)).init(allocator),
             .file_watcher = file_watcher,
             .include_paths = ArrayList([]const u8).init(allocator),
             .mutex = Mutex{},

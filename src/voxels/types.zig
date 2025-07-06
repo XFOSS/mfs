@@ -1,5 +1,6 @@
 const std = @import("std");
-const Vec4 = @import("../math/vec4.zig").Vec4f;
+const math = @import("math");
+const Vec4 = math.Vec4;
 
 pub const VoxelError = error{
     InvalidChunkSize,

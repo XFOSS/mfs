@@ -1,7 +1,8 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-const Vec4 = @import("../math/vec4.zig").Vec4f;
+const math = @import("math");
+const Vec4 = math.Vec4;
 const color = @import("color.zig");
 const swiftui = @import("swiftui.zig");
 
@@ -196,7 +197,11 @@ pub const ModifiedView = struct {
     // Modifier methods that return modified views
     pub fn padding(self: Self, insets: EdgeInsets) Self {
         var modified = self;
-        modified.modifiers.append(ModifierData{ .padding = insets }) catch unreachable;
+        modified.modifiers.append(ModifierData{ .padding = insets }) catch |err| {
+            std.log.err("Failed to append padding modifier: {}", .{err});
+            // Return unmodified view on error
+            return modified;
+        };
         return modified;
     }
 
@@ -214,31 +219,46 @@ pub const ModifiedView = struct {
 
     pub fn background(self: Self, bg_color: color.Color) Self {
         var modified = self;
-        modified.modifiers.append(ModifierData{ .background_color = bg_color }) catch unreachable;
+        modified.modifiers.append(ModifierData{ .background_color = bg_color }) catch |err| {
+            std.log.err("Failed to append background color modifier: {}", .{err});
+            return modified;
+        };
         return modified;
     }
 
     pub fn backgroundVec4(self: Self, bg_color: Vec4) Self {
         var modified = self;
-        modified.modifiers.append(ModifierData{ .background_vec4 = bg_color }) catch unreachable;
+        modified.modifiers.append(ModifierData{ .background_vec4 = bg_color }) catch |err| {
+            std.log.err("Failed to append background vec4 modifier: {}", .{err});
+            return modified;
+        };
         return modified;
     }
 
     pub fn cornerRadius(self: Self, radius: f32) Self {
         var modified = self;
-        modified.modifiers.append(ModifierData{ .corner_radius = radius }) catch unreachable;
+        modified.modifiers.append(ModifierData{ .corner_radius = radius }) catch |err| {
+            std.log.err("Failed to append corner radius modifier: {}", .{err});
+            return modified;
+        };
         return modified;
     }
 
     pub fn opacity(self: Self, alpha: f32) Self {
         var modified = self;
-        modified.modifiers.append(ModifierData{ .opacity = std.math.clamp(alpha, 0.0, 1.0) }) catch unreachable;
+        modified.modifiers.append(ModifierData{ .opacity = std.math.clamp(alpha, 0.0, 1.0) }) catch |err| {
+            std.log.err("Failed to append opacity modifier: {}", .{err});
+            return modified;
+        };
         return modified;
     }
 
     pub fn frame(self: Self, constraints: FrameConstraints) Self {
         var modified = self;
-        modified.modifiers.append(ModifierData{ .frame = constraints }) catch unreachable;
+        modified.modifiers.append(ModifierData{ .frame = constraints }) catch |err| {
+            std.log.err("Failed to append frame modifier: {}", .{err});
+            return modified;
+        };
         return modified;
     }
 
@@ -256,7 +276,10 @@ pub const ModifiedView = struct {
 
     pub fn shadow(self: Self, shadow_config: Shadow) Self {
         var modified = self;
-        modified.modifiers.append(ModifierData{ .shadow = shadow_config }) catch unreachable;
+        modified.modifiers.append(ModifierData{ .shadow = shadow_config }) catch |err| {
+            std.log.err("Failed to append shadow modifier: {}", .{err});
+            return modified;
+        };
         return modified;
     }
 
@@ -266,7 +289,10 @@ pub const ModifiedView = struct {
 
     pub fn border(self: Self, border_config: Border) Self {
         var modified = self;
-        modified.modifiers.append(ModifierData{ .border = border_config }) catch unreachable;
+        modified.modifiers.append(ModifierData{ .border = border_config }) catch |err| {
+            std.log.err("Failed to append border modifier: {}", .{err});
+            return modified;
+        };
         return modified;
     }
 
@@ -276,13 +302,19 @@ pub const ModifiedView = struct {
 
     pub fn clipped(self: Self) Self {
         var modified = self;
-        modified.modifiers.append(ModifierData{ .clipped = {} }) catch unreachable;
+        modified.modifiers.append(ModifierData{ .clipped = {} }) catch |err| {
+            std.log.err("Failed to append clipped modifier: {}", .{err});
+            return modified;
+        };
         return modified;
     }
 
     pub fn scaleEffect(self: Self, scale_x: f32, scale_y: f32) Self {
         var modified = self;
-        modified.modifiers.append(ModifierData{ .scale_effect = .{ .x = scale_x, .y = scale_y } }) catch unreachable;
+        modified.modifiers.append(ModifierData{ .scale_effect = .{ .x = scale_x, .y = scale_y } }) catch |err| {
+            std.log.err("Failed to append scale effect modifier: {}", .{err});
+            return modified;
+        };
         return modified;
     }
 
@@ -292,7 +324,10 @@ pub const ModifiedView = struct {
 
     pub fn rotationEffect(self: Self, angle: f32) Self {
         var modified = self;
-        modified.modifiers.append(ModifierData{ .rotation_effect = angle }) catch unreachable;
+        modified.modifiers.append(ModifierData{ .rotation_effect = angle }) catch |err| {
+            std.log.err("Failed to append rotation effect modifier: {}", .{err});
+            return modified;
+        };
         return modified;
     }
 
@@ -302,18 +337,17 @@ pub const ModifiedView = struct {
 
     pub fn offset(self: Self, x: f32, y: f32) Self {
         var modified = self;
-        modified.modifiers.append(ModifierData{ .offset = .{ .x = x, .y = y } }) catch unreachable;
+        modified.modifiers.append(ModifierData{ .offset = .{ .x = x, .y = y } }) catch |err| {
+            std.log.err("Failed to append offset modifier: {}", .{err});
+            return modified;
+        };
         return modified;
     }
 
-    pub fn view(self: Self) swiftui.ViewProtocol {
-        const self_ptr = self.allocator.create(Self) catch unreachable;
+    pub fn view(self: Self) !swiftui.ViewProtocol {
+        const self_ptr = try self.allocator.create(Self);
         self_ptr.* = self;
-
-        return swiftui.ViewProtocol{
-            .ptr = self_ptr,
-            .vtable = &modified_view_vtable,
-        };
+        return swiftui.ViewProtocol{ .ptr = self_ptr, .vtable = &ModifiedView.vtable };
     }
 
     // ViewProtocol implementation
@@ -583,16 +617,16 @@ pub fn modify(allocator: Allocator, view: swiftui.ViewProtocol) ModifiedView {
 }
 
 // Extension-like functions for existing views
-pub fn addPadding(allocator: Allocator, view: swiftui.ViewProtocol, insets: EdgeInsets) swiftui.ViewProtocol {
-    return modify(allocator, view).padding(insets).view();
+pub fn addPadding(allocator: Allocator, view: swiftui.ViewProtocol, insets: EdgeInsets) !swiftui.ViewProtocol {
+    return try modify(allocator, view).padding(insets).view();
 }
 
-pub fn addBackground(allocator: Allocator, view: swiftui.ViewProtocol, bg_color: Vec4) swiftui.ViewProtocol {
-    return modify(allocator, view).backgroundVec4(bg_color).view();
+pub fn addBackground(allocator: Allocator, view: swiftui.ViewProtocol, bg_color: Vec4) !swiftui.ViewProtocol {
+    return try modify(allocator, view).backgroundVec4(bg_color).view();
 }
 
-pub fn addCornerRadius(allocator: Allocator, view: swiftui.ViewProtocol, radius: f32) swiftui.ViewProtocol {
-    return modify(allocator, view).cornerRadius(radius).view();
+pub fn addCornerRadius(allocator: Allocator, view: swiftui.ViewProtocol, radius: f32) !swiftui.ViewProtocol {
+    return try modify(allocator, view).cornerRadius(radius).view();
 }
 
 // Test the modifier system

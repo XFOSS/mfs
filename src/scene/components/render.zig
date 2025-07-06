@@ -1,7 +1,8 @@
 const std = @import("std");
-const Vec3 = @import("../../math/vec3.zig").Vec3f;
-const Vec4 = @import("../../math/vec4.zig").Vec4f;
-const Mat4 = @import("../../math/mat4.zig").Mat4f;
+// const math = @import("math");
+const Vec3 = struct { x: f32, y: f32, z: f32 };
+const Vec4 = struct { x: f32, y: f32, z: f32, w: f32 };
+const Mat4 = struct { data: [16]f32 };
 
 pub const BoundingBox = struct {
     min: Vec3,

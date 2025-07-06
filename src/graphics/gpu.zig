@@ -1,8 +1,11 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
-
-const backend_manager = @import("backend_manager.zig");
+// Silence unused-import error during compilation. Remove when build_options fields are referenced here.
+comptime {
+    _ = build_options;
+}
+const backends = @import("backends/mod.zig");
 const resource_manager = @import("resource_manager.zig");
 const interface = @import("backends/interface.zig");
 pub const BackendType = interface.BackendType;
@@ -23,6 +26,9 @@ pub const RenderTarget = types.RenderTarget;
 const pipeline_state = @import("pipeline_state.zig");
 pub const PipelineState = pipeline_state.PipelineState;
 pub const PipelineStateCache = pipeline_state.PipelineStateCache;
+
+// Re-export the main graphics backend interface
+pub const GraphicsBackend = backends.interface.GraphicsBackend;
 
 pub const Error = error{
     NoSuitableBackendFound,
@@ -146,14 +152,14 @@ var initialized = false;
 var frame_counter: u64 = 0;
 var default_allocator: std.mem.Allocator = undefined;
 var backend: ?*interface.GraphicsBackend = null;
-var backend_mgr: ?*backend_manager.BackendManager = null;
+var backend_mgr: ?*resource_manager.BackendManager = null;
 
 // Initialize the GPU subsystem with the given options
-pub fn init(allocator: std.mem.Allocator, options: backend_manager.BackendManager.InitOptions) Error!void {
+pub fn init(allocator: std.mem.Allocator, options: resource_manager.BackendManager.InitOptions) Error!void {
     if (initialized) return;
 
     default_allocator = allocator;
-    backend_mgr = try backend_manager.BackendManager.init(allocator, options);
+    backend_mgr = try resource_manager.BackendManager.init(allocator, options);
     errdefer {
         if (backend_mgr) |mgr| {
             mgr.deinit();

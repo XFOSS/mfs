@@ -1,22 +1,24 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-const Vec3 = @import("../../math/vec3.zig").Vec3f;
-const Mat4 = @import("../../math/mat4.zig").Mat4f;
+const math = @import("math");
+const Vec3 = math.Vec3;
+const Mat4 = math.Mat4;
 
 const EntityId = @import("../core/entity.zig").EntityId;
 const RenderComponent = @import("../components/render.zig").RenderComponent;
+const BoundingBox = @import("../components/render.zig").BoundingBox;
 
 pub const Octree = struct {
     allocator: Allocator,
-    bounds: RenderComponent.BoundingBox,
+    bounds: BoundingBox,
     entities: ArrayList(EntityId),
     children: [8]?*Octree,
     max_entities: u32,
     max_depth: u32,
     current_depth: u32,
 
-    pub fn init(allocator: Allocator, bounds: RenderComponent.BoundingBox, max_entities: u32, max_depth: u32) !*Octree {
+    pub fn init(allocator: Allocator, bounds: BoundingBox, max_entities: u32, max_depth: u32) !*Octree {
         const octree = try allocator.create(Octree);
         octree.* = Octree{
             .allocator = allocator,
@@ -41,7 +43,7 @@ pub const Octree = struct {
         self.allocator.destroy(self);
     }
 
-    pub fn insert(self: *Octree, entity_id: EntityId, bounds: RenderComponent.BoundingBox) !void {
+    pub fn insert(self: *Octree, entity_id: EntityId, bounds: BoundingBox) !void {
         if (!self.bounds.intersects(bounds)) return;
 
         if (self.entities.items.len < self.max_entities or self.current_depth >= self.max_depth) {
@@ -72,14 +74,14 @@ pub const Octree = struct {
             );
 
             const child_center = center.add(offset);
-            const child_bounds = RenderComponent.BoundingBox.init(child_center.sub(half_size.scale(0.5)), child_center.add(half_size.scale(0.5)));
+            const child_bounds = BoundingBox.init(child_center.sub(half_size.scale(0.5)), child_center.add(half_size.scale(0.5)));
 
             self.children[i] = try Octree.init(self.allocator, child_bounds, self.max_entities, self.max_depth);
             self.children[i].?.current_depth = self.current_depth + 1;
         }
     }
 
-    pub fn query(self: *Octree, query_bounds: RenderComponent.BoundingBox, results: *ArrayList(EntityId)) !void {
+    pub fn query(self: *Octree, query_bounds: BoundingBox, results: *ArrayList(EntityId)) !void {
         if (!self.bounds.intersects(query_bounds)) return;
 
         for (self.entities.items) |entity_id| {

@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Vec4 = @import("../math/vec4.zig").Vec4f;
+const math = @import("math");
+const Vec4 = math.Vec4;
 const ArrayList = std.ArrayList;
 const HashMap = std.HashMap;
 

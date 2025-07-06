@@ -2,7 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const AutoHashMap = std.AutoHashMap;
-const Vec4 = @import("../math/vec4.zig").Vec4f;
+const math = @import("math");
+const Vec4 = math.Vec4;
 
 // Re-export from other modules
 pub const backend = @import("backend/backend.zig");
@@ -626,7 +627,7 @@ pub const UISystem = struct {
         }
     }
 
-    fn convertRenderCommand(self: *Self, cmd: RenderCommand) backend.DrawCommand {
+    fn convertRenderCommand(_: *Self, cmd: RenderCommand) backend.DrawCommand {
         return switch (cmd) {
             .clear => |clear_color| backend.DrawCommand{ .clear = clear_color },
             .rect => |rect_data| backend.DrawCommand{ .rect = .{

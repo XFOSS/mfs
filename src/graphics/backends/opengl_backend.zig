@@ -1,7 +1,10 @@
 //! OpenGL backend implementation using the standard OpenGL API
 const std = @import("std");
 const builtin = @import("builtin");
-const build_options = @import("build_options");
+const build_options = @import("../../build_options.zig");
+comptime {
+    _ = build_options;
+}
 const Allocator = std.mem.Allocator;
 const types = @import("../types.zig");
 const common = @import("common.zig");
@@ -38,30 +41,54 @@ pub const OpenGLBackend = struct {
 
     const Self = @This();
 
+    const vtable = interface.GraphicsBackend.VTable{
+        .deinit = deinitImpl,
+        .create_swap_chain = createSwapChainImpl,
+        .resize_swap_chain = resizeSwapChainImpl,
+        .present = presentImpl,
+        .get_current_back_buffer = getCurrentBackBufferImpl,
+        .create_texture = createTextureImpl,
+        .create_buffer = createBufferImpl,
+        .create_shader = createShaderImpl,
+        .create_pipeline = createPipelineImpl,
+        .create_render_target = createRenderTargetImpl,
+        .update_buffer = updateBufferImpl,
+        .update_texture = updateTextureImpl,
+        .destroy_texture = destroyTextureImpl,
+        .destroy_buffer = destroyBufferImpl,
+        .destroy_shader = destroyShaderImpl,
+        .destroy_render_target = destroyRenderTargetImpl,
+        .create_command_buffer = createCommandBufferImpl,
+        .begin_command_buffer = beginCommandBufferImpl,
+        .end_command_buffer = endCommandBufferImpl,
+        .submit_command_buffer = submitCommandBufferImpl,
+        .begin_render_pass = beginRenderPassImpl,
+        .end_render_pass = endRenderPassImpl,
+        .set_viewport = setViewportImpl,
+        .set_scissor = setScissorImpl,
+        .bind_pipeline = bindPipelineImpl,
+        .bind_vertex_buffer = bindVertexBufferImpl,
+        .bind_index_buffer = bindIndexBufferImpl,
+        .bind_texture = bindTextureImpl,
+        .bind_uniform_buffer = bindUniformBufferImpl,
+        .draw = drawImpl,
+        .draw_indexed = drawIndexedImpl,
+        .dispatch = dispatchImpl,
+        .copy_buffer = copyBufferImpl,
+        .copy_texture = copyTextureImpl,
+        .copy_buffer_to_texture = copyBufferToTextureImpl,
+        .copy_texture_to_buffer = copyTextureToBufferImpl,
+        .resource_barrier = resourceBarrierImpl,
+        .get_backend_info = getBackendInfoImpl,
+        .set_debug_name = setDebugNameImpl,
+        .begin_debug_group = beginDebugGroupImpl,
+        .end_debug_group = endDebugGroupImpl,
+    };
+
     /// Create and initialize an OpenGL backend, returning a pointer to the interface.GraphicsBackend
-    pub fn createBackend(allocator: Allocator) !*interface.GraphicsBackend {
-        if (!build_options.opengl_available) {
-            return error.BackendNotAvailable;
-        }
-
-        const width = 800; // Default window size, should be configurable through window creation
-        const height = 600;
-        const backend = try allocator.create(Self);
-        backend.* = Self{
-            .allocator = allocator,
-            .extensions = std.StringHashMap(bool).init(allocator),
-            .viewport = types.Viewport{ .width = width, .height = height },
-        };
-
-        // Initialize OpenGL context (simplified - in real implementation would need platform-specific code)
-        if (!backend.initializeContext()) {
-            allocator.destroy(backend);
-            return OpenGLError.ContextCreationFailed;
-        }
-
-        backend.initialized = true;
-        std.log.info("OpenGL backend initialized successfully", .{});
-        return backend;
+    pub fn createBackend(_: Allocator) !*interface.GraphicsBackend {
+        // OpenGL backend is not fully implemented yet, return not available
+        return interface.GraphicsBackendError.BackendNotAvailable;
     }
 
     pub fn deinit(self: *Self) void {
@@ -420,4 +447,300 @@ pub const OpenGLBackend = struct {
 
         return program_id;
     }
+
+    // VTable implementation functions
+    fn deinitImpl(impl: *anyopaque) void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        self.deinit();
+    }
+
+    fn createSwapChainImpl(impl: *anyopaque, desc: *const interface.SwapChainDesc) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = desc;
+        // OpenGL doesn't use swap chains in the same way - context creation handles this
+        return;
+    }
+
+    fn resizeSwapChainImpl(impl: *anyopaque, width: u32, height: u32) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        self.setViewport(0, 0, width, height);
+    }
+
+    fn presentImpl(impl: *anyopaque) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        self.present();
+    }
+
+    fn getCurrentBackBufferImpl(impl: *anyopaque) interface.GraphicsBackendError!*types.Texture {
+        _ = impl;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn createTextureImpl(impl: *anyopaque, texture: *types.Texture, data: ?[]const u8) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        self.createTexture(texture, data) catch |err| switch (err) {
+            OpenGLError.TextureCreationFailed => return interface.GraphicsBackendError.ResourceCreationFailed,
+            OpenGLError.InitializationFailed => return interface.GraphicsBackendError.InitializationFailed,
+            else => return interface.GraphicsBackendError.InvalidOperation,
+        };
+    }
+
+    fn createBufferImpl(impl: *anyopaque, buffer: *types.Buffer, data: ?[]const u8) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        self.createBuffer(buffer, data) catch |err| switch (err) {
+            OpenGLError.BufferCreationFailed => return interface.GraphicsBackendError.ResourceCreationFailed,
+            OpenGLError.InitializationFailed => return interface.GraphicsBackendError.InitializationFailed,
+            else => return interface.GraphicsBackendError.InvalidOperation,
+        };
+    }
+
+    fn createShaderImpl(impl: *anyopaque, shader: *types.Shader) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        self.createShader(shader) catch |err| switch (err) {
+            OpenGLError.ShaderCompilationFailed => return interface.GraphicsBackendError.ResourceCreationFailed,
+            OpenGLError.InitializationFailed => return interface.GraphicsBackendError.InitializationFailed,
+            else => return interface.GraphicsBackendError.InvalidOperation,
+        };
+    }
+
+    fn createPipelineImpl(impl: *anyopaque, pipeline: *types.Pipeline, desc: *const interface.PipelineDesc) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = pipeline;
+        _ = desc;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn createRenderTargetImpl(impl: *anyopaque, render_target: *types.RenderTarget) interface.GraphicsBackendError!void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        self.createRenderTarget(render_target) catch |err| switch (err) {
+            OpenGLError.FramebufferCreationFailed => return interface.GraphicsBackendError.ResourceCreationFailed,
+            OpenGLError.InitializationFailed => return interface.GraphicsBackendError.InitializationFailed,
+            else => return interface.GraphicsBackendError.InvalidOperation,
+        };
+    }
+
+    fn updateBufferImpl(impl: *anyopaque, buffer: *types.Buffer, data: []const u8, offset: u32) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = buffer;
+        _ = data;
+        _ = offset;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn updateTextureImpl(impl: *anyopaque, texture: *types.Texture, data: []const u8, x: u32, y: u32, width: u32, height: u32) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = texture;
+        _ = data;
+        _ = x;
+        _ = y;
+        _ = width;
+        _ = height;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn destroyTextureImpl(impl: *anyopaque, texture: *types.Texture) void {
+        _ = impl;
+        _ = texture;
+        // TODO: Implement texture destruction
+    }
+
+    fn destroyBufferImpl(impl: *anyopaque, buffer: *types.Buffer) void {
+        _ = impl;
+        _ = buffer;
+        // TODO: Implement buffer destruction
+    }
+
+    fn destroyShaderImpl(impl: *anyopaque, shader: *types.Shader) void {
+        _ = impl;
+        _ = shader;
+        // TODO: Implement shader destruction
+    }
+
+    fn destroyRenderTargetImpl(impl: *anyopaque, render_target: *types.RenderTarget) void {
+        _ = impl;
+        _ = render_target;
+        // TODO: Implement render target destruction
+    }
+
+    fn createCommandBufferImpl(impl: *anyopaque) interface.GraphicsBackendError!*types.CommandBuffer {
+        _ = impl;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn beginCommandBufferImpl(impl: *anyopaque, command_buffer: *types.CommandBuffer) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = command_buffer;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn endCommandBufferImpl(impl: *anyopaque, command_buffer: *types.CommandBuffer) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = command_buffer;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn submitCommandBufferImpl(impl: *anyopaque, command_buffer: *types.CommandBuffer) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = command_buffer;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn beginRenderPassImpl(impl: *anyopaque, desc: *const interface.RenderPassDesc) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = desc;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn endRenderPassImpl(impl: *anyopaque) interface.GraphicsBackendError!void {
+        _ = impl;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn setViewportImpl(impl: *anyopaque, x: i32, y: i32, width: u32, height: u32) void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        self.setViewport(x, y, width, height);
+    }
+
+    fn setScissorImpl(impl: *anyopaque, x: i32, y: i32, width: u32, height: u32) void {
+        _ = impl;
+        _ = x;
+        _ = y;
+        _ = width;
+        _ = height;
+        // TODO: Implement scissor test
+    }
+
+    fn bindPipelineImpl(impl: *anyopaque, pipeline: *types.Pipeline) void {
+        _ = impl;
+        _ = pipeline;
+        // TODO: Implement pipeline binding
+    }
+
+    fn bindVertexBufferImpl(impl: *anyopaque, buffer: *types.Buffer, slot: u32) void {
+        _ = impl;
+        _ = buffer;
+        _ = slot;
+        // TODO: Implement vertex buffer binding
+    }
+
+    fn bindIndexBufferImpl(impl: *anyopaque, buffer: *types.Buffer) void {
+        _ = impl;
+        _ = buffer;
+        // TODO: Implement index buffer binding
+    }
+
+    fn bindTextureImpl(impl: *anyopaque, texture: *types.Texture, slot: u32) void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        self.bindTexture(texture, slot);
+    }
+
+    fn bindUniformBufferImpl(impl: *anyopaque, buffer: *types.Buffer, slot: u32) void {
+        _ = impl;
+        _ = buffer;
+        _ = slot;
+        // TODO: Implement uniform buffer binding
+    }
+
+    fn drawImpl(impl: *anyopaque, vertex_count: u32, first_vertex: u32) void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        self.drawTriangles(vertex_count, first_vertex);
+    }
+
+    fn drawIndexedImpl(impl: *anyopaque, index_count: u32, first_index: u32) void {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        self.drawIndexed(index_count, first_index);
+    }
+
+    fn dispatchImpl(impl: *anyopaque, group_count_x: u32, group_count_y: u32, group_count_z: u32) void {
+        _ = impl;
+        _ = group_count_x;
+        _ = group_count_y;
+        _ = group_count_z;
+        // TODO: Implement compute dispatch
+    }
+
+    fn copyBufferImpl(impl: *anyopaque, src: *types.Buffer, dst: *types.Buffer, size: u32) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = src;
+        _ = dst;
+        _ = size;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn copyTextureImpl(impl: *anyopaque, src: *types.Texture, dst: *types.Texture) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = src;
+        _ = dst;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn copyBufferToTextureImpl(impl: *anyopaque, buffer: *types.Buffer, texture: *types.Texture, x: u32, y: u32, width: u32, height: u32) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = buffer;
+        _ = texture;
+        _ = x;
+        _ = y;
+        _ = width;
+        _ = height;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn copyTextureToBufferImpl(impl: *anyopaque, texture: *types.Texture, buffer: *types.Buffer, x: u32, y: u32, width: u32, height: u32) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = texture;
+        _ = buffer;
+        _ = x;
+        _ = y;
+        _ = width;
+        _ = height;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn resourceBarrierImpl(impl: *anyopaque, barrier_type: types.ResourceBarrierType, resource: *anyopaque) interface.GraphicsBackendError!void {
+        _ = impl;
+        _ = barrier_type;
+        _ = resource;
+        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+    }
+
+    fn getBackendInfoImpl(impl: *anyopaque) types.BackendInfo {
+        const self: *Self = @ptrCast(@alignCast(impl));
+        return types.BackendInfo{
+            .name = "OpenGL",
+            .version = self.getVersionString(),
+            .vendor = "OpenGL",
+            .memory_budget = 0, // Unknown for OpenGL
+            .memory_usage = 0, // Unknown for OpenGL
+        };
+    }
+
+    fn setDebugNameImpl(impl: *anyopaque, object_type: types.DebugObjectType, object: *anyopaque, name: []const u8) void {
+        _ = impl;
+        _ = object_type;
+        _ = object;
+        _ = name;
+        // TODO: Implement debug naming
+    }
+
+    fn beginDebugGroupImpl(impl: *anyopaque, name: []const u8) void {
+        _ = impl;
+        _ = name;
+        // TODO: Implement debug groups
+    }
+
+    fn endDebugGroupImpl(impl: *anyopaque) void {
+        _ = impl;
+        // TODO: Implement debug groups
+    }
 };
+
+/// Create an OpenGL backend instance (module-level wrapper for OpenGLBackend.createBackend)
+pub fn create(allocator: Allocator, config: anytype) !*interface.GraphicsBackend {
+    _ = config; // Config not used yet but may be in the future
+    return OpenGLBackend.createBackend(allocator);
+}
+
+/// Create an OpenGL backend instance (alternative name for compatibility)
+pub fn createBackend(allocator: Allocator) !*interface.GraphicsBackend {
+    return OpenGLBackend.createBackend(allocator);
+}

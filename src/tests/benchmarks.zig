@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 const nyx = @import("../nyx_std.zig");
 const build_options = @import("build_options");
 
-const math = @import("../math/math.zig");
+const math = @import("math");
 const graphics = @import("../graphics/graphics.zig");
 const platform = @import("../platform/platform.zig");
 const physics = @import("../physics/physics.zig");
@@ -249,6 +249,32 @@ pub const Benchmarker = struct {
             },
         }
     }
+
+    pub fn run(self: *Self) !void {
+        std.debug.print("Running benchmark: {s}\n", .{self.config.name});
+
+        const allocator = std.heap.page_allocator;
+
+        // Pre-allocate test data with proper error handling
+        const size = 1024 * 1024; // 1MB
+        const mem = try allocator.alloc(u8, size);
+        defer allocator.free(mem);
+
+        // Fill with test data
+        for (mem, 0..) |*byte, i| {
+            byte.* = @intCast(i % 256);
+        }
+
+        const start_time = std.time.nanoTimestamp();
+
+        // Run the actual benchmark function
+        try self.bench_fn(allocator, mem);
+
+        const end_time = std.time.nanoTimestamp();
+        const duration_ns = @as(u64, @intCast(end_time - start_time));
+
+        std.debug.print("Benchmark '{s}' completed in {} ns ({:.2} ms)\n", .{ self.config.name, duration_ns, @as(f64, @floatFromInt(duration_ns)) / 1_000_000.0 });
+    }
 };
 
 // ------ Benchmark Implementations ------
@@ -288,7 +314,10 @@ fn benchmarkMemoryAllocations(iter: u32) void {
 
     // Simulate allocation patterns from engine components
     const size = (iter % 10 + 1) * 1024;
-    const mem = allocator.alloc(u8, size) catch unreachable;
+    const mem = allocator.alloc(u8, size) catch |err| {
+        std.log.err("Failed to allocate {} bytes: {}", .{ size, err });
+        return;
+    };
 
     // Do some work with the memory to prevent optimization
     @memset(mem, @intCast(iter % 256));

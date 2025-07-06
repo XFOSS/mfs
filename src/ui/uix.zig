@@ -2,7 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const AutoHashMap = std.AutoHashMap;
-const Vec4 = @import("../math/vec4.zig").Vec4f;
+const math = @import("math");
+const Vec4 = math.Vec4;
 
 pub const UiConfig = struct {
     enable_immediate_mode: bool = true,

@@ -723,3 +723,9 @@ pub const OpenGLESBackend = struct {
         // TODO: Implement debug groups using KHR_debug extension
     }
 };
+
+/// Create an OpenGL ES backend instance (module-level wrapper for OpenGLESBackend.createBackend)
+pub fn create(allocator: std.mem.Allocator, config: anytype) !*interface.GraphicsBackend {
+    _ = config; // Config not used yet but may be in the future
+    return OpenGLESBackend.createBackend(allocator);
+}

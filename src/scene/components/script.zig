@@ -34,9 +34,8 @@ pub const ScriptComponent = struct {
             deinit_fn(self);
         }
 
-        if (self.user_data) |data| {
-            self.allocator.destroy(data);
-        }
+        // Note: user_data deallocation should be handled by the deinit_fn
+        // since we don't know the type of the data stored in anyopaque
     }
 
     pub fn registerFunction(self: *ScriptComponent, name: []const u8, function: *const fn (*ScriptComponent, []const u8, ?*anyopaque) void) !void {

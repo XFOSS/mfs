@@ -4,10 +4,11 @@ const ArrayList = std.ArrayList;
 const HashMap = std.HashMap;
 const AutoHashMap = std.AutoHashMap;
 
-const Mat4 = @import("../math/mat4.zig").Mat4f;
-const Vec2 = @import("../math/vec2.zig").Vec2f;
-const Vec3 = @import("../math/vec3.zig").Vec3f;
-const Vec4 = @import("../math/vec4.zig").Vec4f;
+const Mat4 = math.Mat4;
+const math = @import("math");
+const Vec2 = math.Vec2;
+const Vec3 = math.Vec3;
+const Vec4 = math.Vec4;
 const VoxelEngine = @import("voxel_engine.zig");
 
 // Forward declarations

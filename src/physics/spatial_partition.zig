@@ -1,5 +1,5 @@
 const std = @import("std");
-const math = @import("../math/vector.zig");
+const math = @import("math");
 const Vec4 = math.Vec4;
 const Vector = math.Vector;
 const physics_engine = @import("physics_engine.zig");
@@ -127,7 +127,7 @@ pub const SpatialGrid = struct {
             while (y <= max_y) : (y += 1) {
                 var z: f32 = min_z;
                 while (z <= max_z) : (z += 1) {
-                    const i: usize = @intCast(usize, x + y * @as(f32, self.grid_dim) + z * @as(f32, self.grid_dim) * @as(f32, self.grid_dim));
+                    const i: usize = @intCast(x + y * @as(f32, @floatFromInt(self.grid_dim)) + z * @as(f32, @floatFromInt(self.grid_dim)) * @as(f32, @floatFromInt(self.grid_dim)));
                     if (i != cell_index) {
                         try self.cells[i].objects.append(object_index);
                     }
@@ -186,6 +186,60 @@ pub const SpatialGrid = struct {
                 CollisionResolver.resolveCollision(collision);
             }
         }
+    }
+};
+
+/// Main spatial partitioning system interface
+pub const SpatialPartition = struct {
+    grid: SpatialGrid,
+
+    pub fn init(allocator: std.mem.Allocator, world_size: f32, cell_size: f32) !SpatialPartition {
+        return SpatialPartition{
+            .grid = try SpatialGrid.init(allocator, world_size, cell_size),
+        };
+    }
+
+    pub fn deinit(self: *SpatialPartition) void {
+        self.grid.deinit();
+    }
+
+    pub fn clear(self: *SpatialPartition) void {
+        self.grid.clear();
+    }
+
+    pub fn insertObject(self: *SpatialPartition, object_index: usize, position: Vec4, radius: f32) !void {
+        try self.grid.insertObject(object_index, position, radius);
+    }
+
+    pub fn findCollisionPairs(self: *SpatialPartition) !void {
+        try self.grid.findCollisionPairs();
+    }
+
+    pub fn processCollisions(self: *SpatialPartition, objects: []PhysicalObject) void {
+        self.grid.processCollisions(objects);
+    }
+
+    pub fn update(self: *SpatialPartition) void {
+        // Clear grid for next frame
+        self.clear();
+    }
+
+    pub fn addObject(self: *SpatialPartition, object_index: usize, position: Vec4, radius: f32) !void {
+        try self.insertObject(object_index, position, radius);
+    }
+
+    pub fn updateObject(self: *SpatialPartition, object_index: usize, position: Vec4, radius: f32) void {
+        // For simplicity, just re-add the object
+        _ = self;
+        _ = object_index;
+        _ = position;
+        _ = radius;
+        // In a more sophisticated implementation, we would track and update object positions
+    }
+
+    pub fn queryPotentialCollisions(self: *SpatialPartition) ![][2]usize {
+        try self.findCollisionPairs();
+        return self.grid.collision_pairs.items;
     }
 };
 

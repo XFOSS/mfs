@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const gpu = @import("../graphics/gpu.zig");
 
 // Build options - would typically come from build.zig flags
 pub const build_options = struct {
@@ -41,7 +42,7 @@ pub const Config = struct {
     gc_threshold_mb: u64 = 256,
 
     // Graphics settings
-    renderer_backend: RendererBackend = .auto,
+    renderer_backend: gpu.BackendType = .software,
     window_width: u32 = 1280,
     window_height: u32 = 720,
     fullscreen: bool = false,
@@ -89,17 +90,6 @@ pub const Config = struct {
         stack_fallback,
     };
 
-    pub const RendererBackend = enum {
-        auto,
-        vulkan,
-        metal,
-        dx12,
-        webgpu,
-        opengl,
-        opengles,
-        software,
-    };
-
     pub const QualityLevel = enum(u8) {
         potato = 0,
         low = 1,
@@ -145,7 +135,7 @@ pub const Config = struct {
         const json_string = try std.json.stringifyAlloc(allocator, self, .{ .whitespace = .indent_2 });
         defer allocator.free(json_string);
 
-        try std.fs.cwd().writeFile(path, json_string);
+        try std.fs.cwd().writeFile(.{ .sub_path = path, .data = json_string });
     }
 
     pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) !Config {
@@ -165,7 +155,7 @@ pub const Config = struct {
 pub fn parseConfig(allocator: std.mem.Allocator) !Config {
     var config = Config{};
 
-    var args = try std.process.argsAlloc(allocator);
+    const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
     // Skip executable path
@@ -181,7 +171,7 @@ pub fn parseConfig(allocator: std.mem.Allocator) !Config {
             if (i < args.len) {
                 config.window_width = std.fmt.parseInt(u32, args[i], 10) catch 1280;
             }
-        } else if (std.mem.eql(u8, arg, "--height") or std.mem.eql(u8, arg, "-h")) {
+        } else if (std.mem.eql(u8, arg, "--height") or std.mem.eql(u8, arg, "-H")) {
             i += 1;
             if (i < args.len) {
                 config.window_height = std.fmt.parseInt(u32, args[i], 10) catch 720;
@@ -191,30 +181,12 @@ pub fn parseConfig(allocator: std.mem.Allocator) !Config {
         } else if (std.mem.eql(u8, arg, "--renderer") or std.mem.eql(u8, arg, "-r")) {
             i += 1;
             if (i < args.len) {
-                if (std.mem.eql(u8, args[i], "vulkan")) {
-                    config.renderer_backend = .vulkan;
-                } else if (std.mem.eql(u8, args[i], "opengl")) {
-                    config.renderer_backend = .opengl;
-                } else if (std.mem.eql(u8, args[i], "dx12")) {
-                    config.renderer_backend = .dx12;
-                } else if (std.mem.eql(u8, args[i], "metal")) {
-                    config.renderer_backend = .metal;
-                } else if (std.mem.eql(u8, args[i], "software")) {
-                    config.renderer_backend = .software;
-                }
+                config.renderer_backend = parseBackend(args[i]);
             }
         } else if (std.mem.eql(u8, arg, "--log-level")) {
             i += 1;
             if (i < args.len) {
-                if (std.mem.eql(u8, args[i], "error")) {
-                    config.log_level = .err;
-                } else if (std.mem.eql(u8, args[i], "warn")) {
-                    config.log_level = .warn;
-                } else if (std.mem.eql(u8, args[i], "info")) {
-                    config.log_level = .info;
-                } else if (std.mem.eql(u8, args[i], "debug")) {
-                    config.log_level = .debug;
-                }
+                config.log_level = parseLogLevel(args[i]) orelse config.log_level;
             }
         } else if (std.mem.eql(u8, arg, "--config") or std.mem.eql(u8, arg, "-c")) {
             i += 1;
@@ -241,9 +213,9 @@ fn printHelp() void {
         \\MFS Engine Usage:
         \\  --help, -h                 Show this help message
         \\  --width, -w WIDTH          Set window width
-        \\  --height, -h HEIGHT        Set window height
+        \\  --height, -H HEIGHT        Set window height
         \\  --fullscreen, -f           Enable fullscreen mode
-        \\  --renderer, -r BACKEND     Set renderer backend (vulkan, opengl, dx12, metal, software)
+        \\  --renderer, -r BACKEND     Set renderer backend (vulkan, opengl, d3d11, d3d12, metal, webgpu, opengles, software)
         \\  --log-level LEVEL          Set log level (error, warn, info, debug)
         \\  --config, -c PATH          Load configuration from file
         \\  --vsync                    Enable VSync (default)
@@ -264,4 +236,25 @@ test "config validation" {
     config.target_fps = 300;
     config.max_fps = 240;
     try std.testing.expectError(error.InvalidFrameRate, config.validate());
+}
+
+fn parseBackend(name: []const u8) gpu.BackendType {
+    if (std.mem.eql(u8, name, "vulkan")) return .vulkan;
+    if (std.mem.eql(u8, name, "opengl")) return .opengl;
+    if (std.mem.eql(u8, name, "d3d11")) return .d3d11;
+    if (std.mem.eql(u8, name, "d3d12")) return .d3d12;
+    if (std.mem.eql(u8, name, "metal")) return .metal;
+    if (std.mem.eql(u8, name, "opengles")) return .opengles;
+    if (std.mem.eql(u8, name, "webgpu")) return .webgpu;
+    if (std.mem.eql(u8, name, "software")) return .software;
+    // Default to software renderer for "auto" or unknown backends
+    return .software;
+}
+
+fn parseLogLevel(name: []const u8) ?Config.LogLevel {
+    if (std.mem.eql(u8, name, "error")) return .err;
+    if (std.mem.eql(u8, name, "warn")) return .warn;
+    if (std.mem.eql(u8, name, "info")) return .info;
+    if (std.mem.eql(u8, name, "debug")) return .debug;
+    return null;
 }

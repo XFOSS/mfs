@@ -1,0 +1,6 @@
+**/*zig-cache**
+**/*zig-out**
+**/*temp_cache**
+# Cache directories
+.mypy_cache/
+.zig-cache-clean/

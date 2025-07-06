@@ -5,6 +5,7 @@ pub const sync = @import("common/sync.zig");
 pub const commands = @import("common/commands.zig");
 pub const shaders = @import("common/shaders.zig");
 pub const pipeline_cache = @import("common/pipeline_cache.zig");
+pub const BackendBase = @import("common/backend_base.zig").BackendBase;
 
 // Re-export commonly used types and functions
 pub const ResourceState = resource.ResourceState;

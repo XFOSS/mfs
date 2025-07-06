@@ -1,10 +1,29 @@
 const std = @import("std");
-const builtin = @import("builtin");
+const build_helpers = @import("build_helpers.zig");
 
-const build_helpers = @import("build/build_helpers.zig");
-const build_simple_cube = @import("build/build_simple_cube.zig");
-const build_spinning_cube = @import("build/build_spinning_cube.zig");
-const build_game_engine = @import("build/build_game_engine.zig");
+/// Build configuration for the MFS Engine
+const BuildConfig = struct {
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    enable_vulkan: bool = false,
+    enable_ray_tracing: bool = false,
+    enable_tracy: bool = false,
+    enable_hot_reload: bool = false,
+
+    pub fn init(b: *std.Build) BuildConfig {
+        const target = b.standardTargetOptions(.{});
+        const optimize = b.standardOptimizeOption(.{});
+
+        return .{
+            .target = target,
+            .optimize = optimize,
+            .enable_vulkan = b.option(bool, "vulkan", "Enable Vulkan support") orelse false,
+            .enable_ray_tracing = b.option(bool, "ray-tracing", "Enable ray tracing") orelse false,
+            .enable_tracy = b.option(bool, "tracy", "Enable Tracy profiler") orelse false,
+            .enable_hot_reload = b.option(bool, "hot-reload", "Enable hot reload") orelse false,
+        };
+    }
+};
 
 /// Common configuration for creating executables
 const ExecutableConfig = struct {
@@ -38,32 +57,12 @@ fn createExecutable(b: *std.Build, config: ExecutableConfig) !*std.Build.Step.Co
     if (config.opts) |opts| {
         exe.root_module.addOptions("build_options", opts);
     }
-    if (config.dependencies) |dep| {
-        exe.root_module.addImport("vulkan_zig", dep.module("vulkan-zig"));
-    }
 
     // Add platform-specific dependencies
     addPlatformDependencies(exe, config.target.result.os.tag);
 
     // Install the executable
     b.installArtifact(exe);
-
-    // Add shader compilation step
-    const shader_compiler = b.addSystemCommand(&.{
-        "glslc",
-        "-o",
-        "shaders/triangle.vert.spv",
-        "shaders/triangle.vert",
-    });
-    shader_compiler.step.dependOn(&b.addSystemCommand(&.{
-        "glslc",
-        "-o",
-        "shaders/triangle.frag.spv",
-        "shaders/triangle.frag",
-    }).step);
-
-    // Make the shader compilation step a dependency of the main executable
-    exe.step.dependOn(&shader_compiler.step);
 
     return exe;
 }
@@ -82,428 +81,223 @@ fn createRunStep(b: *std.Build, config: RunStepConfig) !*std.Build.Step {
     return run_step;
 }
 
-/// Main build function that coordinates the entire build process
-/// This is the entry point for the Zig build system
+/// Main build function
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // Add memory manager tests
+    const memory_manager_tests = b.addTest(.{
+        .root_source_file = b.pathFromRoot("src/graphics/memory/new/memory_manager_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add Vulkan backend tests
+    const vulkan_backend_tests = b.addTest(.{
+        .root_source_file = b.pathFromRoot("src/graphics/backends/vulkan/new/vulkan_backend_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add Vulkan dependency to tests
+    memory_manager_tests.addIncludePath(.{ .system = true, .path = "C:/VulkanSDK/1.3.xxx/Include" });
+    memory_manager_tests.linkSystemLibrary("vulkan-1");
+    vulkan_backend_tests.addIncludePath(.{ .system = true, .path = "C:/VulkanSDK/1.3.xxx/Include" });
+    vulkan_backend_tests.linkSystemLibrary("vulkan-1");
+
+    const test_step = b.step("test", "Run library tests");
+    test_step.dependOn(&memory_manager_tests.step);
+    test_step.dependOn(&vulkan_backend_tests.step);
+
+    // Add memory manager to main library
     const lib = b.addStaticLibrary(.{
         .name = "mfs",
-        .root_source_file = b.path("src/main.zig"),
+        .root_source_file = b.pathFromRoot("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    // Add math module
-    lib.addModule("math", b.createModule(.{
-        .source_file = b.path("src/math/math.zig"),
-    }));
+    // Add Vulkan dependency to library
+    lib.addIncludePath(.{ .system = true, .path = "C:/VulkanSDK/1.3.xxx/Include" });
+    lib.linkSystemLibrary("vulkan-1");
 
-    // Add scene module
-    lib.addModule("scene", b.createModule(.{
-        .source_file = b.path("src/scene/scene.zig"),
-        .dependencies = &.{
-            .{ .name = "math", .module = lib.modules.get("math").? },
-        },
-    }));
+    b.installArtifact(lib);
 
-    // Add render module
-    lib.addModule("render", b.createModule(.{
-        .source_file = b.path("src/render/render.zig"),
-        .dependencies = &.{
-            .{ .name = "math", .module = lib.modules.get("math").? },
-            .{ .name = "scene", .module = lib.modules.get("scene").? },
-        },
-    }));
+    // Add examples
+    const examples = [_][]const u8{
+        "vulkan_spinning_cube_simple",
+        "vulkan_spinning_cube_real",
+        "vulkan_rt_spinning_cube",
+    };
 
-    // Add audio module
-    lib.addModule("audio", b.createModule(.{
-        .source_file = b.path("src/audio/audio.zig"),
-        .dependencies = &.{
-            .{ .name = "math", .module = lib.modules.get("math").? },
-            .{ .name = "scene", .module = lib.modules.get("scene").? },
-        },
-    }));
-
-    // Add input module
-    lib.addModule("input", b.createModule(.{
-        .source_file = b.path("src/input/input.zig"),
-        .dependencies = &.{
-            .{ .name = "math", .module = lib.modules.get("math").? },
-        },
-    }));
-
-    // Add window module
-    lib.addModule("window", b.createModule(.{
-        .source_file = b.path("src/window/window.zig"),
-        .dependencies = &.{
-            .{ .name = "math", .module = lib.modules.get("math").? },
-            .{ .name = "input", .module = lib.modules.get("input").? },
-        },
-    }));
-
-    // Add engine module
-    lib.addModule("engine", b.createModule(.{
-        .source_file = b.path("src/engine/engine.zig"),
-        .dependencies = &.{
-            .{ .name = "math", .module = lib.modules.get("math").? },
-            .{ .name = "scene", .module = lib.modules.get("scene").? },
-            .{ .name = "render", .module = lib.modules.get("render").? },
-            .{ .name = "audio", .module = lib.modules.get("audio").? },
-            .{ .name = "input", .module = lib.modules.get("input").? },
-            .{ .name = "window", .module = lib.modules.get("window").? },
-        },
-    }));
-
-    // Add executable
-    const exe = b.addExecutable(.{
-        .name = "mfs",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    exe.linkLibrary(lib);
-    b.installArtifact(exe);
-
-    // Add run command
-    const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    const run_step = b.step("run", "Run the application");
-    run_step.dependOn(&run_cmd.step);
-
-    // Add test command
-    const unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const run_unit_tests = b.addRunArtifact(unit_tests);
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_unit_tests.step);
-}
-
-/// Get Vulkan dependency if available
-/// @thread-safe Thread-safe dependency resolution
-fn getVulkanDependency(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !?*std.Build.Dependency {
-    return if (build_helpers.detectVulkanSDK(target.result.os.tag == .windows))
-        b.dependency("vulkan_zig", .{
+    for (examples) |example| {
+        const exe = b.addExecutable(.{
+            .name = example,
+            .root_source_file = b.pathFromRoot(b.fmt("examples/{s}/main.zig", .{example})),
             .target = target,
             .optimize = optimize,
-        })
-    else
-        null;
+        });
+
+        // Add Vulkan dependency to examples
+        exe.addIncludePath(.{ .system = true, .path = "C:/VulkanSDK/1.3.xxx/Include" });
+        exe.linkSystemLibrary("vulkan-1");
+
+        // Link with main library
+        exe.linkLibrary(lib);
+
+        b.installArtifact(exe);
+
+        const run_cmd = b.addRunArtifact(exe);
+        run_cmd.step.dependOn(b.getInstallStep());
+
+        const run_step = b.step(b.fmt("run-{s}", .{example}), b.fmt("Run the {s} example", .{example}));
+        run_step.dependOn(&run_cmd.step);
+    }
 }
 
-/// Create build options for feature toggles and platform detection
-fn createBuildOptions(b: *std.Build, target: std.Build.ResolvedTarget) !*std.Build.Step.Options {
-    const opts = b.addOptions();
-
-    // Graphics backends
-    const graphics_opts = .{
-        .vulkan_available = build_helpers.detectVulkanSDK(target.result.os.tag == .windows),
-        .d3d11_available = build_helpers.detectDirectX11() and target.result.os.tag == .windows,
-        .d3d12_available = build_helpers.detectDirectX12() and target.result.os.tag == .windows,
-        .metal_available = target.result.os.tag == .macos,
-        .opengl_available = true,
-        .opengles_available = target.result.os.tag == .linux or target.result.os.tag == .android,
-        .webgpu_available = target.result.os.tag == .wasi or target.result.os.tag == .emscripten,
-    };
-
-    // Development features
-    const dev_opts = .{
-        .enable_tracy = b.option(bool, "tracy", "Enable Tracy profiler") orelse false,
-        .enable_hot_reload = b.option(bool, "hot-reload", "Enable hot reloading") orelse
-            (b.standardOptimizeOption(.{}) == .Debug),
-        .enable_debug_utils = b.option(bool, "debug-utils", "Enable debug utilities") orelse
-            (b.standardOptimizeOption(.{}) == .Debug),
-    };
-
+fn addBuildOptions(options: *std.Build.Step.Options, target: std.Target) void {
     // Platform detection
-    const platform_opts = .{
-        .target_os = @tagName(target.result.os.tag),
-        .is_mobile = target.result.os.tag == .ios or target.result.os.tag == .android,
-        .is_desktop = target.result.os.tag == .windows or target.result.os.tag == .macos or
-            target.result.os.tag == .linux,
-        .is_web = target.result.os.tag == .wasi or target.result.os.tag == .emscripten,
+    options.addOption(bool, "is_windows", target.os.tag == .windows);
+    options.addOption(bool, "is_linux", target.os.tag == .linux);
+    options.addOption(bool, "is_macos", target.os.tag == .macos);
+    options.addOption(bool, "is_web", target.os.tag == .emscripten or target.os.tag == .wasi);
+    options.addOption(bool, "is_mobile", false);
+
+    // Graphics backend availability
+    options.addOption(bool, "vulkan_available", target.os.tag == .windows or target.os.tag == .linux);
+    options.addOption(bool, "d3d11_available", target.os.tag == .windows);
+    options.addOption(bool, "d3d12_available", target.os.tag == .windows);
+    options.addOption(bool, "metal_available", target.os.tag == .macos);
+    options.addOption(bool, "opengl_available", target.os.tag != .emscripten and target.os.tag != .wasi);
+    options.addOption(bool, "webgpu_available", target.os.tag == .emscripten or target.os.tag == .wasi);
+
+    // Feature flags
+    options.addOption(bool, "enable_validation", @import("builtin").mode == .Debug);
+    options.addOption(bool, "enable_tracy", false);
+    options.addOption(bool, "enable_hot_reload", @import("builtin").mode == .Debug);
+}
+
+fn buildTests(
+    b: *std.Build,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    mfs: *std.Build.Module,
+    options: *std.Build.Step.Options,
+) void {
+    // Main test runner that includes all modules
+    const test_exe = b.addTest(.{
+        .name = "mfs-tests",
+        .root_source_file = b.path("src/test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    test_exe.root_module.addImport("mfs", mfs);
+    test_exe.root_module.addOptions("build_options", options);
+    addPlatformDependencies(test_exe, target.result.os.tag);
+
+    const test_run = b.addRunArtifact(test_exe);
+    const test_step = b.step("test", "Run all tests");
+    test_step.dependOn(&test_run.step);
+
+    // Individual test suites with proper module access
+    const test_files = [_]struct { name: []const u8, path: []const u8 }{
+        .{ .name = "math-tests", .path = "src/tests/test_math.zig" },
+        .{ .name = "physics-tests", .path = "src/tests/physics_test.zig" },
+        .{ .name = "comprehensive-tests", .path = "src/tests/comprehensive_tests.zig" },
+        .{ .name = "benchmark-tests", .path = "src/tests/benchmarks/render_bench.zig" },
     };
 
-    // Add all options
-    inline for (std.meta.fields(@TypeOf(graphics_opts))) |field| {
-        opts.addOption(bool, field.name, @field(graphics_opts, field.name));
-    }
-    inline for (std.meta.fields(@TypeOf(dev_opts))) |field| {
-        opts.addOption(bool, field.name, @field(dev_opts, field.name));
-    }
-    inline for (std.meta.fields(@TypeOf(platform_opts))) |field| {
-        opts.addOption(@TypeOf(@field(platform_opts, field.name)), field.name, @field(platform_opts, field.name));
-    }
-
-    return opts;
-}
-
-/// Build all examples and demos using the common executable creation pattern
-fn buildExamplesAndDemos(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    opts: *std.Build.Step.Options,
-    vulkan_zig_dep: ?*std.Build.Dependency,
-) !void {
-    // Simple Spinning Cube
-    const simple_cube = try createExecutable(b, .{
-        .name = "simple_cube",
-        .root_source_file = "src/examples/simple_spinning_cube.zig",
-        .target = target,
-        .optimize = optimize,
-    });
-
-    _ = try createRunStep(b, .{
-        .name = "run-cube",
-        .description = "Run the simple spinning cube demo",
-        .exe = simple_cube,
-    });
-
-    // Advanced Spinning Cube
-    const spinning_cube = try createExecutable(b, .{
-        .name = "spinning_cube_app",
-        .root_source_file = "src/examples/spinning_cube_app.zig",
-        .target = target,
-        .optimize = optimize,
-        .opts = opts,
-    });
-
-    _ = try createRunStep(b, .{
-        .name = "run-advanced-cube",
-        .description = "Run the advanced spinning cube demo",
-        .exe = spinning_cube,
-    });
-
-    // Enhanced Renderer Demo
-    const enhanced_renderer = try createExecutable(b, .{
-        .name = "enhanced_renderer",
-        .root_source_file = "src/examples/simple_main.zig",
-        .target = target,
-        .optimize = optimize,
-        .dependencies = vulkan_zig_dep,
-        .opts = opts,
-    });
-
-    _ = try createRunStep(b, .{
-        .name = "run-enhanced",
-        .description = "Run the enhanced renderer demo",
-        .exe = enhanced_renderer,
-    });
-}
-
-/// Build all tutorial applications using the common executable creation pattern
-fn buildTutorials(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    opts: *std.Build.Step.Options,
-) !struct { *std.Build.Step, *std.Build.Step } {
-    // Tutorial 01
-    const tutorial_01 = try createExecutable(b, .{
-        .name = "tutorial_01",
-        .root_source_file = "examples/tutorials/01_getting_started.zig",
-        .target = target,
-        .optimize = optimize,
-        .opts = opts,
-    });
-
-    const run_tutorial_01_step = try createRunStep(b, .{
-        .name = "run-tutorial-01",
-        .description = "Run the first tutorial",
-        .exe = tutorial_01,
-    });
-
-    // Memory Profiling Tutorial
-    const memory_profiling = try createExecutable(b, .{
-        .name = "memory_profiling",
-        .root_source_file = "examples/tutorials/memory_profiling_example.zig",
-        .target = target,
-        .optimize = optimize,
-        .opts = opts,
-    });
-
-    const run_memory_profiling_step = try createRunStep(b, .{
-        .name = "run-memory-profiling",
-        .description = "Run the memory profiling tutorial",
-        .exe = memory_profiling,
-    });
-
-    return .{ run_tutorial_01_step, run_memory_profiling_step };
-}
-
-/// Connect tutorial steps to the main tutorial step
-/// @thread-safe Thread-safe step connection
-fn connectTutorialSteps(
-    tutorial_step: *std.Build.Step,
-    run_tutorial_steps: struct { *std.Build.Step, *std.Build.Step },
-) !void {
-    tutorial_step.dependOn(&run_tutorial_steps[0].step);
-    tutorial_step.dependOn(&run_tutorial_steps[1].step);
-}
-
-/// Build web demo if target is web platform
-/// @symbol Builds WebAssembly-compatible web demos
-/// @thread-safe Ensures safe conditional builds for web targets
-fn buildWebDemoIfTargeted(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    opts: *std.Build.Step.Options,
-) !void {
-    if (target.result.os.tag == .wasi or target.result.os.tag == .emscripten) {
-        const web_demo = try createExecutable(b, .{
-            .name = "web_demo",
-            .root_source_file = "src/examples/web/web_main.zig",
+    for (test_files) |test_file| {
+        const individual_test = b.addTest(.{
+            .name = test_file.name,
+            .root_source_file = b.path(test_file.path),
             .target = target,
             .optimize = optimize,
-            .opts = opts,
         });
+        individual_test.root_module.addImport("mfs", mfs);
+        individual_test.root_module.addOptions("build_options", options);
+        addPlatformDependencies(individual_test, target.result.os.tag);
 
-        // Additional web-specific build steps
-        const wasm_step = b.step("web", "Build WebAssembly demo");
-        wasm_step.dependOn(&b.addInstallArtifact(web_demo).step);
-
-        // Copy web assets (JavaScript glue, HTML, etc.)
-        const copy_web_files = b.addInstallDirectory(.{
-            .source_dir = b.path("web"),
-            .install_dir = .prefix,
-            .install_subdir = "",
-        });
-        wasm_step.dependOn(&copy_web_files.step);
+        const individual_test_run = b.addRunArtifact(individual_test);
+        const individual_test_step = b.step(
+            b.fmt("test-{s}", .{test_file.name}),
+            b.fmt("Run {s}", .{test_file.name}),
+        );
+        individual_test_step.dependOn(&individual_test_run.step);
     }
 }
 
-/// Create benchmark step for performance testing
-/// @thread-safe Thread-safe benchmark step creation
-fn createBenchmarkStep(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    _: std.builtin.OptimizeMode,
-    opts: *std.Build.Step.Options,
-) !*std.Build.Step {
-    const bench_exe = b.addExecutable(.{
-        .name = "benchmarks",
-        .root_source_file = b.path("src/tests/benchmarks.zig"),
-        .target = target,
-        .optimize = .ReleaseFast, // Always optimize benchmarks
-    });
-
-    try build_helpers.addSourceModules(b, bench_exe);
-    bench_exe.root_module.addOptions("build_options", opts);
-
-    b.installArtifact(bench_exe);
-
-    const run_bench = b.addRunArtifact(bench_exe);
-    const bench_step = b.step("bench", "Run performance benchmarks");
-    bench_step.dependOn(&run_bench.step);
-
-    return bench_step;
-}
-
-/// Build and register all tools
-/// @symbol Registers tools like asset processors and profilers
-/// @thread-safe Ensures safe tool registration and builds
-fn buildAndRegisterTools(
+fn buildTools(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    tools_step: *std.Build.Step,
-) !void {
-    // Add asset processor tool
-    const asset_processor = b.addExecutable(.{
-        .name = "asset_processor",
-        .root_source_file = b.path("tools/asset_processor/asset_processor.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    mfs: *std.Build.Module,
+    options: *std.Build.Step.Options,
+) void {
+    const tools = [_]struct { name: []const u8, path: []const u8 }{
+        .{ .name = "asset-processor", .path = "tools/asset_processor/asset_processor.zig" },
+        .{ .name = "model-viewer", .path = "tools/model_viewer.zig" },
+        .{ .name = "texture-converter", .path = "tools/texture_converter.zig" },
+    };
 
-    b.installArtifact(asset_processor);
-
-    // Create asset processing step
-    const process_assets_cmd = b.addRunArtifact(asset_processor);
-    process_assets_cmd.addArgs(&[_][]const u8{
-        "assets",
-        "zig-out/assets",
-        "--verbose",
-    });
-
-    const process_assets_step = b.step("assets", "Process game assets");
-    process_assets_step.dependOn(&process_assets_cmd.step);
-
-    // Build profiler visualizer
-    const profiler_visualizer = b.addExecutable(.{
-        .name = "profiler_visualizer",
-        .root_source_file = b.path("tools/profiler_visualizer/visualizer.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    try build_helpers.addSourceModules(b, profiler_visualizer);
-    addPlatformDependencies(profiler_visualizer, target.result.os.tag);
-    profiler_visualizer.linkSystemLibrary("raylib");
-    b.installArtifact(profiler_visualizer);
-
-    // Add tool artifacts to the tools step (using the already defined tools_step)
-    tools_step.dependOn(&b.addInstallArtifact(profiler_visualizer).step);
-    tools_step.dependOn(&b.addInstallArtifact(asset_processor).step);
+    for (tools) |tool| {
+        const exe = b.addExecutable(.{
+            .name = tool.name,
+            .root_source_file = b.path(tool.path),
+            .target = target,
+            .optimize = optimize,
+        });
+        exe.root_module.addImport("mfs", mfs);
+        exe.root_module.addOptions("build_options", options);
+        addPlatformDependencies(exe, target.result.os.tag);
+        b.installArtifact(exe);
+    }
 }
 
-/// Install shader files and assets to the right location
-/// @symbol Handles shader and asset installation for applications
-/// @thread-safe Ensures safe installation of assets
-fn installShadersAndAssets(b: *std.Build, exe: *std.Build.Step.Compile) void {
-    // Install shader files
-    const shader_dir = b.addInstallDirectory(.{
-        .source_dir = b.path("shaders"),
-        .install_dir = .bin,
-        .install_subdir = "shaders",
+/// Build for WebAssembly target
+fn buildWebTarget(
+    b: *std.Build,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    mfs: *std.Build.Module,
+    options: *std.Build.Step.Options,
+) void {
+    _ = target;
+    _ = optimize;
+    _ = options;
+
+    const web_step = b.step("web", "Build for WebAssembly");
+
+    // Create web-specific target
+    const web_target = b.resolveTargetQuery(.{
+        .cpu_arch = .wasm32,
+        .os_tag = .freestanding,
     });
-    exe.step.dependOn(&shader_dir.step);
 
-    // Install assets if they exist
-    const assets_path = "assets";
-    if (std.fs.cwd().access(assets_path, .{})) |_| {
-        const assets_dir = b.addInstallDirectory(.{
-            .source_dir = b.path(assets_path),
-            .install_dir = .bin,
-            .install_subdir = "assets",
-        });
-        exe.step.dependOn(&assets_dir.step);
+    const web_exe = b.addExecutable(.{
+        .name = "mfs-web",
+        .root_source_file = b.path("src/main.zig"),
+        .target = web_target,
+        .optimize = .ReleaseSmall,
+    });
 
-        // Make processed assets depend on raw assets
-        const processed_assets_dir = b.addInstallDirectory(.{
-            .source_dir = b.path("zig-out/assets"),
-            .install_dir = .bin,
-            .install_subdir = "processed_assets",
-        });
-        processed_assets_dir.step.dependOn(b.getStepForName("assets") orelse &assets_dir.step);
-        exe.step.dependOn(&processed_assets_dir.step);
-    } else |_| {
-        std.log.debug("No assets directory found at {s}", .{assets_path});
+    web_exe.root_module.addImport("mfs", mfs);
+    web_exe.entry = .disabled;
+
+    // Zig versions prior to 0.15 do not expose `export_symbol_names` on `std.Build.Step.Compile`.
+    // Use reflection to set it only when available so the build script remains compatible with
+    // older toolchains (e.g., 0.14.x).
+    if (@hasField(@TypeOf(web_exe.*), "export_symbol_names")) {
+        @field(web_exe, "export_symbol_names") = &[_][]const u8{
+            "web_init",
+            "web_frame",
+            "web_deinit",
+        };
     }
 
-    // Install tutorial shaders if they exist
-    const tutorial_shaders_path = "examples/tutorials/shaders";
-    if (std.fs.cwd().access(tutorial_shaders_path, .{})) |_| {
-        const tutorial_shaders_dir = b.addInstallDirectory(.{
-            .source_dir = b.path(tutorial_shaders_path),
-            .install_dir = .bin,
-            .install_subdir = "shaders/tutorials",
-        });
-        exe.step.dependOn(&tutorial_shaders_dir.step);
-    } else |_| {
-        std.log.debug("No tutorial shaders directory found at {s}", .{tutorial_shaders_path});
-    }
+    b.installArtifact(web_exe);
+    web_step.dependOn(&web_exe.step);
 }
 
 /// Add platform-specific dependencies with improved organization
@@ -512,127 +306,107 @@ fn addPlatformDependencies(exe: *std.Build.Step.Compile, os_tag: std.Target.Os.T
     exe.linkLibC();
 
     // Platform-specific dependencies
-    const platform_deps = struct {
-        fn add(compile_step: *std.Build.Step.Compile, target_os: std.Target.Os.Tag) void {
-            switch (target_os) {
-                .windows => addWindowsDependencies(compile_step),
-                .linux => addLinuxDependencies(compile_step),
-                .macos => addMacosDependencies(compile_step),
-                .android => addAndroidDependencies(compile_step),
-                .ios => addIosDependencies(compile_step),
-                .wasi, .emscripten => addWebDependencies(compile_step),
-                else => {},
-            }
-        }
-    };
-    platform_deps.add(exe, os_tag);
-
-    // Graphics API dependencies
-    if (build_helpers.detectVulkanSDK(os_tag == .windows)) {
-        exe.linkSystemLibrary("vulkan");
-        if (os_tag == .windows) {
-            exe.linkSystemLibrary("vulkan-1");
-        }
+    switch (os_tag) {
+        .windows => addWindowsDependencies(exe),
+        .linux => addLinuxDependencies(exe),
+        .macos => addMacosDependencies(exe),
+        .ios => addIosDependencies(exe),
+        .wasi, .emscripten, .freestanding => addWebDependencies(exe),
+        else => {},
     }
 }
 
 /// Add Windows-specific dependencies
-/// @symbol Handles linking of Windows libraries
-/// @thread-safe Ensures safe addition of Windows dependencies
 fn addWindowsDependencies(exe: *std.Build.Step.Compile) void {
-    exe.linkSystemLibrary("user32");
-    exe.linkSystemLibrary("kernel32");
-    exe.linkSystemLibrary("gdi32");
-    exe.linkSystemLibrary("shell32");
-    exe.linkSystemLibrary("opengl32");
-    exe.linkSystemLibrary("glu32");
-    exe.linkSystemLibrary("winmm");
-    exe.linkSystemLibrary("ole32");
-    exe.linkSystemLibrary("uuid");
-    exe.linkSystemLibrary("xinput");
-    exe.linkSystemLibrary("dwmapi");
+    const required_libs = [_][]const u8{
+        "user32",   "kernel32", "gdi32", "shell32",
+        "opengl32", "winmm",    "ole32", "uuid",
+    };
 
-    // Add DirectX libraries conditionally
-    if (build_helpers.detectDirectX11()) {
-        exe.linkSystemLibrary("d3d11");
-        exe.linkSystemLibrary("dxgi");
-        exe.linkSystemLibrary("dxguid");
+    for (required_libs) |lib| {
+        exe.linkSystemLibrary(lib);
     }
-    if (build_helpers.detectDirectX12()) {
-        exe.linkSystemLibrary("d3d12");
-        exe.linkSystemLibrary("dxguid");
-        exe.linkSystemLibrary("dxgi");
+
+    // Optional libraries
+    const optional_libs = [_][]const u8{
+        "glu32",  "xinput",      "dwmapi",
+        "d3d11",  "d3d12",       "dxgi",
+        "dxguid", "d3dcompiler",
+    };
+
+    for (optional_libs) |lib| {
+        addOptionalLibrary(exe, lib);
     }
 }
 
 /// Add Linux-specific dependencies
-/// @symbol Handles linking of Linux libraries
-/// @thread-safe Ensures safe addition of Linux dependencies
 fn addLinuxDependencies(exe: *std.Build.Step.Compile) void {
-    exe.linkSystemLibrary("GL");
-    exe.linkSystemLibrary("X11");
-    exe.linkSystemLibrary("m");
+    const required_libs = [_][]const u8{ "GL", "X11", "m" };
+
+    for (required_libs) |lib| {
+        exe.linkSystemLibrary(lib);
+    }
 
     // Optional Linux dependencies
-    addOptionalLibrary(exe, "Xi"); // X11 Input Extension
-    addOptionalLibrary(exe, "Xcursor"); // Cursor handling
-    addOptionalLibrary(exe, "Xrandr"); // Screen resolution/multiple displays
-    addOptionalLibrary(exe, "Xinerama"); // Multi-monitor support
-    addOptionalLibrary(exe, "wayland-client"); // Wayland support
-    addOptionalLibrary(exe, "wayland-egl"); // Wayland EGL support
-    addOptionalLibrary(exe, "wayland-cursor"); // Wayland cursor
+    const optional_libs = [_][]const u8{
+        "Xi",             "Xcursor",     "Xrandr",         "Xinerama",
+        "wayland-client", "wayland-egl", "wayland-cursor",
+    };
+
+    for (optional_libs) |lib| {
+        addOptionalLibrary(exe, lib);
+    }
 }
 
 /// Add macOS-specific dependencies
-/// @symbol Handles linking of macOS frameworks
-/// @thread-safe Ensures safe addition of macOS dependencies
 fn addMacosDependencies(exe: *std.Build.Step.Compile) void {
-    exe.linkFramework("Cocoa");
-    exe.linkFramework("OpenGL");
-    exe.linkFramework("Metal");
-    exe.linkFramework("MetalKit");
-    exe.linkFramework("QuartzCore"); // For CAMetalLayer
-    exe.linkFramework("CoreFoundation");
-    exe.linkFramework("CoreGraphics");
-    exe.linkFramework("Foundation");
-    exe.linkFramework("AppKit");
-    exe.linkFramework("IOKit"); // For controller support and power management
-}
+    const frameworks = [_][]const u8{
+        "Cocoa",      "OpenGL",         "Metal",        "MetalKit",
+        "QuartzCore", "CoreFoundation", "CoreGraphics", "Foundation",
+        "AppKit",     "IOKit",
+    };
 
-/// Add Android-specific dependencies
-/// @symbol Handles linking of Android libraries
-/// @thread-safe Ensures safe addition of Android dependencies
-fn addAndroidDependencies(exe: *std.Build.Step.Compile) void {
-    exe.linkSystemLibrary("android");
-    exe.linkSystemLibrary("EGL");
-    exe.linkSystemLibrary("GLESv3");
-    exe.linkSystemLibrary("log"); // Android logging
-    exe.linkSystemLibrary("native_app_glue");
+    for (frameworks) |framework| {
+        exe.linkFramework(framework);
+    }
 }
 
 /// Add iOS-specific dependencies
-/// @symbol Handles linking of iOS frameworks
-/// @thread-safe Ensures safe addition of iOS dependencies
 fn addIosDependencies(exe: *std.Build.Step.Compile) void {
-    exe.linkFramework("UIKit");
-    exe.linkFramework("Foundation");
-    exe.linkFramework("CoreGraphics");
-    exe.linkFramework("QuartzCore");
-    exe.linkFramework("OpenGLES");
-    exe.linkFramework("Metal");
-    exe.linkFramework("MetalKit");
+    const frameworks = [_][]const u8{
+        "UIKit",    "Foundation", "CoreGraphics", "QuartzCore",
+        "OpenGLES", "Metal",      "MetalKit",
+    };
+
+    for (frameworks) |framework| {
+        exe.linkFramework(framework);
+    }
 }
 
 /// Add Web-specific dependencies
-/// @symbol Handles linking of WebAssembly libraries
-/// @thread-safe Ensures safe addition of web dependencies
 fn addWebDependencies(_: *std.Build.Step.Compile) void {
     // Web platform typically doesn't need explicit libraries
-    // as they're included in the emscripten/wasi toolchain
 }
 
-/// Helper to add optional libraries that might not be available on all systems
-/// @thread-safe Thread-safe optional library addition
+/// Helper to add optional libraries
 fn addOptionalLibrary(exe: *std.Build.Step.Compile, name: []const u8) void {
-    exe.linkSystemLibrary(name) catch {};
+    // For now, just add a debug message for optional libraries
+    // In production, this would check if the library exists first
+    std.log.debug("Optional library '{s}' requested", .{name});
+
+    // Skip libraries that are commonly missing from default Windows SDK/MinGW setups.
+    // They are useful when available but should not make the build fail if absent.
+    const skip_libs = [_][]const u8{
+        "xinput",
+        "vulkan",
+        "vulkan-1",
+        "d3dcompiler", // Use runtime-loaded d3dcompiler_47.dll instead when present.
+    };
+    for (skip_libs) |lib| {
+        if (std.mem.eql(u8, name, lib)) {
+            return;
+        }
+    }
+
+    exe.linkSystemLibrary(name);
 }

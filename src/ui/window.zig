@@ -25,6 +25,7 @@ const WS_OVERLAPPEDWINDOW = 0x00CF0000;
 const WS_VISIBLE = 0x10000000;
 const WM_DESTROY = 0x0002;
 const WM_CLOSE = 0x0010;
+const WM_SIZE = 0x0005;
 const WM_PAINT = 0x000F;
 const WM_KEYDOWN = 0x0100;
 const WM_KEYUP = 0x0101;
@@ -43,6 +44,8 @@ const COLOR_WINDOW = 5;
 const VK_ESCAPE = 0x1B;
 const SW_SHOW = 5;
 const GWLP_USERDATA = -21;
+const DT_CENTER = 0x00000001;
+const DT_VCENTER = 0x00000004;
 
 const RECT = extern struct {
     left: i32,
@@ -236,13 +239,25 @@ pub const WindowManager = struct {
             thread.join();
         }
 
+        // Clean up worker thread memory
         self.allocator.free(self.worker_threads);
+
+        // Clean up task queue (tasks are cleaned up by worker threads)
         self.task_queue.deinit();
+
+        // Clean up render text buffer
+        self.text_mutex.lock();
         self.render_text.deinit();
+        self.text_mutex.unlock();
 
         // Free any error message
         if (self.last_error) |error_msg| {
             self.allocator.free(error_msg);
+        }
+
+        // Destroy window if it exists
+        if (self.hwnd) |hwnd| {
+            _ = DestroyWindow(hwnd);
         }
     }
 
@@ -351,6 +366,13 @@ pub const WindowManager = struct {
         }
     }
 
+    fn setError(self: *Self, error_msg: []const u8) void {
+        if (self.last_error) |old_error| {
+            self.allocator.free(old_error);
+        }
+        self.last_error = self.allocator.dupe(u8, error_msg) catch null;
+    }
+
     pub fn runMessageLoop(self: *Self) void {
         var msg: MSG = undefined;
 
@@ -392,10 +414,16 @@ pub const WindowManager = struct {
 };
 
 fn workerThreadMain(context: *WorkerContext) void {
+    const allocator = context.window.allocator;
+    defer allocator.destroy(context); // Clean up context when thread exits
+
     std.debug.print("Worker thread {} started\n", .{context.id});
 
     while (context.running.*) {
         if (context.queue.tryDequeue()) |task| {
+            // Free task data after processing
+            defer if (task.data.len > 0) allocator.free(task.data);
+
             // Simulate work based on task type
             switch (task.task_type) {
                 .computation => {
@@ -443,7 +471,7 @@ fn windowProc(hwnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM) callconv(.
     // Try to get the window manager instance
     const window_ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
     const window_manager = if (window_ptr != 0)
-        @as(*WindowManager, @ptrFromInt(@intCast(window_ptr)))
+        @as(*WindowManager, @ptrFromInt(@as(usize, @intCast(window_ptr))))
     else
         null;
 
@@ -456,7 +484,7 @@ fn windowProc(hwnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM) callconv(.
 
             if (create_struct.lpCreateParams) |params_ptr| {
                 // Store window manager pointer in window data
-                _ = SetWindowLongPtrW(hwnd, GWLP_USERDATA, @intFromPtr(params_ptr));
+                _ = SetWindowLongPtrW(hwnd, GWLP_USERDATA, @as(isize, @bitCast(@intFromPtr(params_ptr))));
             }
             return 0;
         },
@@ -484,11 +512,11 @@ fn windowProc(hwnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM) callconv(.
         WM_SIZE => {
             // Handle window resizing
             if (window_manager) |mgr| {
-                const new_width = @intCast(lParam & 0xFFFF);
-                const new_height = @intCast((lParam >> 16) & 0xFFFF);
+                const new_width: u16 = @intCast(lParam & 0xFFFF);
+                const new_height: u16 = @intCast((lParam >> 16) & 0xFFFF);
 
                 if (mgr.on_resize) |callback| {
-                    callback(@intCast(new_width), @intCast(new_height));
+                    callback(@as(i32, new_width), @as(i32, new_height));
                 }
             }
             return 0;
@@ -519,9 +547,9 @@ fn windowProc(hwnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM) callconv(.
             // Handle mouse button down
             if (window_manager) |mgr| {
                 if (mgr.on_mouse) |callback| {
-                    const x = @as(i16, @truncate(@as(u32, @bitCast(lParam))));
-                    const y = @as(i16, @truncate(@as(u32, @bitCast(lParam >> 16))));
-                    const button = switch (uMsg) {
+                    const x = @as(i16, @intCast(lParam & 0xFFFF));
+                    const y = @as(i16, @intCast((lParam >> 16) & 0xFFFF));
+                    const button: u32 = switch (uMsg) {
                         WM_LBUTTONDOWN => 0,
                         WM_RBUTTONDOWN => 1,
                         WM_MBUTTONDOWN => 2,
@@ -537,9 +565,9 @@ fn windowProc(hwnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM) callconv(.
             // Handle mouse button up
             if (window_manager) |mgr| {
                 if (mgr.on_mouse) |callback| {
-                    const x = @as(i16, @truncate(@as(u32, @bitCast(lParam))));
-                    const y = @as(i16, @truncate(@as(u32, @bitCast(lParam >> 16))));
-                    const button = switch (uMsg) {
+                    const x = @as(i16, @intCast(lParam & 0xFFFF));
+                    const y = @as(i16, @intCast((lParam >> 16) & 0xFFFF));
+                    const button: u32 = switch (uMsg) {
                         WM_LBUTTONUP => 0,
                         WM_RBUTTONUP => 1,
                         WM_MBUTTONUP => 2,
@@ -573,7 +601,7 @@ fn windowProc(hwnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM) callconv(.
 
                 if (mgr.render_text.items.len > 0) {
                     const text_slice = mgr.render_text.items;
-                    const text_wide = std.unicode.utf8ToUtf16LeAlloc(mgr.allocator, text_slice) catch |err| {
+                    const text_wide = std.unicode.utf8ToUtf16LeAllocZ(mgr.allocator, text_slice) catch {
                         // Handle conversion error
                         const fallback_text = std.unicode.utf8ToUtf16LeStringLiteral("Text conversion error");
                         _ = DrawTextW(hdc, fallback_text, -1, &client_rect, DT_CENTER | DT_VCENTER);
@@ -582,7 +610,7 @@ fn windowProc(hwnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM) callconv(.
                     };
                     defer mgr.allocator.free(text_wide);
 
-                    _ = DrawTextW(hdc, text_wide.ptr, @intCast(text_wide.len), &client_rect, DT_CENTER | DT_VCENTER);
+                    _ = DrawTextW(hdc, text_wide.ptr, -1, &client_rect, DT_CENTER | DT_VCENTER);
                 } else {
                     // Fallback if no text is set
                     const text = std.unicode.utf8ToUtf16LeStringLiteral("Threaded Zig Window\nPress ESC to exit");

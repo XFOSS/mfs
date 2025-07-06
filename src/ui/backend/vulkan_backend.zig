@@ -596,54 +596,54 @@ fn vulkanInit(allocator: std.mem.Allocator, window_handle: usize) !*anyopaque {
 }
 
 fn vulkanDeinit(ctx: *anyopaque) void {
-    const backend: *VulkanBackend = @ptrCast(@alignCast(@alignOf(VulkanBackend), ctx));
+    const backend: *VulkanBackend = @alignCast(@ptrCast(ctx));
     const allocator = backend.allocator;
     backend.deinit();
     allocator.destroy(backend);
 }
 
 fn vulkanBeginFrame(ctx: *anyopaque, width: u32, height: u32) void {
-    const backend: *VulkanBackend = @ptrCast(@alignCast(ctx));
+    const backend: *VulkanBackend = @alignCast(@ptrCast(ctx));
     backend.beginFrame(width, height);
 }
 
 fn vulkanEndFrame(ctx: *anyopaque) void {
-    const backend: *VulkanBackend = @ptrCast(@alignCast(ctx));
+    const backend: *VulkanBackend = @alignCast(@ptrCast(ctx));
     backend.endFrame();
 }
 
 fn vulkanExecuteDrawCommands(ctx: *anyopaque, commands: []const interface.DrawCommand) void {
-    const backend: *VulkanBackend = @ptrCast(@alignCast(ctx));
+    const backend: *VulkanBackend = @alignCast(@ptrCast(ctx));
     backend.executeDrawCommands(commands);
 }
 
 fn vulkanCreateImage(ctx: *anyopaque, width: u32, height: u32, pixels: [*]const u8, format: interface.Image.ImageFormat) !interface.Image {
-    const backend: *VulkanBackend = @ptrCast(@alignCast(ctx));
+    const backend: *VulkanBackend = @alignCast(@ptrCast(ctx));
     return backend.createImage(width, height, pixels, format);
 }
 
 fn vulkanDestroyImage(ctx: *anyopaque, image: *interface.Image) void {
-    const backend: *VulkanBackend = @ptrCast(@alignCast(ctx));
+    const backend: *VulkanBackend = @alignCast(@ptrCast(ctx));
     backend.destroyImage(image);
 }
 
 fn vulkanGetTextSize(ctx: *anyopaque, text: []const u8, font: interface.FontInfo) struct { width: f32, height: f32 } {
-    const backend: *VulkanBackend = @ptrCast(@alignCast(ctx));
+    const backend: *VulkanBackend = @alignCast(@ptrCast(ctx));
     return backend.getTextSize(text, font);
 }
 
 fn vulkanResize(ctx: *anyopaque, width: u32, height: u32) void {
-    const backend: *VulkanBackend = @ptrCast(@alignCast(ctx));
+    const backend: *VulkanBackend = @alignCast(@ptrCast(ctx));
     backend.resize(width, height);
 }
 
 // Helper function to get last error from context
 fn vulkanGetLastError(ctx: *anyopaque) ?[]const u8 {
-    const context: *VulkanContext = @ptrCast(@alignCast(@alignOf(VulkanContext), ctx));
+    const context: *VulkanContext = @alignCast(@ptrCast(ctx));
     return context.last_error;
 }
 
-pub const vulkan_backend_interface: interface.BackendInterface = {
+pub const vulkan_backend_interface: interface.BackendInterface = interface.BackendInterface{
     .init_fn = vulkanInit,
     .deinit_fn = vulkanDeinit,
     .begin_frame_fn = vulkanBeginFrame,

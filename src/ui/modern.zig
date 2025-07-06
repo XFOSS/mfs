@@ -176,7 +176,7 @@ pub const Widget = struct {
 
     pub fn init(allocator: Allocator, theme: *const Theme, vtable: *const WidgetVTable) Self {
         return Self{
-            .id = generateWidgetId(),
+            .id = 0, // TODO: implement generateWidgetId()
             .parent = null,
             .children = ArrayList(*Widget).init(allocator),
             .bounds = RECT{ .left = 0, .top = 0, .right = 100, .bottom = 30 },

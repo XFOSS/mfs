@@ -2,9 +2,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const HashMap = std.HashMap;
-const Vec2 = @import("../math/vec2.zig").Vec2f;
-const Vec3 = @import("../math/vec3.zig").Vec3f;
-const Vec4 = @import("../math/vec4.zig").Vec4f;
+const math = @import("math");
+const Vec2 = math.Vec2;
+const Vec3 = math.Vec3;
+const Vec4 = math.Vec4;
 const DynamicShaderCompiler = @import("dynamic_shader_compiler.zig").DynamicShaderCompiler;
 const ShaderType = @import("dynamic_shader_compiler.zig").ShaderType;
 const print = std.debug.print;
@@ -1080,7 +1081,7 @@ pub const ShaderGraph = struct {
 
 pub const NodeShaderEditor = struct {
     allocator: Allocator,
-    graphs: HashMap([]const u8, ShaderGraph, std.hash_map.StringContext),
+    graphs: HashMap([]const u8, ShaderGraph, std.hash_map.AutoContext([]const u8)),
     active_graph: ?[]const u8,
     compiler: *DynamicShaderCompiler,
     node_library: ArrayList(NodeType),
@@ -1088,7 +1089,7 @@ pub const NodeShaderEditor = struct {
     pub fn init(allocator: Allocator, compiler: *DynamicShaderCompiler) !NodeShaderEditor {
         var editor = NodeShaderEditor{
             .allocator = allocator,
-            .graphs = HashMap([]const u8, ShaderGraph, std.hash_map.StringContext).init(allocator),
+            .graphs = HashMap([]const u8, ShaderGraph, std.hash_map.AutoContext([]const u8)).init(allocator),
             .active_graph = null,
             .compiler = compiler,
             .node_library = ArrayList(NodeType).init(allocator),

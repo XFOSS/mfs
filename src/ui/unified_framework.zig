@@ -11,11 +11,12 @@ const color = @import("color.zig");
 const color_bridge = @import("color_bridge.zig");
 const window = @import("window.zig");
 const worker = @import("worker.zig");
-const utils = @import("utils/utils.zig");
-const Vec2 = @import("../math/vec2.zig").Vec2f;
-const Vec3 = @import("../math/vec3.zig").Vec3f;
-const Vec4 = @import("../math/vec4.zig").Vec4f;
-const Mat4 = @import("../math/mat4.zig").Mat4f;
+const utils = @import("libs/utils/utils.zig");
+const math = @import("math");
+const Vec2 = math.Vec2;
+const Vec3 = math.Vec3;
+const Vec4 = math.Vec4;
+const Mat4 = math.Mat4;
 
 // Re-export core types for convenience
 pub const Color = backend.Color;

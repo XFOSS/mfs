@@ -1,107 +1,96 @@
 const std = @import("std");
 
-/// Common error types shared across all graphics backends
+/// Graphics backend error types
 pub const GraphicsError = error{
-    // Device/initialization errors
+    InitializationFailed,
     DeviceCreationFailed,
-    DeviceLost,
-    UnsupportedFeature,
-    BackendNotSupported,
-
-    // Resource errors
-    OutOfMemory,
+    SwapChainCreationFailed,
     ResourceCreationFailed,
-    InvalidResource,
-    ResourceBusy,
-    ResourceNotBound,
-
-    // Command/operation errors
-    InvalidOperation,
-    InvalidCommandBuffer,
-    CommandBufferFull,
     CommandSubmissionFailed,
-
-    // Synchronization errors
-    TimeoutExpired,
-    SyncError,
-    WaitFailed,
-
-    // Pipeline/state errors
-    InvalidPipelineState,
-    IncompatiblePipelineLayout,
-    ShaderCompilationFailed,
-
-    // Format/compatibility errors
+    OutOfMemory,
+    InvalidOperation,
     UnsupportedFormat,
-    IncompatibleFormat,
-    InvalidFormatConversion,
-
-    // Memory errors
-    AllocationFailed,
-    InvalidAlignment,
+    BackendNotAvailable,
+    BackendNotSupported,
     InvalidMemoryAccess,
-
-    // Debug/validation errors
-    ValidationError,
-    DebugMarkerError,
+    ShaderCompilationFailed,
+    InvalidParameter,
+    RenderPassInProgress,
+    RenderPassNotInProgress,
+    FeatureNotSupported,
 };
 
-/// Error context for better error reporting and debugging
+/// Error severity levels
+pub const ErrorSeverity = enum {
+    info,
+    warning,
+    @"error",
+    critical,
+};
+
 pub const ErrorContext = struct {
-    error_type: GraphicsError,
+    /// Severity level of the error
+    severity: ErrorSeverity,
+    error_type: anyerror,
     message: []const u8,
+    backend: []const u8,
     file: []const u8,
     line: u32,
-    backend_type: []const u8,
     additional_info: ?[]const u8 = null,
+    timestamp: i64,
 
-    pub fn format(self: ErrorContext, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(
+        self: ErrorContext,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
         _ = fmt;
         _ = options;
-        try writer.print("[{s}] {s} at {s}:{d}: {s}", .{
-            self.backend_type,
+
+        // Include severity level in output
+        try writer.print("[{s}] [{s}] {s} at {s}:{d}: {s}", .{
+            @tagName(self.severity),
+            self.backend,
             @errorName(self.error_type),
             self.file,
             self.line,
             self.message,
         });
+
         if (self.additional_info) |info| {
-            try writer.print("\nAdditional info: {s}", .{info});
+            try writer.print(" ({s})", .{info});
         }
     }
 };
 
-/// Helper function to create error context
+/// Create an error context
 pub fn makeError(
-    error_type: GraphicsError,
+    err: anyerror,
     message: []const u8,
-    backend_type: []const u8,
+    backend: []const u8,
     file: []const u8,
     line: u32,
     additional_info: ?[]const u8,
+    severity: ErrorSeverity,
 ) ErrorContext {
     return ErrorContext{
-        .error_type = error_type,
+        .severity = severity,
+        .error_type = err,
         .message = message,
+        .backend = backend,
         .file = file,
         .line = line,
-        .backend_type = backend_type,
         .additional_info = additional_info,
+        .timestamp = std.time.nanoTimestamp(),
     };
 }
 
-/// Logging levels for error reporting
-pub const ErrorSeverity = enum {
-    info,
-    warning,
-    critical,
-    fatal,
-};
-
-/// Error logger for capturing and reporting errors
+/// Error logger for tracking and reporting graphics errors
 pub const ErrorLogger = struct {
     allocator: std.mem.Allocator,
     errors: std.ArrayList(ErrorContext),
+    max_errors: usize = 100,
 
     pub fn init(allocator: std.mem.Allocator) ErrorLogger {
         return ErrorLogger{
@@ -114,21 +103,27 @@ pub const ErrorLogger = struct {
         self.errors.deinit();
     }
 
-    pub fn logError(
-        self: *ErrorLogger,
-        error_context: ErrorContext,
-        severity: ErrorSeverity,
-    ) !void {
-        try self.errors.append(error_context);
+    pub fn logError(self: *ErrorLogger, ctx: ErrorContext, severity: ErrorSeverity) !void {
+        // Log to console based on severity
+        switch (severity) {
+            .info => std.log.info("{}", .{ctx}),
+            .warning => std.log.warn("{}", .{ctx}),
+            .@"error" => std.log.err("{}", .{ctx}),
+            .critical => std.log.err("{}", .{ctx}),
+        }
 
-        // Log to stderr for immediate visibility
-        const stderr = std.io.getStdErr().writer();
-        try stderr.print("[{s}] ", .{@tagName(severity)});
-        try std.fmt.format(stderr, "{}\n", .{error_context});
-    }
+        // Store error in history
+        try self.errors.append(ctx);
 
-    pub fn clearErrors(self: *ErrorLogger) void {
-        self.errors.clearRetainingCapacity();
+        // Limit error history size
+        if (self.errors.items.len > self.max_errors) {
+            _ = self.errors.orderedRemove(0);
+        }
+
+        // For critical errors, we might want to abort or take special action
+        if (severity == .critical) {
+            // Just log for now, but could abort in production builds
+        }
     }
 
     pub fn hasErrors(self: ErrorLogger) bool {
@@ -138,5 +133,9 @@ pub const ErrorLogger = struct {
     pub fn getLastError(self: ErrorLogger) ?ErrorContext {
         if (self.errors.items.len == 0) return null;
         return self.errors.items[self.errors.items.len - 1];
+    }
+
+    pub fn clearErrors(self: *ErrorLogger) void {
+        self.errors.clearRetainingCapacity();
     }
 };

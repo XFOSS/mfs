@@ -309,6 +309,7 @@ const VulkanContext = struct {
     }
 
     pub fn createImage(self: *Self, width: u32, height: u32, pixels: [*]const u8, format: interface.Image.ImageFormat) !interface.Image {
+        _ = pixels;
         _ = format;
 
         // Create Vulkan image, memory, and image view

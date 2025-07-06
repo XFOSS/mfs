@@ -7,7 +7,8 @@ const VoxelChunk = @import("chunk.zig").VoxelChunk;
 const VoxelType = @import("types.zig").VoxelType;
 const VoxelMaterial = @import("types.zig").VoxelMaterial;
 const TerrainGenerator = @import("generation.zig").TerrainGenerator;
-const Vec3 = @import("../math/vec3.zig").Vec3f;
+const math = @import("math");
+const Vec3 = math.Vec3;
 
 pub const VoxelWorld = struct {
     allocator: Allocator,

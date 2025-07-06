@@ -1,6 +1,11 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const testing = std.testing;
+const fs = std.fs;
+const json = std.json;
+comptime {
+    _ = json;
+}
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
@@ -34,6 +39,11 @@ pub fn main() !void {
     var passed: u32 = 0;
     var failed: u32 = 0;
 
+    // Prepare CSV report
+    const csv_file = try fs.cwd().createFile("build_report.csv", .{ .truncate = true });
+    defer csv_file.close();
+    try csv_file.writer().print("test,success\n", .{});
+
     for (build_tests) |test_case| {
         std.log.info("Testing: {s}", .{test_case.name});
 
@@ -43,13 +53,18 @@ pub fn main() !void {
             continue;
         };
 
-        if (result == test_case.should_succeed) {
+        const success = result == test_case.should_succeed;
+
+        if (success) {
             std.log.info("  ✓ PASSED", .{});
             passed += 1;
         } else {
             std.log.err("  ✗ FAILED", .{});
             failed += 1;
         }
+
+        // Write CSV row
+        try csv_file.writer().print("{s},{s}\n", .{ test_case.name, if (success) "true" else "false" });
     }
 
     std.log.info("", .{});
@@ -59,10 +74,10 @@ pub fn main() !void {
     std.log.info("Total:  {}", .{passed + failed});
 
     if (failed > 0) {
-        std.log.err("Some build tests failed!");
+        std.log.err("Some build tests failed!", .{});
         std.process.exit(1);
     } else {
-        std.log.info("All build tests passed!");
+        std.log.info("All build tests passed!", .{});
     }
 }
 
@@ -88,10 +103,9 @@ fn runBuildTest(test_case: BuildTest) !bool {
     // Add dry-run flag to speed up testing
     try cmd_args.append("--help");
 
-    const result = std.ChildProcess.exec(.{
+    const result = std.process.Child.run(.{
         .allocator = allocator,
         .argv = cmd_args.items,
-        .cwd = "..",
     }) catch |err| {
         std.log.warn("  Command execution failed: {}", .{err});
         return false;

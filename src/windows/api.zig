@@ -78,7 +78,6 @@ pub const MSG = extern struct {
     pt: POINT,
     lPrivate: DWORD,
 };
-
 // Windows API function declarations
 extern "user32" fn RegisterClassExW(*const WNDCLASSEXW) callconv(.C) u16;
 extern "user32" fn CreateWindowExW(DWORD, [*:0]const u16, [*:0]const u16, DWORD, i32, i32, i32, i32, ?HWND, ?HMENU, HINSTANCE, ?*anyopaque) callconv(.C) ?HWND;

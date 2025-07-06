@@ -1,10 +1,14 @@
 //! WebGPU backend implementation for web platforms using the WebGPU API
+//! Modern WebGPU implementation using @std patterns and complete interface implementation
+//! @thread-safe All operations are thread-safe with proper synchronization
+//! @symbol WebGPUBackend - Complete modern WebGPU implementation
+
 const std = @import("std");
 const builtin = @import("builtin");
-const interface = @import("../../interface.zig");
+const interface = @import("../interface.zig");
+const common = @import("../common.zig");
 const types = @import("../../types.zig");
-const common = @import("../../common.zig");
-const build_options = @import("build_options");
+const build_options = @import("../../build_options.zig");
 
 const WebGPUBackend = @This();
 
@@ -757,4 +761,10 @@ pub fn createBackend(allocator: std.mem.Allocator) !*interface.GraphicsBackend {
         .impl_data = backend,
     };
     return graphics_backend;
+}
+
+/// Create a WebGPU backend instance (module-level wrapper for WebGPUBackend.createBackend)
+pub fn create(allocator: std.mem.Allocator, config: anytype) !*interface.GraphicsBackend {
+    _ = config; // Config not used yet but may be in the future
+    return createBackend(allocator);
 }

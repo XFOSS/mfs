@@ -1,5 +1,6 @@
 const std = @import("std");
-const math = @import("../math/vector.zig");
+
+const math = @import("math");
 const Vec4 = math.Vec4;
 const Vector = math.Vector;
 const Quaternion = math.Quaternion;
@@ -83,6 +84,7 @@ pub const FixedJoint = struct {
     }
 
     pub fn solve(self: *FixedJoint, objects: []PhysicalObject, _dt: f32) void {
+        _ = _dt; // autofix
         if (!self.props.active) return;
 
         var obj_a = &objects[self.props.body_a];
@@ -165,6 +167,7 @@ pub const HingeJoint = struct {
     }
 
     pub fn solve(self: *HingeJoint, objects: []PhysicalObject, _dt: f32) void {
+        _ = _dt; // autofix
         if (!self.props.active) return;
 
         var obj_a = &objects[self.props.body_a];
@@ -241,6 +244,7 @@ pub const SliderJoint = struct {
     }
 
     pub fn solve(self: *SliderJoint, objects: []PhysicalObject, _dt: f32) void {
+        _ = _dt; // autofix
         if (!self.props.active) return;
 
         var obj_a = &objects[self.props.body_a];
@@ -315,6 +319,7 @@ pub const BallJoint = struct {
     }
 
     pub fn solve(self: *BallJoint, objects: []PhysicalObject, _dt: f32) void {
+        _ = _dt; // autofix
         if (!self.props.active) return;
 
         var obj_a = &objects[self.props.body_a];
@@ -374,6 +379,7 @@ pub const UniversalJoint = struct {
     }
 
     pub fn solve(self: *UniversalJoint, objects: []PhysicalObject, _dt: f32) void {
+        _ = _dt; // autofix
         if (!self.props.active) return;
 
         var obj_a = &objects[self.props.body_a];
@@ -432,6 +438,7 @@ pub const SixDofJoint = struct {
     }
 
     pub fn solve(self: *SixDofJoint, objects: []PhysicalObject, _dt: f32) void {
+        _ = _dt; // autofix
         if (!self.props.active) return;
 
         var obj_a = &objects[self.props.body_a];

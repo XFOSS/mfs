@@ -64,7 +64,7 @@ pub const RingBuffer = struct {
         var buffer = try Buffer.init(allocator, size, .ring_buffer, .cpu_to_gpu);
         try buffer.initBuffer();
 
-        var self = try allocator.create(Self);
+        const self = try allocator.create(Self);
         self.* = Self{
             .allocator = allocator,
             .buffer = buffer,
@@ -152,7 +152,7 @@ pub const BufferPool = struct {
     const Self = @This();
 
     pub fn init(allocator: Allocator, buffer_type: BufferType, buffer_size: usize, access: MemoryAccess) !*Self {
-        var self = try allocator.create(Self);
+        const self = try allocator.create(Self);
         self.* = Self{
             .allocator = allocator,
             .buffers = std.ArrayList(*Buffer).init(allocator),
@@ -950,15 +950,15 @@ pub const BufferMemoryManager = struct {
 
     pub fn init(allocator: Allocator) !*Self {
         // Create large allocation pools
-        var vertex_pool = try Buffer.initPool(allocator, 64 * 1024 * 1024, .vertex, .cpu_to_gpu, 16);
-        var index_pool = try Buffer.initPool(allocator, 32 * 1024 * 1024, .index, .cpu_to_gpu, 4);
-        var uniform_pool = try Buffer.initPool(allocator, 16 * 1024 * 1024, .uniform, .cpu_to_gpu, BufferAlignment.uniform);
-        var storage_pool = try Buffer.initPool(allocator, 32 * 1024 * 1024, .shader_storage, .cpu_to_gpu, BufferAlignment.storage);
+        const vertex_pool = try Buffer.initPool(allocator, 64 * 1024 * 1024, .vertex, .cpu_to_gpu, 16);
+        const index_pool = try Buffer.initPool(allocator, 32 * 1024 * 1024, .index, .cpu_to_gpu, 4);
+        const uniform_pool = try Buffer.initPool(allocator, 16 * 1024 * 1024, .uniform, .cpu_to_gpu, BufferAlignment.uniform);
+        const storage_pool = try Buffer.initPool(allocator, 32 * 1024 * 1024, .shader_storage, .cpu_to_gpu, BufferAlignment.storage);
 
         // Create frame ring buffer
-        var frame_ring = try RingBuffer.init(allocator, 8 * 1024 * 1024);
+        const frame_ring = try RingBuffer.init(allocator, 8 * 1024 * 1024);
 
-        var self = try allocator.create(Self);
+        const self = try allocator.create(Self);
         self.* = Self{
             .allocator = allocator,
             .vertex_pool = vertex_pool,

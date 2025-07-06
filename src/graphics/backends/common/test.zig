@@ -9,7 +9,10 @@ test "error handling" {
     defer error_logger.deinit();
 
     // Test error logging
-    try error_logger.logError(errors.makeError(.DeviceCreationFailed, "Test error", "test", @src().file, @src().line, null), .critical);
+    try error_logger.logError(
+        errors.makeError(errors.GraphicsError.DeviceCreationFailed, "Test error", "test", @src().file, @src().line, null, .critical),
+        .critical,
+    );
 
     try testing.expect(error_logger.hasErrors());
     try testing.expect(error_logger.getLastError() != null);
@@ -20,7 +23,7 @@ test "memory allocation" {
     defer allocator.deinit();
 
     // Test allocation
-    const block = try allocator.allocate(.{
+    var block = try allocator.allocate(.{
         .size = 256,
         .alignment = 8,
         .strategy = .linear,
@@ -30,16 +33,16 @@ test "memory allocation" {
         },
     });
 
-    try testing.expect(block.size == 256);
-    try testing.expect(block.mapped == false);
+    try testing.expect(block.*.size == 256);
+    try testing.expect(block.*.mapped == false);
 
     // Test mapping
     try block.map();
-    try testing.expect(block.mapped == true);
+    try testing.expect(block.*.mapped == true);
 
     // Test unmapping
     block.unmap();
-    try testing.expect(block.mapped == false);
+    try testing.expect(block.*.mapped == false);
 
     // Test freeing
     allocator.free(block);
@@ -113,16 +116,58 @@ test "performance profiling" {
 }
 
 test "error context formatting" {
-    const error_ctx = errors.makeError(.DeviceCreationFailed, "Test error message", "test_backend", "test.zig", 123, "Additional test info");
+    const error_ctx = errors.makeError(
+        errors.GraphicsError.DeviceCreationFailed,
+        "Test error message",
+        "test_backend",
+        "test.zig",
+        123,
+        "Additional test info",
+        .@"error",
+    );
 
     var buf: [256]u8 = undefined;
     var fbs = std.io.fixedBufferStream(&buf);
     try std.fmt.format(fbs.writer(), "{}", .{error_ctx});
 
     const output = fbs.getWritten();
+    try testing.expect(std.mem.indexOf(u8, output, "[error]") != null);
     try testing.expect(std.mem.indexOf(u8, output, "DeviceCreationFailed") != null);
     try testing.expect(std.mem.indexOf(u8, output, "test_backend") != null);
     try testing.expect(std.mem.indexOf(u8, output, "test.zig:123") != null);
     try testing.expect(std.mem.indexOf(u8, output, "Test error message") != null);
     try testing.expect(std.mem.indexOf(u8, output, "Additional test info") != null);
+}
+
+test "error logger routes severity correctly" {
+    var error_logger = errors.ErrorLogger.init(testing.allocator);
+    defer error_logger.deinit();
+
+    // Log an error with .@"error" severity
+    try error_logger.logError(
+        errors.makeError(
+            errors.GraphicsError.ShaderCompilationFailed,
+            "Shader compilation test error",
+            "test_backend",
+            @src().file,
+            @src().line,
+            null,
+            .@"error",
+        ),
+        .@"error",
+    );
+
+    try testing.expect(error_logger.hasErrors());
+    const last_error = error_logger.getLastError().?;
+    try testing.expect(last_error.severity == .@"error");
+
+    // The logError function logs to std.log, which is hard to capture in a test.
+    // However, we can check the formatted output of the ErrorContext.
+    var buf: [256]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    try std.fmt.format(fbs.writer(), "{}", .{last_error});
+    const output = fbs.getWritten();
+
+    try testing.expect(std.mem.indexOf(u8, output, "[error]") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "ShaderCompilationFailed") != null);
 }

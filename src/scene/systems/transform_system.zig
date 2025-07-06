@@ -1,11 +1,13 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-const Vec3 = @import("../../math/vec3.zig").Vec3f;
-const Mat4 = @import("../../math/mat4.zig").Mat4f;
+const math = @import("math");
+const Vec3 = math.Vec3;
+const Mat4 = math.Mat4;
 const Entity = @import("../core/entity.zig").Entity;
 const Scene = @import("../core/scene.zig").Scene;
-const TransformComponent = @import("../components/transform.zig").TransformComponent;
+const System = @import("../core/scene.zig").System;
+const TransformComponent = @import("../components/transform.zig").Transform;
 const RenderComponent = @import("../components/render.zig").RenderComponent;
 const CameraComponent = @import("../components/camera.zig").CameraComponent;
 const LightComponent = @import("../components/light.zig").LightComponent;
@@ -82,3 +84,30 @@ pub const TransformSystem = struct {
         }
     }
 };
+
+/// Standalone update function for use with Scene.addSystem
+pub fn update(system: *System, scene: *Scene, delta_time: f32) void {
+    _ = system;
+    _ = delta_time;
+
+    // Find all entities with dirty transforms and update them
+    var entity_iter = scene.entities.iterator();
+    while (entity_iter.next()) |entry| {
+        const entity = entry.value_ptr;
+
+        // Check if entity has transform component
+        var comp_iter = entity.components.iterator();
+        while (comp_iter.next()) |comp_entry| {
+            switch (comp_entry.value_ptr.*) {
+                .transform => |*transform| {
+                    if (transform.dirty) {
+                        // Update transform matrix
+                        transform.updateMatrices(null);
+                        transform.dirty = false;
+                    }
+                },
+                else => {},
+            }
+        }
+    }
+}

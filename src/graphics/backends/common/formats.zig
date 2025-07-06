@@ -4,20 +4,20 @@ const types = @import("../../types.zig");
 /// Get the number of bytes per pixel for a given TextureFormat.
 pub fn getBytesPerPixel(format: types.TextureFormat) u32 {
     return switch (format) {
-        .rgba8, .bgra8, .depth24_stencil8, .depth32f => 4,
-        .rgb8 => 3,
-        .rg8 => 2,
-        .r8 => 1,
+        .rgba8, .rgba8_unorm, .rgba8_unorm_srgb, .bgra8, .bgra8_unorm, .bgra8_unorm_srgb, .depth24_stencil8, .depth32f => 4,
+        .rgb8, .rgb8_unorm => 3,
+        .rg8, .rg8_unorm => 2,
+        .r8_unorm => 1,
     };
 }
 
 /// Get the number of color components for a given TextureFormat.
 pub fn getComponentCount(format: types.TextureFormat) u32 {
     return switch (format) {
-        .rgba8, .bgra8 => 4,
-        .rgb8 => 3,
-        .rg8 => 2,
-        .r8 => 1,
+        .rgba8, .rgba8_unorm, .rgba8_unorm_srgb, .bgra8, .bgra8_unorm, .bgra8_unorm_srgb => 4,
+        .rgb8, .rgb8_unorm => 3,
+        .rg8, .rg8_unorm => 2,
+        .r8_unorm => 1,
         .depth24_stencil8 => 2,
         .depth32f => 1,
     };
@@ -42,11 +42,11 @@ pub fn hasStencilComponent(format: types.TextureFormat) bool {
 /// Convert a generic TextureFormat to a backend-specific format (to be implemented by backends).
 pub fn convertTextureFormat(format: types.TextureFormat) u32 {
     return switch (format) {
-        .rgba8 => 0,
-        .rgb8 => 1,
-        .bgra8 => 2,
-        .r8 => 3,
-        .rg8 => 4,
+        .rgba8, .rgba8_unorm, .rgba8_unorm_srgb => 0,
+        .rgb8, .rgb8_unorm => 1,
+        .bgra8, .bgra8_unorm, .bgra8_unorm_srgb => 2,
+        .r8_unorm => 3,
+        .rg8, .rg8_unorm => 4,
         .depth24_stencil8 => 5,
         .depth32f => 6,
     };

@@ -3,9 +3,11 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Entity = @import("../core/entity.zig").Entity;
 const Scene = @import("../core/scene.zig").Scene;
-const TransformComponent = @import("../components/transform.zig").TransformComponent;
+const TransformComponent = @import("../components/transform.zig").Transform;
+const System = @import("../core/scene.zig").System;
 const AudioComponent = @import("../components/audio.zig").AudioComponent;
-const Vec3 = @import("../../math/vec3.zig").Vec3f;
+const math = @import("math");
+const Vec3 = math.Vec3;
 const openal = @import("openal.zig");
 
 pub const AudioSystem = struct {
@@ -141,3 +143,13 @@ pub const AudioSystem = struct {
         return self.active_sources.items;
     }
 };
+
+/// Standalone update function for use with Scene.addSystem
+pub fn update(system: *System, scene: *Scene, delta_time: f32) void {
+    _ = system;
+    _ = scene;
+    _ = delta_time;
+
+    // TODO: Implement audio system functionality
+    // This would typically update 3D audio sources based on entity positions
+}

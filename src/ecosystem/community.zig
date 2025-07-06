@@ -1,0 +1,1 @@
+//! Community ecosystem placeholder

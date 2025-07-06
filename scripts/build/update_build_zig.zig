@@ -43,7 +43,7 @@ fn writeFile(path: []const u8, content: []const u8) !void {
 }
 
 fn addProfilingTools(original: []const u8) ![]const u8 {
-    var allocator = std.heap.page_allocator;
+    const allocator = std.heap.page_allocator;
 
     // Find position to add profiler tools
     const tools_step_marker = "// Create tools step group";

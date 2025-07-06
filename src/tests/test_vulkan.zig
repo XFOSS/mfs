@@ -220,7 +220,7 @@ pub const VulkanTestRenderer = struct {
     fn createSwapchain(self: *VulkanTestRenderer) !void {
         // Skip swapchain creation if no surface (for testing)
         if (self.surface == null) {
-            std.log.info("Skipping swapchain creation (no surface)");
+            std.log.info("Skipping swapchain creation (no surface)", .{});
             return;
         }
 
@@ -326,5 +326,5 @@ pub fn main() !void {
     }
 
     std.log.info("Vulkan test completed. Total frames: {}", .{renderer.getFrameCount()});
-    std.log.info("✓ Vulkan is working correctly!");
+    std.log.info("✓ Vulkan is working correctly!", .{});
 }

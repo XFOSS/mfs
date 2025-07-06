@@ -5,6 +5,7 @@ const buffer = @import("buffer.zig");
 const shader = @import("shader.zig");
 const texture = @import("texture.zig");
 const types = @import("types.zig");
+const error_utils = @import("../utils/error_utils.zig");
 
 /// ResourceManager handles efficient creation, caching, and disposal of GPU resources
 /// @thread-safe All public methods are thread-safe with internal mutex protection
@@ -281,10 +282,10 @@ pub const ResourceManager = struct {
     /// @thread-safe Thread-safe with caller's responsibility for mutex
     /// @symbol Internal path resolution implementation
     fn resolveResourcePath(self: *Self, path: []const u8) ![]const u8 {
-        // First check if the path exists directly
         const file = std.fs.cwd().openFile(path, .{}) catch |err| {
-            if (err != error.FileNotFound) return err;
-
+            if (err != error.FileNotFound) {
+                return error_utils.logErr("Failed to open file: {s}", .{path}, err);
+            }
             // Try each search path
             for (self.search_paths.items) |search_path| {
                 const full_path = try std.fs.path.join(self.allocator, &[_][]const u8{ search_path, path });

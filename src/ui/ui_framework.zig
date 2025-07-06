@@ -353,13 +353,15 @@ pub const ElementFactory = struct {
 
     pub fn createButton(self: *Self, text: []const u8, x: f32, y: f32, width: f32, height: f32) !*Button {
         const button = try self.allocator.create(Button);
-        button.* = Button.init(self.allocator, self.getNextId(), text, x, y, width, height);
+        errdefer self.allocator.destroy(button);
+        button.* = try Button.init(self.allocator, self.getNextId(), text, x, y, width, height);
         return button;
     }
 
     pub fn createLabel(self: *Self, text: []const u8, x: f32, y: f32, width: f32, height: f32) !*Label {
         const label = try self.allocator.create(Label);
-        label.* = Label.init(self.allocator, self.getNextId(), text, x, y, width, height);
+        errdefer self.allocator.destroy(label);
+        label.* = try Label.init(self.allocator, self.getNextId(), text, x, y, width, height);
         return label;
     }
 
@@ -371,7 +373,8 @@ pub const ElementFactory = struct {
 
     pub fn createTextInput(self: *Self, placeholder: []const u8, x: f32, y: f32, width: f32, height: f32) !*TextInput {
         const text_input = try self.allocator.create(TextInput);
-        text_input.* = TextInput.init(self.allocator, self.getNextId(), placeholder, x, y, width, height);
+        errdefer self.allocator.destroy(text_input);
+        text_input.* = try TextInput.init(self.allocator, self.getNextId(), placeholder, x, y, width, height);
         return text_input;
     }
 
@@ -398,8 +401,8 @@ pub const Button = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, id: u32, text: []const u8, x: f32, y: f32, width: f32, height: f32) Self {
-        var text_copy = allocator.dupe(u8, text) catch unreachable;
+    pub fn init(allocator: Allocator, id: u32, text: []const u8, x: f32, y: f32, width: f32, height: f32) !Self {
+        const text_copy = try allocator.dupe(u8, text);
 
         return Self{
             .element = Element.init(allocator, id, x, y, width, height),
@@ -468,7 +471,7 @@ pub const Button = struct {
         const pos = self.element.globalPosition();
 
         // Determine button color based on state
-        var color = if (!self.element.enabled)
+        const color = if (!self.element.enabled)
             theme.disabled
         else if (self.is_pressed)
             self.pressed_color
@@ -516,8 +519,8 @@ pub const Label = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, id: u32, text: []const u8, x: f32, y: f32, width: f32, height: f32) Self {
-        var text_copy = allocator.dupe(u8, text) catch unreachable;
+    pub fn init(allocator: Allocator, id: u32, text: []const u8, x: f32, y: f32, width: f32, height: f32) !Self {
+        const text_copy = try allocator.dupe(u8, text);
 
         return Self{
             .element = Element.init(allocator, id, x, y, width, height),
@@ -658,8 +661,8 @@ pub const TextInput = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, id: u32, placeholder: []const u8, x: f32, y: f32, width: f32, height: f32) Self {
-        var placeholder_copy = allocator.dupe(u8, placeholder) catch unreachable;
+    pub fn init(allocator: Allocator, id: u32, placeholder: []const u8, x: f32, y: f32, width: f32, height: f32) !Self {
+        const placeholder_copy = try allocator.dupe(u8, placeholder);
 
         return Self{
             .element = Element.init(allocator, id, x, y, width, height),

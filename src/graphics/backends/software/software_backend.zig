@@ -1,10 +1,13 @@
 //! Software backend implementation for CPU rasterization fallback
 const std = @import("std");
 const builtin = @import("builtin");
-const interface = @import("../../interface.zig");
+const interface = @import("../interface.zig");
 const types = @import("../../types.zig");
-const common = @import("../../common.zig");
+const common = @import("../common.zig");
 const build_options = @import("build_options");
+comptime {
+    _ = build_options;
+}
 
 pub const SoftwareBackend = struct {
     allocator: std.mem.Allocator,
@@ -17,6 +20,14 @@ pub const SoftwareBackend = struct {
     viewport: types.Viewport,
 
     const Self = @This();
+
+    fn packColorRGBA(color: types.ClearColor) u32 {
+        const r = @as(u32, @intFromFloat(color.r * 255.0)) & 0xFF;
+        const g = @as(u32, @intFromFloat(color.g * 255.0)) & 0xFF;
+        const b = @as(u32, @intFromFloat(color.b * 255.0)) & 0xFF;
+        const a = @as(u32, @intFromFloat(color.a * 255.0)) & 0xFF;
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
 
     const vtable = interface.GraphicsBackend.VTable{
         .deinit = deinitImpl,
@@ -67,7 +78,7 @@ pub const SoftwareBackend = struct {
         const backend = try allocator.create(Self);
         backend.* = Self{
             .allocator = allocator,
-            .viewport = types.Viewport{ .width = build_options.default_width, .height = build_options.default_height },
+            .viewport = types.Viewport{ .width = 800, .height = 600 },
         };
 
         try backend.initializeBuffers();
@@ -263,7 +274,9 @@ pub const SoftwareBackend = struct {
 
         if (texture.id != 0) {
             const texture_ptr: [*]u8 = @ptrFromInt(texture.id);
-            self.allocator.free(texture_ptr[0 .. texture.width * texture.height * common.getBytesPerPixel(texture.format)]);
+            const bytes_per_pixel = common.getBytesPerPixel(texture.format);
+            const total_bytes = texture.width * texture.height * texture.depth * bytes_per_pixel;
+            self.allocator.free(texture_ptr[0..total_bytes]);
             texture.id = 0;
         }
     }
@@ -324,7 +337,7 @@ pub const SoftwareBackend = struct {
 
         // Clear frame buffer
         if (self.frame_buffer) |fb| {
-            const clear_color_u32 = common.packColor(desc.clear_color);
+            const clear_color_u32 = packColorRGBA(desc.clear_color);
             @memset(fb, clear_color_u32);
         }
 
@@ -432,7 +445,7 @@ pub const SoftwareBackend = struct {
         _ = cmd;
         _ = dispatch_cmd;
         // Software renderer doesn't support compute
-        return interface.GraphicsBackendError.UnsupportedOperation;
+        return interface.GraphicsBackendError.InvalidOperation;
     }
 
     fn copyBufferImpl(impl: *anyopaque, cmd: *interface.CommandBuffer, src: *types.Buffer, dst: *types.Buffer, region: *const interface.BufferCopyRegion) interface.GraphicsBackendError!void {
@@ -530,3 +543,9 @@ pub const SoftwareBackend = struct {
         // Software renderer doesn't support debug groups
     }
 };
+
+/// Create a software backend instance (module-level wrapper for SoftwareBackend.createBackend)
+pub fn create(allocator: std.mem.Allocator, config: anytype) !*interface.GraphicsBackend {
+    _ = config; // Config not used yet but may be in the future
+    return SoftwareBackend.createBackend(allocator);
+}

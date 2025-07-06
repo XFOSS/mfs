@@ -3,10 +3,12 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Entity = @import("../core/entity.zig").Entity;
 const Scene = @import("../core/scene.zig").Scene;
-const TransformComponent = @import("../components/transform.zig").TransformComponent;
+const System = @import("../core/scene.zig").System;
+const TransformComponent = @import("../components/transform.zig").Transform;
 const PhysicsComponent = @import("../components/physics.zig").PhysicsComponent;
-const Vec3 = @import("../../math/vec3.zig").Vec3f;
-const Mat4 = @import("../../math/mat4.zig").Mat4f;
+const math = @import("math");
+const Vec3 = math.Vec3;
+const Mat4 = math.Mat4;
 
 pub const CollisionPair = struct {
     entity_a: Entity,
@@ -104,7 +106,7 @@ pub const PhysicsSystem = struct {
         for (0..steps) |_| {
             // Update dynamic bodies
             for (dynamic_bodies.items) |body| {
-                const entity = body[0];
+                _ = body[0]; // entity currently unused but available for future use
                 const physics = body[1];
                 const transform = body[2];
 
@@ -156,6 +158,7 @@ pub const PhysicsSystem = struct {
     }
 
     fn checkAABB(self: *PhysicsSystem, transform_a: *TransformComponent, physics_a: *PhysicsComponent, transform_b: *TransformComponent, physics_b: *PhysicsComponent) bool {
+        _ = self; // TODO: Will be used when AABB system is expanded
         const aabb_a = physics_a.getAABB(transform_a);
         const aabb_b = physics_b.getAABB(transform_b);
 
@@ -165,12 +168,147 @@ pub const PhysicsSystem = struct {
     }
 
     fn checkCollision(self: *PhysicsSystem, physics_a: *PhysicsComponent, transform_a: *TransformComponent, physics_b: *PhysicsComponent, transform_b: *TransformComponent) !?CollisionPair {
-        // TODO: Implement narrow phase collision detection for different shape types
-        // For now, just return null to indicate no collision
+        _ = self; // May be used for future collision system expansion
+
+        // Get collision shapes
+        const shape_a = physics_a.collision_shape;
+        const shape_b = physics_b.collision_shape;
+
+        // Handle different collision shape combinations
+        if (shape_a == .Sphere and shape_b == .Sphere) {
+            return checkSphereSphere(physics_a, transform_a, physics_b, transform_b);
+        } else if ((shape_a == .Sphere and shape_b == .Box) or (shape_a == .Box and shape_b == .Sphere)) {
+            if (shape_a == .Sphere) {
+                return checkSphereBox(physics_a, transform_a, physics_b, transform_b);
+            } else {
+                const result = checkSphereBox(physics_b, transform_b, physics_a, transform_a);
+                if (result) |collision| {
+                    // Flip the normal since we swapped the order
+                    return CollisionPair{
+                        .entity_a = collision.entity_b,
+                        .entity_b = collision.entity_a,
+                        .normal = collision.normal.scale(-1.0),
+                        .penetration = collision.penetration,
+                        .contact_point = collision.contact_point,
+                    };
+                }
+                return result;
+            }
+        } else if (shape_a == .Box and shape_b == .Box) {
+            return checkBoxBox(physics_a, transform_a, physics_b, transform_b);
+        }
+
+        // Unsupported collision shape combination
+        return null;
+    }
+
+    fn checkSphereSphere(physics_a: *PhysicsComponent, transform_a: *TransformComponent, physics_b: *PhysicsComponent, transform_b: *TransformComponent) ?CollisionPair {
+        const center_a = transform_a.position;
+        const center_b = transform_b.position;
+        const radius_a = physics_a.collision_shape.Sphere.radius * transform_a.scale.x; // Assume uniform scaling
+        const radius_b = physics_b.collision_shape.Sphere.radius * transform_b.scale.x;
+
+        const distance_vec = center_b.sub(center_a);
+        const distance = distance_vec.length();
+        const combined_radius = radius_a + radius_b;
+
+        if (distance < combined_radius and distance > 0.0) {
+            const normal = distance_vec.scale(1.0 / distance);
+            const penetration = combined_radius - distance;
+            const contact_point = center_a.add(normal.scale(radius_a));
+
+            return CollisionPair{
+                .entity_a = undefined, // Will be set by caller
+                .entity_b = undefined, // Will be set by caller
+                .normal = normal,
+                .penetration = penetration,
+                .contact_point = contact_point,
+            };
+        }
+
+        return null;
+    }
+
+    fn checkSphereBox(physics_sphere: *PhysicsComponent, transform_sphere: *TransformComponent, physics_box: *PhysicsComponent, transform_box: *TransformComponent) ?CollisionPair {
+        const sphere_center = transform_sphere.position;
+        const sphere_radius = physics_sphere.collision_shape.Sphere.radius * transform_sphere.scale.x;
+
+        const box_center = transform_box.position;
+        const box_half_extents = physics_box.collision_shape.Box.half_extents.mul(transform_box.scale);
+
+        // Find the closest point on the box to the sphere center
+        const closest_point = Vec3.init(std.math.clamp(sphere_center.x, box_center.x - box_half_extents.x, box_center.x + box_half_extents.x), std.math.clamp(sphere_center.y, box_center.y - box_half_extents.y, box_center.y + box_half_extents.y), std.math.clamp(sphere_center.z, box_center.z - box_half_extents.z, box_center.z + box_half_extents.z));
+
+        const distance_vec = sphere_center.sub(closest_point);
+        const distance = distance_vec.length();
+
+        if (distance < sphere_radius and distance > 0.0) {
+            const normal = distance_vec.scale(1.0 / distance);
+            const penetration = sphere_radius - distance;
+
+            return CollisionPair{
+                .entity_a = undefined, // Will be set by caller
+                .entity_b = undefined, // Will be set by caller
+                .normal = normal,
+                .penetration = penetration,
+                .contact_point = closest_point,
+            };
+        }
+
+        return null;
+    }
+
+    fn checkBoxBox(physics_a: *PhysicsComponent, transform_a: *TransformComponent, physics_b: *PhysicsComponent, transform_b: *TransformComponent) ?CollisionPair {
+        // Simplified AABB vs AABB collision (assumes axis-aligned boxes)
+        const center_a = transform_a.position;
+        const center_b = transform_b.position;
+        const half_extents_a = physics_a.collision_shape.Box.half_extents.mul(transform_a.scale);
+        const half_extents_b = physics_b.collision_shape.Box.half_extents.mul(transform_b.scale);
+
+        const distance = center_b.sub(center_a);
+        const combined_extents = half_extents_a.add(half_extents_b);
+
+        // Check for overlap on all axes
+        if (@abs(distance.x) < combined_extents.x and
+            @abs(distance.y) < combined_extents.y and
+            @abs(distance.z) < combined_extents.z)
+        {
+
+            // Find the axis with minimum penetration
+            const x_penetration = combined_extents.x - @abs(distance.x);
+            const y_penetration = combined_extents.y - @abs(distance.y);
+            const z_penetration = combined_extents.z - @abs(distance.z);
+
+            var normal: Vec3 = undefined;
+            var penetration: f32 = undefined;
+
+            if (x_penetration < y_penetration and x_penetration < z_penetration) {
+                normal = Vec3.init(if (distance.x > 0) 1.0 else -1.0, 0.0, 0.0);
+                penetration = x_penetration;
+            } else if (y_penetration < z_penetration) {
+                normal = Vec3.init(0.0, if (distance.y > 0) 1.0 else -1.0, 0.0);
+                penetration = y_penetration;
+            } else {
+                normal = Vec3.init(0.0, 0.0, if (distance.z > 0) 1.0 else -1.0);
+                penetration = z_penetration;
+            }
+
+            const contact_point = center_a.add(distance.scale(0.5));
+
+            return CollisionPair{
+                .entity_a = undefined, // Will be set by caller
+                .entity_b = undefined, // Will be set by caller
+                .normal = normal,
+                .penetration = penetration,
+                .contact_point = contact_point,
+            };
+        }
+
         return null;
     }
 
     fn resolveCollision(self: *PhysicsSystem, physics_a: *PhysicsComponent, transform_a: *TransformComponent, physics_b: *PhysicsComponent, transform_b: *TransformComponent, collision: CollisionPair) void {
+        _ = self; // TODO: Will be used when collision system is expanded
         // Skip if either body is a trigger
         if (physics_a.is_trigger or physics_b.is_trigger) return;
 
@@ -216,3 +354,41 @@ pub const PhysicsSystem = struct {
         transform_b.dirty = true;
     }
 };
+
+/// Standalone update function for use with Scene.addSystem
+pub fn update(system: *System, scene: *Scene, delta_time: f32) void {
+    _ = system;
+
+    // Simple physics update without full system
+    var entity_iter = scene.entities.iterator();
+    while (entity_iter.next()) |entry| {
+        const entity = entry.value_ptr;
+
+        // Find physics and transform components
+        var physics_comp: ?*PhysicsComponent = null;
+        var transform_comp: ?*TransformComponent = null;
+
+        var comp_iter = entity.components.iterator();
+        while (comp_iter.next()) |comp_entry| {
+            switch (comp_entry.value_ptr.*) {
+                .physics => |*physics| physics_comp = physics,
+                .transform => |*transform| transform_comp = transform,
+                else => {},
+            }
+        }
+
+        if (physics_comp) |physics| {
+            if (transform_comp) |transform| {
+                if (physics.body_type == .Dynamic) {
+                    // Apply gravity
+                    const gravity = Vec3.init(0, -9.81, 0);
+                    physics.velocity = physics.velocity.add(gravity.scale(delta_time));
+
+                    // Update position
+                    transform.position = transform.position.add(physics.velocity.scale(delta_time));
+                    transform.dirty = true;
+                }
+            }
+        }
+    }
+}

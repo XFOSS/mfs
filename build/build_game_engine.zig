@@ -36,7 +36,7 @@ pub fn build(b: *std.Build) void {
     // Math library
     const math_lib = b.addStaticLibrary(.{
         .name = "mfs_math",
-        .root_source_file = b.path("src/math/math.zig"),
+        .root_source_file = b.path("src/libs/math/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -332,7 +332,7 @@ pub fn build(b: *std.Build) void {
     engine_tests.root_module.addOptions("build_options", build_options);
 
     const math_tests = b.addTest(.{
-        .root_source_file = b.path("src/math/math.zig"),
+        .root_source_file = b.path("src/libs/math/mod.zig"),
         .target = target,
         .optimize = optimize,
     });

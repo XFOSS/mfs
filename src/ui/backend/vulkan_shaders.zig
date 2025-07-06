@@ -84,9 +84,8 @@ pub const GPU = struct {
         try self.optimizeShaderModule(&mlir_module, shader_type);
         return self.shader_cache.compileFromMlir(mlir_module, shader_type, self.backend_type);
     }
-
     // Apply MLIR optimization passes to shader module
-    pub fn optimizeShaderModule(self: *GPU, module: *mlir.Module, shader_type: shaders.ShaderType) !void {
+    pub fn optimizeShaderModule(self: *GPU, module: *mlir.Module, _: shaders.ShaderType) !void {
         var pipeline = try mlir.OptimizationPipeline.init(self.allocator, self.backend_type);
         defer pipeline.deinit();
 

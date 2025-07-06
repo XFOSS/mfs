@@ -68,9 +68,7 @@ pub const MemoryBlock = struct {
         self.mapped = false;
     }
 
-    pub fn flush(self: MemoryBlock, offset: usize, size: usize) !void {
-        _ = offset;
-        _ = size;
+    pub fn flush(_: MemoryBlock, _: usize, _: usize) !void {
         // Implementation varies by backend
     }
 };
@@ -94,7 +92,7 @@ pub const Allocator = struct {
     }
 
     pub fn deinit(self: *Allocator) void {
-        for (self.blocks.items) |block| {
+        for (self.blocks.items) |*block| {
             if (block.mapped) {
                 block.unmap();
             }
@@ -103,18 +101,19 @@ pub const Allocator = struct {
         self.blocks.deinit();
     }
 
-    pub fn allocate(self: *Allocator, info: AllocationInfo) !MemoryBlock {
+    pub fn allocate(self: *Allocator, info: AllocationInfo) !*MemoryBlock {
         // Check if we have enough space
         if (self.used_size + info.size > self.total_size) {
             return errors.GraphicsError.OutOfMemory;
         }
 
-        // Allocate memory
-        const data = try self.allocator.alignedAlloc(u8, info.alignment, info.size);
+        // Allocate memory (ignore explicit alignment for this simple allocator)
+        const data_slice = try self.allocator.alloc(u8, info.size);
+        const data = data_slice.ptr;
 
         // Create block
         const block = MemoryBlock{
-            .data = data.ptr,
+            .data = data,
             .size = info.size,
             .offset = self.used_size,
             .mapped = false,
@@ -123,19 +122,23 @@ pub const Allocator = struct {
         try self.blocks.append(block);
         self.used_size += info.size;
 
-        return block;
+        return &self.blocks.items[self.blocks.items.len - 1];
     }
 
-    pub fn free(self: *Allocator, block: MemoryBlock) void {
+    pub fn free(self: *Allocator, block: *MemoryBlock) void {
         // Find and remove block
-        for (self.blocks.items, 0..) |b, i| {
+        for (self.blocks.items, 0..) |*b, i| {
             if (b.data == block.data) {
                 if (b.mapped) {
                     b.unmap();
                 }
                 self.allocator.free(b.data[0..b.size]);
                 _ = self.blocks.orderedRemove(i);
-                self.used_size -= b.size;
+                if (self.used_size >= b.size) {
+                    self.used_size -= b.size;
+                } else {
+                    self.used_size = 0;
+                }
                 break;
             }
         }
@@ -179,7 +182,8 @@ pub const MemoryPool = struct {
             return errors.GraphicsError.OutOfMemory;
         }
 
-        const index = self.free_list.pop();
+        const maybe_index = self.free_list.pop();
+        const index: usize = maybe_index orelse return errors.GraphicsError.OutOfMemory;
         const start = index * self.block_size;
         return self.memory[start .. start + self.block_size];
     }

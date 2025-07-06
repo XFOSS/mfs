@@ -10,7 +10,7 @@
 const std = @import("std");
 const types = @import("../graphics/types.zig");
 const interface = @import("../graphics/backends/interface.zig");
-const vulkan_resource_demo = @import("../../vulkan/vulkan_resource_demo.zig");
+// const vulkan_resource_demo = @import("../../vulkan/vulkan_resource_demo.zig"); // TODO: Fix path
 
 /// Run the resource demonstration for the given app.
 /// Creates a texture, buffer, shader, mesh, material, and advanced resources, then cleans them up.
@@ -187,7 +187,8 @@ fn run_texture_array_demo(app: anytype) !void {
         if (manager.getPrimaryBackend()) |backend| {
             const backend_name = backend.backend_type.getName();
             if (std.mem.eql(u8, backend_name, "Vulkan")) {
-                try vulkan_resource_demo.run_texture_array_demo(app, backend);
+                // TODO: Implement Vulkan texture array demo
+                std.log.info("Vulkan texture array demo - TODO: implement", .{});
             } else {
                 std.log.info("Texture array demo skipped: not supported on backend {s}", .{backend_name});
             }
@@ -201,7 +202,8 @@ fn run_uniform_buffer_demo(app: anytype) !void {
         if (manager.getPrimaryBackend()) |backend| {
             const backend_name = backend.backend_type.getName();
             if (std.mem.eql(u8, backend_name, "Vulkan")) {
-                try vulkan_resource_demo.run_uniform_buffer_demo(app, backend);
+                // TODO: Implement Vulkan uniform buffer demo
+                std.log.info("Vulkan uniform buffer demo - TODO: implement", .{});
             } else {
                 std.log.info("Uniform buffer demo skipped: not supported on backend {s}", .{backend_name});
             }
@@ -215,7 +217,8 @@ fn run_pipeline_material_demo(app: anytype) !void {
         if (manager.getPrimaryBackend()) |backend| {
             const backend_name = backend.backend_type.getName();
             if (std.mem.eql(u8, backend_name, "Vulkan")) {
-                try vulkan_resource_demo.run_pipeline_material_demo(app, backend);
+                // TODO: Implement Vulkan pipeline/material demo
+                std.log.info("Vulkan pipeline/material demo - TODO: implement", .{});
             } else {
                 std.log.info("Pipeline/material demo skipped: not supported on backend {s}", .{backend_name});
             }

@@ -245,7 +245,7 @@ pub const DiagnosticSystem = struct {
         if (!self.error_tracking_enabled) return;
 
         const error_name = @errorName(err);
-        const hash = std.hash_map.hashString(error_name) ^ std.hash.CityHash64.hashWithSeed(std.mem.asBytes(&location), 0);
+        const hash = std.hash.hashString(error_name) ^ std.hash.CityHash64.hashWithSeed(std.mem.asBytes(&location), 0);
         const timestamp = std.time.milliTimestamp();
 
         if (self.errors.getPtr(hash)) |existing| {

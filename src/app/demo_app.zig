@@ -1,6 +1,6 @@
 const std = @import("std");
-const builtin = @import("../builtin");
-const build_options = @import("../build_options");
+const builtin = @import("builtin");
+const build_options = @import("../build_options.zig");
 const capabilities = @import("../platform/capabilities.zig");
 const backend_manager = @import("../graphics/backend_manager.zig");
 const interface = @import("../graphics/backends/interface.zig");
@@ -21,7 +21,7 @@ const resource_demo = @import("../app/resource_demo.zig");
 pub const DemoApp = struct {
     allocator: std.mem.Allocator,
     backend_manager: ?*backend_manager.BackendManager,
-    adaptive_renderer: ?backend_manager.AdaptiveRenderer,
+    current_backend: ?*backend_manager.BackendInterface,
     window_width: u32 = 1280,
     window_height: u32 = 720,
     frame_count: u64 = 0,
@@ -36,20 +36,23 @@ pub const DemoApp = struct {
     // =============================
     /// Initialize the demo application and all subsystems
     pub fn init(allocator: std.mem.Allocator) !*Self {
-        // First create the backend manager to avoid potential null states
-        const manager_options = backend_manager.BackendManager.InitOptions{
-            .preferred_backend = null, // Auto-detect best backend
-            .auto_fallback = true,
-            .debug_mode = (builtin.mode == .Debug),
-            .validate_backends = true,
-            .enable_backend_switching = true,
+        // Create backend configuration
+        const backend_config = backend_manager.BackendConfig{
+            .backend_type = .auto, // Auto-detect best backend
+            .window_width = 1280,
+            .window_height = 720,
+            .enable_validation = (builtin.mode == .Debug),
         };
 
-        var backend_mgr = try backend_manager.BackendManager.init(allocator, manager_options);
-        errdefer backend_mgr.deinit();
+        const backend_mgr = try allocator.create(backend_manager.BackendManager);
+        backend_mgr.* = try backend_manager.BackendManager.init(allocator, backend_config);
+        errdefer {
+            backend_mgr.deinit();
+            allocator.destroy(backend_mgr);
+        }
 
-        var adaptive_rend = try backend_mgr.createAdaptiveRenderer();
-        errdefer adaptive_rend.deinit();
+        // Create the backend
+        const current_backend = try backend_mgr.createBackend();
 
         const app = try allocator.create(Self);
         errdefer allocator.destroy(app);
@@ -57,7 +60,7 @@ pub const DemoApp = struct {
         app.* = Self{
             .allocator = allocator,
             .backend_manager = backend_mgr,
-            .adaptive_renderer = adaptive_rend,
+            .current_backend = current_backend,
         };
 
         std.log.info("Demo application initialized successfully", .{});
@@ -68,6 +71,7 @@ pub const DemoApp = struct {
     pub fn deinit(self: *Self) void {
         if (self.backend_manager) |manager| {
             manager.deinit();
+            self.allocator.destroy(manager);
         }
         self.allocator.destroy(self);
     }
@@ -151,24 +155,22 @@ pub const DemoApp = struct {
     // =============================
     /// Create or recreate the swap chain for the current backend
     fn createSwapChain(self: *Self) !void {
-        if (self.backend_manager) |manager| {
-            if (manager.getPrimaryBackend()) |backend| {
-                const swap_chain_desc = interface.SwapChainDesc{
-                    .width = self.window_width,
-                    .height = self.window_height,
-                    .format = .rgba8,
-                    .buffer_count = 2,
-                    .vsync = true,
-                    .window_handle = null, // Would be actual window handle in real app
-                };
+        if (self.current_backend) |backend| {
+            const swap_chain_desc = interface.SwapChainDesc{
+                .width = self.window_width,
+                .height = self.window_height,
+                .format = .rgba8_unorm,
+                .buffer_count = 2,
+                .vsync = true,
+                .window_handle = null, // Would be actual window handle in real app
+            };
 
-                backend.createSwapChain(&swap_chain_desc) catch |err| {
-                    std.log.warn("Failed to create swap chain: {}", .{err});
-                    // Continue with demo anyway
-                };
+            backend.vtable.create_swap_chain(backend.impl_data, &swap_chain_desc) catch |err| {
+                std.log.warn("Failed to create swap chain: {}", .{err});
+                // Continue with demo anyway
+            };
 
-                std.log.info("Swap chain created: {}x{}", .{ self.window_width, self.window_height });
-            }
+            std.log.info("Swap chain created: {}x{}", .{ self.window_width, self.window_height });
         }
     }
 
@@ -177,14 +179,12 @@ pub const DemoApp = struct {
         self.window_width = new_width;
         self.window_height = new_height;
 
-        if (self.backend_manager) |manager| {
-            if (manager.getPrimaryBackend()) |backend| {
-                backend.resizeSwapChain(new_width, new_height) catch |err| {
-                    std.log.warn("Failed to resize swap chain: {}", .{err});
-                };
+        if (self.current_backend) |backend| {
+            backend.vtable.resize_swap_chain(backend.impl_data, new_width, new_height) catch |err| {
+                std.log.warn("Failed to resize swap chain: {}", .{err});
+            };
 
-                std.log.info("Window resized to: {}x{}", .{ new_width, new_height });
-            }
+            std.log.info("Window resized to: {}x{}", .{ new_width, new_height });
         }
     }
 
@@ -192,11 +192,11 @@ pub const DemoApp = struct {
     // Rendering
     // =============================
     /// Update per-frame logic (resize, backend switch, etc.)
-    fn update(self: *Self) !void {
+    pub fn update(self: *Self) !void {
         // Simulate window resize every 200 frames
         if (self.frame_count > 0 and self.frame_count % 200 == 0) {
-            const new_width = if (self.window_width == 1280) 1920 else 1280;
-            const new_height = if (self.window_height == 720) 1080 else 720;
+            const new_width: u32 = if (self.window_width == 1280) 1920 else 1280;
+            const new_height: u32 = if (self.window_height == 720) 1080 else 720;
 
             try self.resizeWindow(new_width, new_height);
         }
@@ -207,35 +207,22 @@ pub const DemoApp = struct {
         }
     }
 
-    /// Render a frame using the adaptive renderer and backend
-    fn render(self: *Self) !void {
-        // Adaptive renderer is guaranteed to be non-null after init
-        const frame_data = struct {
-            frame_number: u64,
-            time: f32,
-        }{
-            .frame_number = self.frame_count,
-            .time = @as(f32, @floatFromInt(self.frame_count)) * 0.016,
-        };
-
-        try self.adaptive_renderer.?.render(frame_data);
-
-        if (self.backend_manager) |manager| {
-            if (manager.getPrimaryBackend()) |backend| {
-                // Basic rendering demonstration
-                try self.performBasicRendering(backend);
-            }
+    /// Render a frame using the current backend
+    pub fn render(self: *Self) !void {
+        if (self.current_backend) |backend| {
+            // Basic rendering demonstration
+            try self.performBasicRendering(backend);
         }
     }
 
     /// Perform basic rendering commands (triangle, clear, etc.)
-    fn performBasicRendering(self: *Self, backend: *interface.GraphicsBackend) !void {
+    fn performBasicRendering(self: *Self, backend: *backend_manager.BackendInterface) !void {
         // Create command buffer
-        var cmd_buffer = backend.createCommandBuffer() catch return;
+        var cmd_buffer = try backend.vtable.create_command_buffer(backend.impl_data);
         defer cmd_buffer.deinit();
 
         // Begin command recording
-        try backend.beginCommandBuffer(cmd_buffer);
+        try backend.vtable.begin_command_buffer(backend.impl_data, cmd_buffer);
 
         // Begin render pass
         const render_pass_desc = interface.RenderPassDesc{
@@ -249,16 +236,16 @@ pub const DemoApp = struct {
             .clear_stencil = 0,
         };
 
-        backend.beginRenderPass(cmd_buffer, &render_pass_desc) catch {};
+        backend.vtable.begin_render_pass(backend.impl_data, cmd_buffer, &render_pass_desc) catch {};
 
         // Set viewport
         const viewport = types.Viewport{
             .x = 0,
             .y = 0,
-            .width = self.window_width,
-            .height = self.window_height,
+            .width = @floatFromInt(self.window_width),
+            .height = @floatFromInt(self.window_height),
         };
-        backend.setViewport(cmd_buffer, &viewport) catch {};
+        backend.vtable.set_viewport(backend.impl_data, cmd_buffer, &viewport) catch {};
 
         // Draw something simple
         const draw_cmd = interface.DrawCommand{
@@ -267,19 +254,19 @@ pub const DemoApp = struct {
             .first_vertex = 0,
             .first_instance = 0,
         };
-        backend.draw(cmd_buffer, &draw_cmd) catch {};
+        backend.vtable.draw(backend.impl_data, cmd_buffer, &draw_cmd) catch {};
 
         // End render pass
-        backend.endRenderPass(cmd_buffer) catch {};
+        backend.vtable.end_render_pass(backend.impl_data, cmd_buffer) catch {};
 
         // End command recording
-        try backend.endCommandBuffer(cmd_buffer);
+        try backend.vtable.end_command_buffer(backend.impl_data, cmd_buffer);
 
         // Submit commands
-        try backend.submitCommandBuffer(cmd_buffer);
+        try backend.vtable.submit_command_buffer(backend.impl_data, cmd_buffer);
 
         // Present
-        backend.present() catch {};
+        backend.vtable.present(backend.impl_data) catch {};
     }
 
     // =============================
@@ -288,25 +275,27 @@ pub const DemoApp = struct {
     /// Demonstrate backend switching logic
     fn demonstrateBackendSwitching(self: *Self) !void {
         if (self.backend_manager) |manager| {
-            const current_backend = manager.getPrimaryBackend().?.backend_type;
-            std.log.info("Current backend: {s}", .{current_backend.getName()});
+            if (self.current_backend) |current| {
+                std.log.info("Current backend: {s}", .{@tagName(current.backend_type)});
 
-            // Get available backends and try to switch to a different one
-            const available = manager.getAvailableBackends() catch return;
-            defer self.allocator.free(available);
+                // Get available backends and try to switch to a different one
+                const available = backend_manager.getAvailableBackends();
 
-            for (available) |backend_type| {
-                if (backend_type != current_backend) {
-                    std.log.info("Attempting to switch to: {s}", .{backend_type.getName()});
+                for (available) |backend_type| {
+                    if (backend_type != current.backend_type) {
+                        std.log.info("Attempting to switch to: {s}", .{@tagName(backend_type)});
 
-                    if (try manager.switchBackend(backend_type)) {
-                        std.log.info("Successfully switched to: {s}", .{backend_type.getName()});
+                        const new_backend = manager.switchBackend(backend_type) catch |err| {
+                            std.log.warn("Failed to switch to {s}: {}", .{ @tagName(backend_type), err });
+                            continue;
+                        };
+
+                        self.current_backend = new_backend;
+                        std.log.info("Successfully switched to: {s}", .{@tagName(backend_type)});
 
                         // Recreate swap chain for new backend
                         try self.createSwapChain();
                         break;
-                    } else {
-                        std.log.warn("Failed to switch to: {s}", .{backend_type.getName()});
                     }
                 }
             }
@@ -326,11 +315,8 @@ pub const DemoApp = struct {
             std.log.info("Frame: {} | FPS: {d:.1} | Backend: {s}", .{
                 self.frame_count,
                 self.fps,
-                if (self.backend_manager) |manager|
-                    if (manager.getPrimaryBackend()) |backend|
-                        backend.backend_type.getName()
-                    else
-                        "None"
+                if (self.current_backend) |backend|
+                    @tagName(backend.backend_type)
                 else
                     "None",
             });

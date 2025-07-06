@@ -2,21 +2,85 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
-const interface = @import("../../interface.zig");
+const interface = @import("../interface.zig");
 const types = @import("../../types.zig");
-const common = @import("../../common.zig");
+const common = @import("../common.zig");
 
 // DirectX 11 C bindings
 const c = @cImport({
     @cDefine("COBJMACROS", "");
-    @cDefine("WIN32_LEAN_AND_MEAN", "");
+    @cDefine("WIN32_LEAN_AND_MEAN", "1");
     @cInclude("windows.h");
     @cInclude("d3d11.h");
-    @cInclude("d3dcompiler.h");
     @cInclude("dxgi.h");
+    @cInclude("d3dcompiler.h");
 });
 
+// Runtime loading of D3DCompile to avoid linking issues
+const D3DCompileFunc = *const fn (
+    pSrcData: ?*const anyopaque,
+    SrcDataSize: usize,
+    pSourceName: ?[*:0]const u8,
+    pDefines: ?*const c.D3D_SHADER_MACRO,
+    pInclude: ?*c.ID3DInclude,
+    pEntrypoint: [*:0]const u8,
+    pTarget: [*:0]const u8,
+    Flags1: c.UINT,
+    Flags2: c.UINT,
+    ppCode: *?*c.ID3DBlob,
+    ppErrorMsgs: ?*?*c.ID3DBlob,
+) callconv(.C) c.HRESULT;
+
+var d3dcompiler_dll: ?*anyopaque = null;
+var d3d_compile_func: ?D3DCompileFunc = null;
+
+fn loadD3DCompiler() bool {
+    if (d3dcompiler_dll != null) return true;
+
+    // Try to load d3dcompiler_47.dll first, then fallback to d3dcompiler_46.dll
+    d3dcompiler_dll = c.LoadLibraryA("d3dcompiler_47.dll");
+    if (d3dcompiler_dll == null) {
+        d3dcompiler_dll = c.LoadLibraryA("d3dcompiler_46.dll");
+    }
+    if (d3dcompiler_dll == null) {
+        d3dcompiler_dll = c.LoadLibraryA("d3dcompiler_43.dll");
+    }
+
+    if (d3dcompiler_dll) |dll| {
+        const hmodule: c.HMODULE = @ptrCast(@alignCast(dll));
+        const proc = c.GetProcAddress(hmodule, "D3DCompile");
+        if (proc) |p| {
+            d3d_compile_func = @ptrCast(p);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/// Convert engine TextureFormat to DXGI_FORMAT for DirectX 11.
+inline fn textureFormatToDxgi(format: types.TextureFormat) c.DXGI_FORMAT {
+    return switch (format) {
+        .rgba8 => c.DXGI_FORMAT_R8G8B8A8_UNORM,
+        .rgba8_unorm => c.DXGI_FORMAT_R8G8B8A8_UNORM,
+        .rgba8_unorm_srgb => c.DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+        // DirectX does not support 24-bit RGB; promote to RGBA.
+        .rgb8 => c.DXGI_FORMAT_R8G8B8A8_UNORM,
+        .rgb8_unorm => c.DXGI_FORMAT_R8G8B8A8_UNORM,
+        .bgra8 => c.DXGI_FORMAT_B8G8R8A8_UNORM,
+        .bgra8_unorm => c.DXGI_FORMAT_B8G8R8A8_UNORM,
+        .bgra8_unorm_srgb => c.DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
+        .r8_unorm => c.DXGI_FORMAT_R8_UNORM,
+        .rg8 => c.DXGI_FORMAT_R8G8_UNORM,
+        .rg8_unorm => c.DXGI_FORMAT_R8G8_UNORM,
+        .depth24_stencil8 => c.DXGI_FORMAT_D24_UNORM_S8_UINT,
+        .depth32f => c.DXGI_FORMAT_D32_FLOAT,
+    };
+}
+
 pub const D3D11Backend = struct {
+    /// Shared base struct with profiler and error logger
+    base: common.BackendBase,
     allocator: std.mem.Allocator,
     device: ?*c.ID3D11Device = null,
     context: ?*c.ID3D11DeviceContext = null,
@@ -88,7 +152,11 @@ pub const D3D11Backend = struct {
         }
 
         const backend = try allocator.create(D3D11Backend);
+        // Initialize shared base functionality
+        const debug_mode = (builtin.mode == .Debug);
+        const base = try common.BackendBase.init(allocator, debug_mode);
         backend.* = D3D11Backend{
+            .base = base,
             .allocator = allocator,
         };
 
@@ -193,7 +261,7 @@ pub const D3D11Backend = struct {
     fn createSwapChainImpl(impl: *anyopaque, desc: *const interface.SwapChainDesc) interface.GraphicsBackendError!void {
         const self: *Self = @ptrCast(@alignCast(impl));
 
-        self.window_handle = @ptrCast(desc.window_handle orelse return interface.GraphicsBackendError.InvalidOperation);
+        self.window_handle = @ptrCast(@alignCast(desc.window_handle orelse return interface.GraphicsBackendError.InvalidOperation));
         self.width = desc.width;
         self.height = desc.height;
         self.vsync = desc.vsync;
@@ -202,7 +270,7 @@ pub const D3D11Backend = struct {
         swap_chain_desc.BufferCount = desc.buffer_count;
         swap_chain_desc.BufferDesc.Width = desc.width;
         swap_chain_desc.BufferDesc.Height = desc.height;
-        swap_chain_desc.BufferDesc.Format = common.convertTextureFormat(desc.format);
+        swap_chain_desc.BufferDesc.Format = textureFormatToDxgi(desc.format);
         swap_chain_desc.BufferDesc.RefreshRate.Numerator = 60;
         swap_chain_desc.BufferDesc.RefreshRate.Denominator = 1;
         swap_chain_desc.BufferUsage = c.DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -374,7 +442,9 @@ pub const D3D11Backend = struct {
             .format = .rgba8,
             .texture_type = .texture_2d,
             .mip_levels = 1,
-            .allocator = self.allocator,
+            .array_layers = 1,
+            .usage = .{ .render_target = true },
+            .sample_count = 1,
         };
 
         return texture;
@@ -388,7 +458,7 @@ pub const D3D11Backend = struct {
         desc.Height = texture.height;
         desc.MipLevels = texture.mip_levels;
         desc.ArraySize = if (texture.texture_type == .texture_array) texture.depth else 1;
-        desc.Format = common.convertTextureFormat(texture.format);
+        desc.Format = textureFormatToDxgi(texture.format);
         desc.SampleDesc.Count = 1;
         desc.SampleDesc.Quality = 0;
         desc.Usage = c.D3D11_USAGE_DEFAULT;
@@ -479,7 +549,13 @@ pub const D3D11Backend = struct {
             else => return interface.GraphicsBackendError.UnsupportedFormat,
         };
 
-        var hr = c.D3DCompile(
+        // Try to load D3DCompiler at runtime
+        if (!loadD3DCompiler()) {
+            std.log.err("D3DCompiler not available - shader compilation disabled", .{});
+            return interface.GraphicsBackendError.UnsupportedOperation;
+        }
+
+        var hr = d3d_compile_func.?(
             shader.source.ptr,
             shader.source.len,
             null, // source name
@@ -681,10 +757,10 @@ pub const D3D11Backend = struct {
         _ = cmd;
 
         var d3d_viewport = c.D3D11_VIEWPORT{
-            .TopLeftX = @floatFromInt(viewport.x),
-            .TopLeftY = @floatFromInt(viewport.y),
-            .Width = @floatFromInt(viewport.width),
-            .Height = @floatFromInt(viewport.height),
+            .TopLeftX = viewport.x,
+            .TopLeftY = viewport.y,
+            .Width = viewport.width,
+            .Height = viewport.height,
             .MinDepth = 0.0,
             .MaxDepth = 1.0,
         };
@@ -697,10 +773,10 @@ pub const D3D11Backend = struct {
         _ = cmd;
 
         var scissor_rect = c.D3D11_RECT{
-            .left = rect.x,
-            .top = rect.y,
-            .right = rect.x + @as(i32, @intCast(rect.width)),
-            .bottom = rect.y + @as(i32, @intCast(rect.height)),
+            .left = @as(i32, @intFromFloat(rect.x)),
+            .top = @as(i32, @intFromFloat(rect.y)),
+            .right = @as(i32, @intFromFloat(rect.x)) + @as(i32, @intFromFloat(rect.width)),
+            .bottom = @as(i32, @intFromFloat(rect.y)) + @as(i32, @intFromFloat(rect.height)),
         };
 
         self.context.?.lpVtbl.*.RSSetScissorRects.?(self.context.?, 1, &scissor_rect);
@@ -744,7 +820,7 @@ pub const D3D11Backend = struct {
         self.context.?.lpVtbl.*.IASetIndexBuffer.?(
             self.context.?,
             d3d_buffer,
-            dxgi_format,
+            @as(c_uint, @intCast(dxgi_format)),
             @intCast(offset),
         );
     }
@@ -916,3 +992,9 @@ pub const D3D11Backend = struct {
         // TODO: Implement debug groups using D3D11 debug annotations
     }
 };
+
+/// Create a D3D11 backend instance (module-level wrapper for D3D11Backend.createBackend)
+pub fn create(allocator: std.mem.Allocator, config: anytype) !*interface.GraphicsBackend {
+    _ = config; // Config not used yet but may be in the future
+    return D3D11Backend.createBackend(allocator);
+}

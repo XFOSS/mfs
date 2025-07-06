@@ -2,7 +2,16 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const AutoHashMap = std.AutoHashMap;
-const Vec3 = @import("../../math/vec3.zig").Vec3f;
+// const math = @import("math");
+const Vec3 = struct {
+    x: f32,
+    y: f32,
+    z: f32,
+
+    pub fn init(x: f32, y: f32, z: f32) Vec3 {
+        return Vec3{ .x = x, .y = y, .z = z };
+    }
+};
 
 const Entity = @import("entity.zig").Entity;
 const EntityId = @import("entity.zig").EntityId;
@@ -67,7 +76,8 @@ pub const Scene = struct {
         };
 
         // Initialize octree
-        const world_bounds = RenderComponent.BoundingBox.init(Vec3.init(-1000, -1000, -1000), Vec3.init(1000, 1000, 1000));
+        const BoundingBox = @import("../components/render.zig").BoundingBox;
+        const world_bounds = BoundingBox.init(Vec3.init(-1000, -1000, -1000), Vec3.init(1000, 1000, 1000));
         scene.octree = try Octree.init(allocator, world_bounds, 10, 6);
 
         // Register default systems

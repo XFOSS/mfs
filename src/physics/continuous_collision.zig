@@ -1,5 +1,5 @@
 const std = @import("std");
-const math = @import("../math/vector.zig");
+const math = @import("math");
 const Vec4 = math.Vec4;
 const Vector = math.Vector;
 const shapes = @import("shapes.zig");
@@ -21,6 +21,15 @@ pub const SweepResult = struct {
 
 /// Continuous collision detection system
 pub const ContinuousCollision = struct {
+    pub fn init(allocator: std.mem.Allocator) ContinuousCollision {
+        _ = allocator; // Not needed for this implementation
+        return ContinuousCollision{};
+    }
+
+    pub fn deinit(self: *ContinuousCollision) void {
+        _ = self; // No cleanup needed for this implementation
+    }
+
     /// Perform a linear cast from start to end position
     pub fn linearCast(
         start_pos: Vec4,
@@ -43,9 +52,6 @@ pub const ContinuousCollision = struct {
 
         // If not moving, no collision possible
         if (dist_sq < 0.0001) return result;
-
-        const dist = @sqrt(dist_sq);
-        const dir = delta * Vector.splat(1.0 / dist);
 
         // Test against all objects
         for (objects, 0..) |*obj, idx| {

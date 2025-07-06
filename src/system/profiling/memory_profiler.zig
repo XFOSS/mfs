@@ -1,6 +1,9 @@
 const std = @import("std");
 const Profiler = @import("profiler.zig").Profiler;
 const build_options = @import("build_options");
+comptime {
+    _ = build_options;
+}
 const TrackedAllocator = @import("profiler.zig").TrackedAllocator;
 
 /// Global flag to enable or disable memory profiling
@@ -50,7 +53,9 @@ pub const TrackedGPA = struct {
 
     pub fn init(backing_allocator: std.mem.Allocator, category: MemoryCategory) !TrackedGPA {
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        var tracked = TrackedAllocator.init(gpa.allocator(), category.toString());
+        // Remove unused parameter warning by referencing backing_allocator
+        _ = backing_allocator;
+        const tracked = TrackedAllocator.init(gpa.allocator(), category.toString());
 
         return TrackedGPA{
             .gpa = gpa,
@@ -62,6 +67,7 @@ pub const TrackedGPA = struct {
         return self.tracked.allocator();
     }
 
+    /// Deinitialize the GPA and return true if leaks were detected.
     pub fn deinit(self: *TrackedGPA) bool {
         // Return leak detection status
         return self.gpa.deinit();
@@ -70,15 +76,13 @@ pub const TrackedGPA = struct {
 
 /// Track a memory allocation
 pub fn trackAlloc(ptr: ?*anyopaque, size: usize, category: MemoryCategory) void {
-    if (!enable_memory_profiling) return;
-
+    if (!enable_memory_profiling or ptr == null or size == 0) return;
     Profiler.trackAllocation(ptr, size, category.toString(), null, null);
 }
 
 /// Track a memory deallocation
 pub fn trackFree(ptr: ?*anyopaque) void {
-    if (!enable_memory_profiling) return;
-
+    if (!enable_memory_profiling or ptr == null) return;
     Profiler.trackDeallocation(ptr);
 }
 

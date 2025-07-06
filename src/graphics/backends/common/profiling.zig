@@ -40,7 +40,7 @@ pub const PerformanceMarker = struct {
         const marker = try allocator.create(PerformanceMarker);
         marker.* = .{
             .name = name,
-            .start_time = std.time.nanoTimestamp(),
+            .start_time = 0,
             .children = std.ArrayList(*PerformanceMarker).init(allocator),
         };
         return marker;
@@ -128,7 +128,25 @@ pub const GpuProfiler = struct {
 
     pub fn popMarker(self: *GpuProfiler) void {
         if (self.active_markers.items.len > 0) {
-            _ = self.active_markers.pop();
+            const finished_opt = self.active_markers.pop();
+            const finished = finished_opt orelse return;
+
+            // Add finished marker's metrics to its parent (if any)
+            const parent_metrics = self.getCurrentMetrics();
+            const finished_metrics = finished.*.metrics;
+
+            parent_metrics.*.draw_time_ns += finished_metrics.draw_time_ns;
+            parent_metrics.*.compute_time_ns += finished_metrics.compute_time_ns;
+            parent_metrics.*.transfer_time_ns += finished_metrics.transfer_time_ns;
+            parent_metrics.*.draw_calls += finished_metrics.draw_calls;
+            parent_metrics.*.triangle_count += finished_metrics.triangle_count;
+            parent_metrics.*.compute_dispatches += finished_metrics.compute_dispatches;
+            parent_metrics.*.vertex_count += finished_metrics.vertex_count;
+            parent_metrics.*.pipeline_changes += finished_metrics.pipeline_changes;
+            parent_metrics.*.descriptor_bindings += finished_metrics.descriptor_bindings;
+            parent_metrics.*.memory_allocated += finished_metrics.memory_allocated;
+            parent_metrics.*.memory_used += finished_metrics.memory_used;
+            parent_metrics.*.barrier_count += finished_metrics.barrier_count;
         }
     }
 

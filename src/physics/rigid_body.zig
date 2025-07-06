@@ -1,14 +1,15 @@
 const std = @import("std");
 const physics = @import("physics.zig");
-const math = physics.math;
+const physics_mod = @import("mod.zig");
+const math = physics_mod.Math;
 const Vector = math.Vector;
 const Quaternion = math.Quaternion;
-const Vec3f = physics.Vec3f;
+const Vec3f = math.Vec3f;
 const PhysicsConstants = physics.PhysicsConstants;
 const PhysicalObject = physics.PhysicalObject;
 const ObjectType = physics.ObjectType;
-const Matrix3 = math.mat3.Matrix3;
-const Matrix4 = math.mat4.Matrix4;
+const Matrix3 = math.Mat3f;
+const Matrix4 = math.Mat4f;
 
 /// Inertia tensor presets for common shapes
 pub const InertiaPresets = struct {
@@ -56,47 +57,33 @@ pub const RigidBody = struct {
     inverse_inertia_tensor_world: Matrix3,
 
     // Force and torque accumulators
-    force_accumulator: Vec3f = .{ 0, 0, 0, 0 },
-    torque_accumulator: Vec3f = .{ 0, 0, 0, 0 },
+    force_accumulator: Vec3f = Vec3f.zero,
+    torque_accumulator: Vec3f = Vec3f.zero,
 
     /// Create a RigidBody from a PhysicalObject index
     pub fn init(object_idx: usize, inertia_tensor: Matrix3) RigidBody {
         return .{
             .object_idx = object_idx,
             .inertia_tensor = inertia_tensor,
-            .inverse_inertia_tensor = inertia_tensor.inverse() catch Matrix3.identity(),
+            .inverse_inertia_tensor = inertia_tensor.inverse() orelse Matrix3.identity,
             .inertia_tensor_world = inertia_tensor,
-            .inverse_inertia_tensor_world = inertia_tensor.inverse() catch Matrix3.identity(),
+            .inverse_inertia_tensor_world = inertia_tensor.inverse() orelse Matrix3.identity,
         };
     }
 
     /// Apply a force at a point in world space
     pub fn applyForceAtPoint(self: *RigidBody, force: Vec3f, point: Vec3f, obj: *PhysicalObject) void {
         // Apply the force
-        self.force_accumulator[0] += force[0];
-        self.force_accumulator[1] += force[1];
-        self.force_accumulator[2] += force[2];
+        self.force_accumulator = self.force_accumulator.add(force);
 
         // Calculate the torque: τ = r × F
-        const rel_pos = Vec3f{
-            point[0] - obj.position[0],
-            point[1] - obj.position[1],
-            point[2] - obj.position[2],
-            0,
-        };
+        const rel_pos = point.sub(obj.position);
 
         // Cross product: torque = relative_pos × force
-        const torque = Vec3f{
-            rel_pos[1] * force[2] - rel_pos[2] * force[1],
-            rel_pos[2] * force[0] - rel_pos[0] * force[2],
-            rel_pos[0] * force[1] - rel_pos[1] * force[0],
-            0,
-        };
+        const torque = rel_pos.cross(force);
 
         // Apply the torque
-        self.torque_accumulator[0] += torque[0];
-        self.torque_accumulator[1] += torque[1];
-        self.torque_accumulator[2] += torque[2];
+        self.torque_accumulator = self.torque_accumulator.add(torque);
 
         // Ensure the object is awake
         obj.wake();
@@ -111,7 +98,7 @@ pub const RigidBody = struct {
         self.inertia_tensor_world = rotation_matrix.multiply(self.inertia_tensor).multiply(rotation_matrix.transpose());
 
         // Update the inverse tensor
-        self.inverse_inertia_tensor_world = self.inertia_tensor_world.inverse() catch Matrix3.identity();
+        self.inverse_inertia_tensor_world = self.inertia_tensor_world.inverse() orelse Matrix3.identity;
     }
 
     /// Calculate angular acceleration from torque: α = I^-1 * τ
@@ -132,46 +119,31 @@ pub const RigidBody = struct {
         self.updateInertiaTensor(obj);
 
         // Calculate linear acceleration from forces: a = F/m
-        const linear_accel = Vec3f{
-            self.force_accumulator[0] * obj.inverse_mass,
-            self.force_accumulator[1] * obj.inverse_mass,
-            self.force_accumulator[2] * obj.inverse_mass,
-            0,
-        };
+        const linear_accel = self.force_accumulator.scale(obj.inverse_mass);
 
         // Calculate angular acceleration from torques
         const angular_accel = self.calculateAngularAcceleration();
 
         // Update linear velocity and position
-        obj.velocity[0] += linear_accel[0] * dt;
-        obj.velocity[1] += linear_accel[1] * dt;
-        obj.velocity[2] += linear_accel[2] * dt;
+        obj.velocity = obj.velocity.add(linear_accel.scale(dt));
 
         // Apply velocity limits
-        const speed_sq = obj.velocity[0] * obj.velocity[0] +
-            obj.velocity[1] * obj.velocity[1] +
-            obj.velocity[2] * obj.velocity[2];
+        const speed_sq = obj.velocity.magnitudeSquared();
 
         if (speed_sq > PhysicsConstants.MAX_VELOCITY * PhysicsConstants.MAX_VELOCITY) {
             const speed = @sqrt(speed_sq);
-            const scale = PhysicsConstants.MAX_VELOCITY / speed;
-            obj.velocity[0] *= scale;
-            obj.velocity[1] *= scale;
-            obj.velocity[2] *= scale;
+            const scale_factor = PhysicsConstants.MAX_VELOCITY / speed;
+            obj.velocity = obj.velocity.scale(scale_factor);
         }
 
         // Update position
-        obj.position[0] += obj.velocity[0] * dt;
-        obj.position[1] += obj.velocity[1] * dt;
-        obj.position[2] += obj.velocity[2] * dt;
+        obj.position = obj.position.add(obj.velocity.scale(dt));
 
         // Update angular velocity
-        obj.angular_velocity[0] += angular_accel[0] * dt;
-        obj.angular_velocity[1] += angular_accel[1] * dt;
-        obj.angular_velocity[2] += angular_accel[2] * dt;
+        obj.angular_velocity = obj.angular_velocity.add(angular_accel.scale(dt));
 
         // Update orientation using quaternion integration
-        const omega = Quaternion.fromVector(obj.angular_velocity[0], obj.angular_velocity[1], obj.angular_velocity[2], 0);
+        const omega = Quaternion.init(obj.angular_velocity.x, obj.angular_velocity.y, obj.angular_velocity.z, 0);
 
         // Compute rate of change: dq/dt = 0.5 * omega * q
         const omega_q = omega.multiply(obj.orientation).scale(0.5);
@@ -180,8 +152,8 @@ pub const RigidBody = struct {
         obj.orientation = obj.orientation.add(omega_q.scale(dt)).normalize();
 
         // Clear accumulators
-        self.force_accumulator = Vec3f{ 0, 0, 0, 0 };
-        self.torque_accumulator = Vec3f{ 0, 0, 0, 0 };
+        self.force_accumulator = Vec3f.zero;
+        self.torque_accumulator = Vec3f.zero;
     }
 };
 

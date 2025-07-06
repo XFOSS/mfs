@@ -1,8 +1,8 @@
 const std = @import("std");
 const tracy = @import("tracy");
 const c = @cImport({
-    @cInclude("raylib.h");
-    @cInclude("raymath.h");
+    @cInclude("SDL.h");
+    @cInclude("SDL_ttf.h");
 });
 
 const Profiler = @import("../../src/system/profiling/profiler.zig").Profiler;
@@ -10,28 +10,28 @@ const ProfileEntry = @import("../../src/system/profiling/profiler.zig").ProfileE
 const CounterEntry = @import("../../src/system/profiling/profiler.zig").CounterEntry;
 const MemoryAllocation = @import("../../src/system/profiling/profiler.zig").MemoryAllocation;
 
-const WINDOW_WIDTH = 1280;
-const WINDOW_HEIGHT = 820; // Increased to accommodate memory view
-const TIMELINE_HEIGHT = 400;
-const COUNTER_HEIGHT = 150;
-const MEMORY_HEIGHT = 200;
-const MARGIN = 10;
+const WINDOW_WIDTH: c.c_int = 1280;
+const WINDOW_HEIGHT: c.c_int = 820; // Increased to accommodate memory view
+const TIMELINE_HEIGHT: c.c_int = 400;
+const COUNTER_HEIGHT: c.c_int = 150;
+const MEMORY_HEIGHT: c.c_int = 200;
+const MARGIN: c.c_int = 10;
 
-const TIMELINE_TOP = MARGIN;
-const TIMELINE_BOTTOM = TIMELINE_TOP + TIMELINE_HEIGHT;
-const COUNTER_TOP = TIMELINE_BOTTOM + MARGIN;
-const COUNTER_BOTTOM = COUNTER_TOP + COUNTER_HEIGHT;
-const MEMORY_TOP = COUNTER_BOTTOM + MARGIN;
-const MEMORY_BOTTOM = MEMORY_TOP + MEMORY_HEIGHT;
+const TIMELINE_TOP: c.c_int = MARGIN;
+const TIMELINE_BOTTOM: c.c_int = TIMELINE_TOP + TIMELINE_HEIGHT;
+const COUNTER_TOP: c.c_int = TIMELINE_BOTTOM + MARGIN;
+const COUNTER_BOTTOM: c.c_int = COUNTER_TOP + COUNTER_HEIGHT;
+const MEMORY_TOP: c.c_int = COUNTER_BOTTOM + MARGIN;
+const MEMORY_BOTTOM: c.c_int = MEMORY_TOP + MEMORY_HEIGHT;
 
-const TRACK_HEIGHT = 20;
-const MAX_TRACKS = 20;
-const TIMESTAMP_HEIGHT = 20;
-const TIMELINE_CONTENT_TOP = TIMELINE_TOP + TIMESTAMP_HEIGHT;
+const TRACK_HEIGHT: c.c_int = 20;
+const MAX_TRACKS: c.c_int = 20;
+const TIMESTAMP_HEIGHT: c.c_int = 20;
+const TIMELINE_CONTENT_TOP: c.c_int = TIMELINE_TOP + TIMESTAMP_HEIGHT;
 
-const DEFAULT_ZOOM = 1_000_000_000; // 1 second in ns
-const MIN_ZOOM = 1_000_000; // 1 ms in ns
-const MAX_ZOOM = 60_000_000_000; // 60 seconds in ns
+const DEFAULT_ZOOM: u64 = 1_000_000_000; // 1 second in ns
+const MIN_ZOOM: u64 = 1_000_000; // 1 ms in ns
+const MAX_ZOOM: u64 = 60_000_000_000; // 60 seconds in ns
 
 const Color = struct {
     r: u8,
@@ -96,7 +96,7 @@ const ProfileData = struct {
             line_index += 1;
             if (line.len == 0 or line[0] == '#') continue; // Skip comments and empty lines
 
-            var iter = std.mem.split(u8, line, ",");
+            var iter = std.mem.splitSequence(u8, line, ",");
             const timestamp_str = iter.next() orelse continue;
             const type_str = iter.next() orelse continue;
             const name_raw = iter.next() orelse continue;
@@ -122,7 +122,7 @@ const ProfileData = struct {
                 const duration = try std.fmt.parseInt(u64, duration_str, 10);
                 const thread_id = try std.fmt.parseInt(u32, thread_id_str, 10);
                 const parent_id_raw = try std.fmt.parseInt(u32, parent_id_str, 10);
-                const parent_id = if (parent_id_raw > 0) parent_id_raw else null;
+                const parent_id: ?u32 = if (parent_id_raw > 0) parent_id_raw else null;
                 const color = try std.fmt.parseInt(u32, color_str, 16);
 
                 const end_time = timestamp + duration;
@@ -252,7 +252,8 @@ pub fn main() !void {
     while (running) {
         // Calculate delta time
         const current_ticks = c.SDL_GetTicks();
-        const delta_time_ms = current_ticks - last_ticks;
+        const delta_time = current_ticks - last_ticks;
+        _ = delta_time; // Suppress unused variable warning
         last_ticks = current_ticks;
 
         // Handle events
@@ -267,7 +268,7 @@ pub fn main() !void {
                         c.SDLK_ESCAPE => running = false,
                         c.SDLK_LEFT => {
                             // Move view left
-                            const move_amount = @intFromFloat(@as(f64, @floatFromInt(view.view_range)) * 0.1);
+                            const move_amount: u64 = @intFromFloat(f64(view.view_range) * 0.1);
                             if (view.view_start > move_amount) {
                                 view.view_start -= move_amount;
                             } else {
@@ -276,7 +277,7 @@ pub fn main() !void {
                         },
                         c.SDLK_RIGHT => {
                             // Move view right
-                            const move_amount = @intFromFloat(@as(f64, @floatFromInt(view.view_range)) * 0.1);
+                            const move_amount: u64 = @intFromFloat(f64(view.view_range) * 0.1);
                             view.view_start += move_amount;
                             if (view.view_start + view.view_range > profile_data.max_time) {
                                 view.view_start = profile_data.max_time - view.view_range;
@@ -285,7 +286,7 @@ pub fn main() !void {
                         c.SDLK_UP => {
                             // Zoom in
                             const zoom_factor = 0.8;
-                            const new_range = @intFromFloat(@as(f64, @floatFromInt(view.view_range)) * zoom_factor);
+                            const new_range: u64 = @intFromFloat(@as(f64, @floatFromInt(view.view_range)) * zoom_factor);
                             if (new_range >= MIN_ZOOM) {
                                 const center = view.view_start + view.view_range / 2;
                                 view.view_range = new_range;
@@ -295,7 +296,7 @@ pub fn main() !void {
                         c.SDLK_DOWN => {
                             // Zoom out
                             const zoom_factor = 1.25;
-                            const new_range = @intFromFloat(@as(f64, @floatFromInt(view.view_range)) * zoom_factor);
+                            const new_range: u64 = @intFromFloat(@as(f64, @floatFromInt(view.view_range)) * zoom_factor);
                             if (new_range <= MAX_ZOOM) {
                                 const center = view.view_start + view.view_range / 2;
                                 view.view_range = new_range;
@@ -318,12 +319,12 @@ pub fn main() !void {
                 },
                 c.SDL_MOUSEWHEEL => {
                     const zoom_factor = if (event.wheel.y > 0) 0.8 else 1.25;
-                    const new_range = @intFromFloat(@as(f64, @floatFromInt(view.view_range)) * zoom_factor);
+                    const new_range: u64 = @intFromFloat(@as(f64, @floatFromInt(view.view_range)) * zoom_factor);
 
                     if (new_range >= MIN_ZOOM and new_range <= MAX_ZOOM) {
                         // Get mouse position for zoom-in point
-                        var mouse_x: c_int = undefined;
-                        var mouse_y: c_int = undefined;
+                        var mouse_x: c.c_int = undefined;
+                        var mouse_y: c.c_int = undefined;
                         _ = c.SDL_GetMouseState(&mouse_x, &mouse_y);
 
                         // Calculate zoom position ratio
@@ -331,16 +332,16 @@ pub fn main() !void {
                         const timeline_width = window_width - 2 * MARGIN;
                         const zoom_pos_ratio = @as(f32, @floatFromInt(mouse_x - MARGIN)) / @as(f32, @floatFromInt(timeline_width));
 
-                        const focus_time = view.view_start + @intFromFloat(@as(f64, @floatFromInt(view.view_range)) * @as(f64, @floatCast(zoom_pos_ratio)));
+                        const focus_time = view.view_start + @as(u64, @intFromFloat(@as(f64, @floatFromInt(view.view_range)) * @as(f64, @floatCast(zoom_pos_ratio))));
                         view.view_range = new_range;
-                        view.view_start = focus_time - @intFromFloat(@as(f64, @floatFromInt(view.view_range)) * @as(f64, @floatCast(zoom_pos_ratio)));
+                        view.view_start = focus_time - @as(u64, @intFromFloat(@as(f64, @floatFromInt(view.view_range)) * @as(f64, @floatCast(zoom_pos_ratio))));
                     }
                 },
                 c.SDL_MOUSEBUTTONDOWN => {
                     if (event.button.button == c.SDL_BUTTON_LEFT) {
                         // Check if clicked on an entry
-                        var window_width: c_int = undefined;
-                        var window_height: c_int = undefined;
+                        var window_width: c.c_int = undefined;
+                        var window_height: c.c_int = undefined;
                         c.SDL_GetWindowSize(window, &window_width, &window_height);
 
                         const timeline_width = window_width - 2 * MARGIN;
@@ -351,8 +352,8 @@ pub fn main() !void {
                         if (x >= MARGIN and x <= MARGIN + timeline_width and
                             y >= TIMELINE_CONTENT_TOP and y <= TIMELINE_BOTTOM)
                         {
-                            const click_time = view.view_start + @intFromFloat(@as(f64, @floatFromInt(view.view_range)) *
-                                (@as(f64, @floatFromInt(x - MARGIN)) / @as(f64, @floatFromInt(timeline_width))));
+                            const click_time = view.view_start + @as(u64, @intFromFloat(@as(f64, @floatFromInt(view.view_range)) *
+                                (@as(f64, @floatFromInt(x - MARGIN)) / @as(f64, @floatFromInt(timeline_width)))));
 
                             // Find entry at click position
                             const track = @divFloor(y - TIMELINE_CONTENT_TOP, TRACK_HEIGHT);
@@ -426,24 +427,24 @@ pub fn main() !void {
     }
 }
 
-fn getWindowWidth(window: ?*c.SDL_Window) c_int {
-    var width: c_int = undefined;
-    var height: c_int = undefined;
+fn getWindowWidth(window: ?*c.SDL_Window) c.c_int {
+    var width: c.c_int = undefined;
+    var height: c.c_int = undefined;
     c.SDL_GetWindowSize(window, &width, &height);
     return width;
 }
 
-fn getWindowHeight(window: ?*c.SDL_Window) c_int {
-    var width: c_int = undefined;
-    var height: c_int = undefined;
+fn getWindowHeight(window: ?*c.SDL_Window) c.c_int {
+    var width: c.c_int = undefined;
+    var height: c.c_int = undefined;
     c.SDL_GetWindowSize(window, &width, &height);
     return height;
 }
 
-fn timeToX(time: u64, view: ViewState, timeline_width: c_int) c_int {
+fn timeToX(time: u64, view: ViewState, timeline_width: c.c_int) c.c_int {
     const time_offset = time - view.view_start;
     const position = @as(f64, @floatFromInt(time_offset)) / @as(f64, @floatFromInt(view.view_range));
-    return @intFromFloat(@as(f64, @floatFromInt(timeline_width)) * position) + MARGIN;
+    return @as(c.c_int, @intFromFloat(@as(f64, @floatFromInt(timeline_width)) * position)) + MARGIN;
 }
 
 fn findEntryTrack(entries: []const ProfileEntry, entry_idx: usize) i32 {
@@ -456,7 +457,7 @@ fn findEntryTrack(entries: []const ProfileEntry, entry_idx: usize) i32 {
         level += 1;
 
         // Find the parent entry
-        for (entries) |parent| {
+        for (entries) |_| {
             // -1 because IDs are 1-based, index is 0-based
             if (parent_id > 0 and parent_id - 1 < entries.len) {
                 current_parent = entries[parent_id - 1].parent_id;
@@ -472,8 +473,8 @@ fn findEntryTrack(entries: []const ProfileEntry, entry_idx: usize) i32 {
 }
 
 fn drawTimeline(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: ProfileData, view: ViewState) void {
-    var window_width: c_int = undefined;
-    var window_height: c_int = undefined;
+    var window_width: c.c_int = undefined;
+    var window_height: c.c_int = undefined;
     c.SDL_GetWindowSize(c.SDL_GetWindowFromID(c.SDL_GetWindowID(c.SDL_RenderGetWindow(renderer))), &window_width, &window_height);
 
     const timeline_width = window_width - 2 * MARGIN;
@@ -569,8 +570,8 @@ fn drawTimeline(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: Pr
 
         // Draw entry name if enough space
         if (width >= 20 and font != null) {
-            const color = c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 255 };
-            const surface = c.TTF_RenderText_Blended(font, std.mem.sliceTo(entry.name.ptr, 0), color);
+            const text_color = c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 255 };
+            const surface = c.TTF_RenderText_Blended(font, std.mem.sliceTo(entry.name.ptr, 0), text_color);
 
             if (surface != null) {
                 defer c.SDL_FreeSurface(surface);
@@ -601,8 +602,8 @@ fn drawTimeline(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: Pr
 }
 
 fn drawCounters(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: ProfileData, view: ViewState) void {
-    var window_width: c_int = undefined;
-    var window_height: c_int = undefined;
+    var window_width: c.c_int = undefined;
+    var window_height: c.c_int = undefined;
     c.SDL_GetWindowSize(c.SDL_GetWindowFromID(c.SDL_GetWindowID(c.SDL_RenderGetWindow(renderer))), &window_width, &window_height);
 
     const counter_width = window_width - 2 * MARGIN;
@@ -680,7 +681,7 @@ fn drawCounters(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: Pr
                     defer c.SDL_DestroyTexture(texture);
                     const rect = c.SDL_Rect{
                         .x = MARGIN + 5,
-                        .y = COUNTER_TOP + @as(c_int, @intCast(i)) * 25 + 5,
+                        .y = COUNTER_TOP + @as(c.c_int, @intCast(i)) * 25 + 5,
                         .w = surface.*.w,
                         .h = surface.*.h,
                     };
@@ -699,7 +700,7 @@ fn drawCounters(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: Pr
                     defer c.SDL_DestroyTexture(texture);
                     const rect = c.SDL_Rect{
                         .x = MARGIN + 150,
-                        .y = COUNTER_TOP + @as(c_int, @intCast(i)) * 25 + 5,
+                        .y = COUNTER_TOP + @as(c.c_int, @intCast(i)) * 25 + 5,
                         .w = min_surface.*.w,
                         .h = min_surface.*.h,
                     };
@@ -716,7 +717,7 @@ fn drawCounters(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: Pr
                     defer c.SDL_DestroyTexture(texture);
                     const rect = c.SDL_Rect{
                         .x = MARGIN + 300,
-                        .y = COUNTER_TOP + @as(c_int, @intCast(i)) * 25 + 5,
+                        .y = COUNTER_TOP + @as(c.c_int, @intCast(i)) * 25 + 5,
                         .w = max_surface.*.w,
                         .h = max_surface.*.h,
                     };
@@ -730,7 +731,7 @@ fn drawCounters(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: Pr
         defer points.deinit();
 
         const graph_height = 80;
-        const graph_top = COUNTER_TOP + @as(c_int, @intCast(i)) * 25 + 20;
+        const graph_top = COUNTER_TOP + @as(c.c_int, @intCast(i)) * 25 + 20;
 
         // Generate counter points
         for (profile_data.counters.items) |counter| {
@@ -742,7 +743,7 @@ fn drawCounters(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: Pr
                 const x = timeToX(counter.timestamp, view, counter_width);
 
                 const normalized = (counter.value - min_value) / (max_value - min_value);
-                const y = graph_top + graph_height - @as(c_int, @intFromFloat(normalized * @as(f64, @floatFromInt(graph_height))));
+                const y = graph_top + graph_height - @as(c.c_int, @intFromFloat(normalized * @as(f64, @floatFromInt(graph_height))));
 
                 points.append(c.SDL_Point{
                     .x = x,
@@ -801,8 +802,8 @@ fn drawControls(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, view: ViewState)
         if (texture != null) {
             defer c.SDL_DestroyTexture(texture);
 
-            var window_width: c_int = undefined;
-            var window_height: c_int = undefined;
+            var window_width: c.c_int = undefined;
+            var window_height: c.c_int = undefined;
             c.SDL_GetWindowSize(c.SDL_GetWindowFromID(c.SDL_GetWindowID(c.SDL_RenderGetWindow(renderer))), &window_width, &window_height);
 
             const rect = c.SDL_Rect{
@@ -819,15 +820,15 @@ fn drawControls(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, view: ViewState)
 fn drawEntryDetails(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, entry: ProfileEntry) void {
     if (font == null) return;
 
-    var window_width: c_int = undefined;
-    var window_height: c_int = undefined;
+    var window_width: c.c_int = undefined;
+    var window_height: c.c_int = undefined;
     c.SDL_GetWindowSize(c.SDL_GetWindowFromID(c.SDL_GetWindowID(c.SDL_RenderGetWindow(renderer))), &window_width, &window_height);
 
     // Draw details box
-    const box_width = 400;
-    const box_height = 120;
-    const box_x = (window_width - box_width) / 2;
-    const box_y = window_height - box_height - 20;
+    const box_width: c.c_int = 400;
+    const box_height: c.c_int = 120;
+    const box_x: c.c_int = (window_width - box_width) / 2;
+    const box_y: c.c_int = window_height - box_height - 20;
 
     const box_rect = c.SDL_Rect{
         .x = box_x,
@@ -920,8 +921,8 @@ fn drawEntryDetails(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, entry: Profi
 }
 
 fn drawMemoryView(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: ProfileData, view: ViewState) void {
-    var window_width: c_int = undefined;
-    var window_height: c_int = undefined;
+    var window_width: c.c_int = undefined;
+    var window_height: c.c_int = undefined;
     c.SDL_GetWindowSize(c.SDL_GetWindowFromID(c.SDL_GetWindowID(c.SDL_RenderGetWindow(renderer))), &window_width, &window_height);
 
     const memory_width = window_width - 2 * MARGIN;
@@ -1010,7 +1011,7 @@ fn drawMemoryView(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: 
         // Draw Y-axis labels
         if (font != null) {
             var buf: [64]u8 = undefined;
-            const peak_str = std.fmt.bufPrintZ(&buf, "Peak: {d:.2} MB", .{@as(f64, @floatFromInt(peak_memory)) / (1024 * 1024)}) catch continue;
+            const peak_str = std.fmt.bufPrintZ(&buf, "Peak: {d:.2} MB", .{@as(f64, @floatFromInt(peak_memory)) / (1024 * 1024)}) catch return;
 
             const color = c.SDL_Color{ .r = 200, .g = 200, .b = 200, .a = 255 };
             const surface = c.TTF_RenderText_Blended(font, peak_str, color);
@@ -1038,15 +1039,15 @@ fn drawMemoryView(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: 
 
         _ = c.SDL_SetRenderDrawColor(renderer, 0, 180, 120, 255);
 
-        var prev_x: c_int = MARGIN;
-        var prev_y: c_int = MEMORY_BOTTOM - 10;
+        var prev_x: c.c_int = MARGIN;
+        var prev_y: c.c_int = MEMORY_BOTTOM - 10;
 
         for (memory_points.items) |point| {
             if (point.timestamp < view.view_start or point.timestamp > view.view_start + view.view_range) continue;
 
             const x = timeToX(point.timestamp, view, memory_width);
             const normalized = if (peak_memory > 0) @as(f32, @floatFromInt(point.total)) / @as(f32, @floatFromInt(peak_memory)) else 0;
-            const y = graph_top + graph_height - @as(c_int, @intFromFloat(normalized * @as(f32, @floatFromInt(graph_height))));
+            const y = graph_top + graph_height - @as(c.c_int, @intFromFloat(normalized * @as(f32, @floatFromInt(graph_height))));
 
             _ = c.SDL_RenderDrawLine(renderer, prev_x, prev_y, x, y);
 
@@ -1058,7 +1059,7 @@ fn drawMemoryView(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: 
     // Display potential memory leaks as a list
     if (potential_leaks.items.len > 0) {
         const leak_count = @min(potential_leaks.items.len, 5);
-        const list_top = MEMORY_BOTTOM - @as(c_int, @intCast(leak_count * 20)) - 5;
+        const list_top = MEMORY_BOTTOM - @as(c.c_int, @intCast(leak_count * 20)) - 5;
 
         if (font != null) {
             const color = c.SDL_Color{ .r = 255, .g = 120, .b = 120, .a = 255 };
@@ -1093,7 +1094,7 @@ fn drawMemoryView(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: 
 
                         const rect = c.SDL_Rect{
                             .x = window_width - 290,
-                            .y = list_top + @as(c_int, @intCast(i * 20)),
+                            .y = list_top + @as(c.c_int, @intCast(i * 20)),
                             .w = leak_surface.*.w,
                             .h = leak_surface.*.h,
                         };

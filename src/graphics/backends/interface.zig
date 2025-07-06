@@ -1,7 +1,7 @@
 const std = @import("std");
 const gpu = @import("gpu");
 const types = @import("../types.zig");
-const capabilities = @import("../../platform/capabilities.zig");
+const build_options = @import("../../build_options.zig");
 
 /// Error types for graphics backend operations
 /// @symbol Error types for backend implementations
@@ -14,12 +14,42 @@ pub const GraphicsBackendError = error{
     OutOfMemory,
     InvalidOperation,
     UnsupportedFormat,
+    UnsupportedOperation,
     BackendNotAvailable,
+    NotInitialized,
+    ResizeFailed,
+    PresentFailed,
 };
 
-/// Graphics backend type mapping to capabilities
+/// Graphics backend type mapping to build options
 /// @symbol Backend type identification
-pub const BackendType = capabilities.GraphicsBackend;
+pub const BackendType = build_options.Backend;
+
+/// Backend configuration for initialization
+/// @thread-safe Thread-compatible data structure
+/// @symbol Backend configuration
+pub const BackendConfig = struct {
+    backend_type: BackendType = .auto,
+    enable_validation: bool = false,
+    enable_ray_tracing: bool = false,
+    enable_compute_shaders: bool = false,
+    max_frames_in_flight: u32 = 2,
+    enable_debug: bool = false,
+    window_width: u32 = 1280,
+    window_height: u32 = 720,
+    enable_vsync: bool = true,
+    sample_count: u32 = 1,
+    window_handle: ?*anyopaque = null,
+
+    pub fn validate(self: *const BackendConfig) !void {
+        if (self.window_width == 0 or self.window_height == 0) {
+            return error.InvalidWindowSize;
+        }
+        if (self.sample_count == 0 or (self.sample_count & (self.sample_count - 1)) != 0) {
+            return error.InvalidSampleCount;
+        }
+    }
+};
 
 /// Swap chain configuration descriptor
 /// @thread-safe Thread-compatible data structure passed to thread-safe functions
@@ -27,7 +57,7 @@ pub const BackendType = capabilities.GraphicsBackend;
 pub const SwapChainDesc = struct {
     width: u32,
     height: u32,
-    format: types.TextureFormat = .rgba8,
+    format: types.TextureFormat = .rgba8_unorm,
     buffer_count: u32 = 2,
     vsync: bool = true,
     window_handle: ?*anyopaque = null,
@@ -168,8 +198,39 @@ pub const BlendFactor = enum {
     inv_dst_alpha,
     blend_color,
     inv_blend_color,
-    blend_alpha,
-    inv_blend_alpha,
+};
+
+/// Viewport structure for rendering
+/// @symbol Viewport configuration
+pub const Viewport = struct {
+    x: f32 = 0.0,
+    y: f32 = 0.0,
+    width: f32,
+    height: f32,
+    min_depth: f32 = 0.0,
+    max_depth: f32 = 1.0,
+};
+
+/// 2D Rectangle for scissor testing
+/// @symbol Rectangle structure
+pub const Rect2D = struct {
+    x: i32 = 0,
+    y: i32 = 0,
+    width: u32,
+    height: u32,
+};
+
+/// Index type for Vulkan compatibility
+/// @symbol Index type enumeration
+pub const IndexType = enum {
+    uint16,
+    uint32,
+};
+
+/// Render pass opaque handle
+/// @symbol Render pass structure
+pub const RenderPass = struct {
+    handle: usize = 0,
 };
 
 /// Blend operations for color/alpha blending
@@ -320,6 +381,13 @@ pub const DrawIndexedCommand = struct {
     first_instance: u32 = 0,
 };
 
+/// Index buffer format specification
+/// @symbol Index format enumeration
+pub const IndexFormat = enum {
+    uint16,
+    uint32,
+};
+
 /// Compute dispatch command parameters
 /// @thread-safe Thread-compatible data structure passed to thread-safe functions
 /// @symbol Compute dispatch parameters
@@ -402,7 +470,7 @@ pub const SubresourceRange = struct {
 /// @thread-safe Not thread-safe, external synchronization required
 /// @symbol Graphics pipeline object
 pub const Pipeline = struct {
-    id: u32,
+    id: usize,
     backend_handle: *anyopaque,
     allocator: std.mem.Allocator,
 
@@ -415,7 +483,7 @@ pub const Pipeline = struct {
 /// @thread-safe Not thread-safe, external synchronization required
 /// @symbol Graphics command buffer
 pub const CommandBuffer = struct {
-    id: u32,
+    id: usize,
     backend_handle: *anyopaque,
     allocator: std.mem.Allocator,
     recording: bool = false,
@@ -682,13 +750,6 @@ pub const GraphicsBackend = struct {
     pub fn endDebugGroup(self: *Self, cmd: *CommandBuffer) GraphicsBackendError!void {
         return self.vtable.end_debug_group(self.impl_data, cmd);
     }
-};
-
-/// Index buffer data formats
-/// @symbol Index format enumeration
-pub const IndexFormat = enum {
-    uint16,
-    uint32,
 };
 
 /// Graphics backend capability and information structure

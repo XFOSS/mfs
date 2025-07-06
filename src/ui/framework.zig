@@ -8,7 +8,7 @@ pub const color_bridge = @import("color_bridge.zig");
 pub const simple_window = @import("simple_window.zig");
 pub const window = @import("window.zig");
 pub const worker = @import("worker.zig");
-pub const utils = @import("utils/utils.zig");
+pub const utils = @import("libs/utils/utils.zig");
 
 // UI Systems
 pub const swiftui = @import("swiftui.zig");
@@ -177,19 +177,19 @@ pub const Framework = struct {
         }
 
         // Create window
-        self.window_instance = Window.init(self.allocator, window_config) catch |err| {
+        self.window_instance = Window.init(self.allocator, window_config) catch {
             self.setError("Failed to create window");
             return FrameworkError.WindowInitFailed;
         };
 
         // Initialize color system
-        var registry = ColorRegistry.init(self.allocator);
+        const registry = ColorRegistry.init(self.allocator);
         self.color_registry = registry;
 
-        self.setupTheme() catch |err| {
+        self.setupTheme() catch {
             self.setError("Failed to setup theme");
-            if (self.window_instance) |*window| {
-                window.deinit();
+            if (self.window_instance) |*win| {
+                win.deinit();
                 self.window_instance = null;
             }
             return FrameworkError.ColorRegistryInitFailed;
@@ -198,16 +198,16 @@ pub const Framework = struct {
         // Create UI backend
         if (self.window_instance) |window_inst| {
             if (window_inst.getNativeHandle()) |handle| {
-                self.backend_instance = backend.createBackend(self.allocator, self.config.backend_type, @intFromPtr(handle.hwnd)) catch |err| {
+                self.backend_instance = backend.createBackend(self.allocator, self.config.backend_type, @intFromPtr(handle.hwnd)) catch {
                     self.setError("Failed to create backend");
 
                     // Clean up previously allocated resources
-                    if (self.window_instance) |*window| {
-                        window.deinit();
+                    if (self.window_instance) |*win| {
+                        win.deinit();
                         self.window_instance = null;
                     }
-                    if (self.color_registry) |*registry| {
-                        registry.deinit();
+                    if (self.color_registry) |*reg| {
+                        reg.deinit();
                         self.color_registry = null;
                     }
 
@@ -218,7 +218,7 @@ pub const Framework = struct {
 
         // Initialize threading if enabled
         if (self.config.enable_threading) {
-            self.thread_pool = ThreadPool.init(self.allocator, self.config.worker_threads) catch |err| {
+            self.thread_pool = ThreadPool.init(self.allocator, self.config.worker_threads) catch {
                 self.setError("Failed to initialize thread pool");
 
                 // Clean up previously allocated resources
@@ -226,12 +226,12 @@ pub const Framework = struct {
                     backend_inst.deinit();
                     self.backend_instance = null;
                 }
-                if (self.window_instance) |*window| {
-                    window.deinit();
+                if (self.window_instance) |*win| {
+                    win.deinit();
                     self.window_instance = null;
                 }
-                if (self.color_registry) |*registry| {
-                    registry.deinit();
+                if (self.color_registry) |*reg| {
+                    reg.deinit();
                     self.color_registry = null;
                 }
 
@@ -338,14 +338,14 @@ pub const Framework = struct {
     }
 
     fn setupTheme(self: *Self) !void {
-        if (self.color_registry) |*registry| {
+        if (self.color_registry) |*reg| {
             switch (self.config.default_theme) {
-                .light => color_bridge.applyAppearanceWithContrast(registry, false, self.config.high_contrast),
-                .dark => color_bridge.applyAppearanceWithContrast(registry, true, self.config.high_contrast),
+                .light => color_bridge.applyAppearanceWithContrast(reg, false, self.config.high_contrast),
+                .dark => color_bridge.applyAppearanceWithContrast(reg, true, self.config.high_contrast),
                 .custom => {
                     // Setup custom theme if needed
                     const accent_color = color.RGBA.fromHex(0xFF007AFF);
-                    try color_bridge.defineCustomTheme(registry, accent_color);
+                    try color_bridge.defineCustomTheme(reg, accent_color);
                 },
             }
             return;

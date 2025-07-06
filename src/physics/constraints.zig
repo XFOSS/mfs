@@ -1,12 +1,12 @@
 const std = @import("std");
-const physics = @import("physics.zig");
-const math = physics.math;
+const physics_engine = @import("physics_engine.zig");
+const math = @import("math");
 const Vector = math.Vector;
 const Quaternion = math.Quaternion;
-const Vec3f = physics.Vec3f;
-const PhysicsConstants = physics.PhysicsConstants;
-const PhysicalObject = physics.PhysicalObject;
-const ObjectType = physics.ObjectType;
+const Vec3f = physics_engine.Vec3f;
+const PhysicsConstants = physics_engine.PhysicsConstants;
+const PhysicalObject = physics_engine.PhysicalObject;
+const ObjectType = physics_engine.ObjectType;
 
 /// Unified constraint interface using tagged union for type safety and extensibility
 pub const Constraint = union(enum) {
@@ -328,6 +328,7 @@ pub const PositionConstraint = struct {
     /// Solves the position constraint by directly moving the object towards the target position
     /// dt parameter is unused since this is an instantaneous correction, but kept for interface consistency
     pub fn solve(self: *PositionConstraint, objects: []PhysicalObject, dt: f32) void {
+        _ = dt; // dt is unused for instantaneous position correction
         if (!self.active) return;
 
         var obj = &objects[self.object_index];

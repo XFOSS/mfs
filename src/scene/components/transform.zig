@@ -1,7 +1,8 @@
 const std = @import("std");
-const Vec3 = @import("../../math/vec3.zig").Vec3f;
-const Mat4 = @import("../../math/mat4.zig").Mat4f;
-const Quaternion = @import("../../math/math.zig").Quaternion(f32);
+const math = @import("../../math/mod.zig");
+const Vec3 = math.Vec3;
+const Mat4 = math.Mat4;
+const Quaternion = math.Quaternion;
 
 pub const Transform = struct {
     position: Vec3,
@@ -16,8 +17,8 @@ pub const Transform = struct {
             .position = Vec3.init(0, 0, 0),
             .rotation = Quaternion.identity(),
             .scale = Vec3.init(1, 1, 1),
-            .local_matrix = Mat4.identity(),
-            .world_matrix = Mat4.identity(),
+            .local_matrix = Mat4.identity,
+            .world_matrix = Mat4.identity,
             .dirty = true,
         };
     }
@@ -39,12 +40,12 @@ pub const Transform = struct {
 
     pub fn updateMatrices(self: *Transform, parent_world: ?Mat4) void {
         if (self.dirty) {
-            self.local_matrix = Mat4.fromTransform(self.position, self.rotation, self.scale);
+            self.local_matrix = Mat4.fromTransformQuaternion(self.position, self.rotation, self.scale);
             self.dirty = false;
         }
 
         self.world_matrix = if (parent_world) |parent|
-            parent.multiply(self.local_matrix)
+            parent.mul(self.local_matrix)
         else
             self.local_matrix;
     }

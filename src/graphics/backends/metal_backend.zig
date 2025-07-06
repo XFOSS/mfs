@@ -917,15 +917,7 @@ pub const MetalBackend = struct {
 
         // Upload initial data if provided and we didn't use MTKTextureLoader
         if (data != null and !c.MTKTextureLoader.class() != null) {
-            const bytes_per_pixel = switch (texture.format) {
-                .rgba8 => 4,
-                .rgb8 => 3,
-                .bgra8 => 4,
-                .r8 => 1,
-                .rg8 => 2,
-                .depth24_stencil8 => 4,
-                .depth32f => 4,
-            };
+            const bytes_per_pixel = common.getBytesPerPixel(texture.format);
             const bytes_per_row = texture.width * bytes_per_pixel;
             const expected_size = bytes_per_row * texture.height;
 
@@ -1207,15 +1199,7 @@ pub const MetalBackend = struct {
         }
 
         const metal_texture: *c.MTLTexture = @ptrFromInt(texture.id);
-        const bytes_per_pixel = switch (texture.format) {
-            .rgba8 => 4,
-            .rgb8 => 3,
-            .bgra8 => 4,
-            .r8 => 1,
-            .rg8 => 2,
-            .depth24_stencil8 => 4,
-            .depth32f => 4,
-        };
+        const bytes_per_pixel = common.getBytesPerPixel(texture.format);
         const bytes_per_row = region.extent[0] * bytes_per_pixel;
         const expected_size = bytes_per_row * region.extent[1] * region.extent[2];
 
@@ -2056,3 +2040,9 @@ pub const MetalBackend = struct {
         }
     }
 };
+
+/// Create a Metal backend instance (module-level wrapper for MetalBackend.createBackend)
+pub fn create(allocator: std.mem.Allocator, config: anytype) !*interface.GraphicsBackend {
+    _ = config; // Config not used yet but may be in the future
+    return MetalBackend.createBackend(allocator);
+}

@@ -1,7 +1,7 @@
 const std = @import("std");
-const vulkan = @import("../vulkan/renderer.zig");
-const math = @import("../math/math.zig");
-const gpu = @import("../gpu.zig");
+// Note: Vulkan renderer moved to graphics/backends/vulkan/
+const math = @import("math");
+const gpu = @import("../graphics/gpu.zig");
 
 // ... existing code from render.zig ...
 

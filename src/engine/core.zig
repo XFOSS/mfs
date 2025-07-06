@@ -1,15 +1,99 @@
+//! Engine Core Module
+//! Provides core engine functionality and utilities
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const HashMap = std.HashMap;
 const Thread = std.Thread;
 const Mutex = std.Thread.Mutex;
+const builtin = @import("builtin");
 
 // Import engine modules
 const vk = @import("../graphics/backends/vulkan/vk.zig");
 const material = @import("../graphics/backends/vulkan/material.zig");
 const ui = @import("../ui/window.zig");
 const worker = @import("../ui/worker.zig");
+const graphics = @import("../graphics/mod.zig");
+const log = std.log;
+
+// Engine-wide configuration
+pub const EngineConfig = struct {
+    // Window settings
+    window_width: u32 = 1280,
+    window_height: u32 = 720,
+    window_title: []const u8 = "MFS Engine Application",
+    window_handle: ?*anyopaque = null,
+    fullscreen: bool = false,
+    vsync: bool = true,
+
+    // Performance settings
+    target_fps: u32 = 60,
+    max_frame_time_ms: f32 = 33.33,
+    enable_frame_pacing: bool = true,
+
+    // Memory management
+    max_memory_budget_mb: u64 = 512,
+    asset_cache_size_mb: u64 = 128,
+    enable_memory_tracking: bool = builtin.mode == .Debug,
+
+    // Feature toggles
+    enable_gpu: bool = true,
+    enable_physics: bool = true,
+    enable_audio: bool = true,
+    enable_neural: bool = false,
+    enable_xr: bool = false,
+    enable_networking: bool = false,
+
+    // Graphics settings
+    preferred_backend: ?graphics.BackendType = null,
+    backend: u32 = 0, // For compatibility
+    multisampling: u32 = 4,
+    anisotropic_filtering: u32 = 16,
+    enable_validation: bool = builtin.mode == .Debug,
+    shadow_quality: u32 = 3, // High quality by default
+    texture_quality: u32 = 3, // High quality by default
+    antialiasing: u32 = 3, // MSAA 4x by default
+
+    // Development settings
+    enable_hot_reload: bool = builtin.mode == .Debug,
+    enable_profiling: bool = builtin.mode == .Debug,
+    enable_diagnostics: bool = true,
+    log_level: std.log.Level = if (builtin.mode == .Debug) .debug else .info,
+
+    /// Validate configuration values
+    pub fn validate(self: EngineConfig) !void {
+        if (self.window_width == 0 or self.window_height == 0) {
+            return error.InvalidConfiguration;
+        }
+        if (self.target_fps == 0 or self.target_fps > 1000) {
+            return error.InvalidConfiguration;
+        }
+        if (self.max_memory_budget_mb == 0) {
+            return error.InvalidConfiguration;
+        }
+    }
+};
+
+// Engine state enumeration
+pub const EngineState = enum {
+    uninitialized,
+    initializing,
+    running,
+    paused,
+    shutting_down,
+    error_state,
+};
+
+// Engine error types
+pub const EngineError = error{
+    InitializationFailed,
+    AlreadyInitialized,
+    NotInitialized,
+    InvalidConfiguration,
+    SystemError,
+    OutOfMemory,
+};
 
 // Core engine types
 pub const EntityId = u32;
@@ -192,7 +276,7 @@ pub const RenderComponent = struct {
 pub const EntityManager = struct {
     allocator: Allocator,
     entities: ArrayList(EntityId),
-    components: HashMap(ComponentId, ArrayList(Component), std.hash_map.AutoContext(ComponentId)),
+    components: HashMap(ComponentId, ArrayList(Component), std.hash_map.AutoContext(ComponentId), std.hash_map.default_max_load_percentage),
     next_entity_id: EntityId,
     next_component_id: ComponentId,
 
@@ -202,7 +286,7 @@ pub const EntityManager = struct {
         return Self{
             .allocator = allocator,
             .entities = ArrayList(EntityId).init(allocator),
-            .components = HashMap(ComponentId, ArrayList(Component), std.hash_map.AutoContext(ComponentId)).init(allocator),
+            .components = HashMap(ComponentId, ArrayList(Component), std.hash_map.AutoContext(ComponentId), std.hash_map.default_max_load_percentage).init(allocator),
             .next_entity_id = 1,
             .next_component_id = 1,
         };
@@ -383,8 +467,8 @@ pub const Asset = struct {
 
 pub const AssetManager = struct {
     allocator: Allocator,
-    assets: HashMap(u32, Asset, std.hash_map.AutoContext(u32)),
-    name_to_id: HashMap(u32, u32, std.hash_map.AutoContext(u32)),
+    assets: HashMap(u32, Asset, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage),
+    name_to_id: HashMap(u32, u32, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage),
     next_id: u32,
 
     const Self = @This();
@@ -392,8 +476,8 @@ pub const AssetManager = struct {
     pub fn init(allocator: Allocator) Self {
         return Self{
             .allocator = allocator,
-            .assets = HashMap(u32, Asset, std.hash_map.AutoContext(u32)).init(allocator),
-            .name_to_id = HashMap(u32, u32, std.hash_map.AutoContext(u32)).init(allocator),
+            .assets = HashMap(u32, Asset, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
+            .name_to_id = HashMap(u32, u32, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
             .next_id = 1,
         };
     }
@@ -418,7 +502,7 @@ pub const AssetManager = struct {
         const asset = Asset.init(asset_id, name_copy, asset_type, data_copy);
         try self.assets.put(asset_id, asset);
 
-        const name_hash = std.hash_map.hashString(name);
+        const name_hash = std.hash.hashString(name);
         try self.name_to_id.put(name_hash, asset_id);
 
         return asset_id;
@@ -429,7 +513,7 @@ pub const AssetManager = struct {
     }
 
     pub fn getAssetByName(self: *Self, name: []const u8) ?*Asset {
-        const name_hash = std.hash_map.hashString(name);
+        const name_hash = std.hash.hashString(name);
         if (self.name_to_id.get(name_hash)) |asset_id| {
             return self.getAsset(asset_id);
         }
@@ -491,7 +575,7 @@ pub const EventHandler = struct {
 
 pub const EventManager = struct {
     allocator: Allocator,
-    handlers: HashMap(EventType, ArrayList(EventHandler), std.hash_map.AutoContext(EventType)),
+    handlers: HashMap(EventType, ArrayList(EventHandler), std.hash_map.AutoContext(EventType), std.hash_map.default_max_load_percentage),
     event_queue: ArrayList(Event),
 
     const Self = @This();
@@ -499,7 +583,7 @@ pub const EventManager = struct {
     pub fn init(allocator: Allocator) Self {
         return Self{
             .allocator = allocator,
-            .handlers = HashMap(EventType, ArrayList(EventHandler), std.hash_map.AutoContext(EventType)).init(allocator),
+            .handlers = HashMap(EventType, ArrayList(EventHandler), std.hash_map.AutoContext(EventType), std.hash_map.default_max_load_percentage).init(allocator),
             .event_queue = ArrayList(Event).init(allocator),
         };
     }
@@ -554,11 +638,13 @@ pub const Engine = struct {
     event_manager: EventManager,
     thread_pool: ?worker.ThreadPool,
     window_manager: ?ui.WindowManager,
+    graphics_manager: ?graphics.BackendManager,
     running: bool,
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator) Self {
+    pub fn init(allocator: Allocator, config: ?EngineConfig) Self {
+        _ = config; // For now, ignore config parameter
         return Self{
             .allocator = allocator,
             .time = Time.init(60.0),
@@ -568,6 +654,7 @@ pub const Engine = struct {
             .event_manager = EventManager.init(allocator),
             .thread_pool = null,
             .window_manager = null,
+            .graphics_manager = null,
             .running = false,
         };
     }
@@ -584,12 +671,43 @@ pub const Engine = struct {
         if (self.window_manager) |*wm| {
             wm.deinit();
         }
+        if (self.graphics_manager) |*gm| {
+            graphics.deinit(gm);
+        }
     }
 
     pub fn initialize(self: *Self) !void {
         // Initialize subsystems
         self.thread_pool = try worker.ThreadPool.init(self.allocator, 4);
-        self.window_manager = try ui.WindowManager.init(self.allocator);
+        self.window_manager = try ui.WindowManager.init(self.allocator, 4);
+
+        // Initialize graphics system with default configuration
+        const graphics_config = graphics.GraphicsConfig{
+            .preferred_backend = null, // Auto-detect best backend
+            .enable_validation = builtin.mode == .Debug,
+            .enable_debug_layers = builtin.mode == .Debug,
+            .vsync = true,
+            .multisampling = 4,
+            .anisotropic_filtering = 16,
+            .max_texture_size = 4096,
+            .max_render_targets = 8,
+        };
+
+        self.graphics_manager = graphics.init(self.allocator, graphics_config) catch |err| blk: {
+            log.warn("Failed to initialize graphics system: {}, falling back to software rendering", .{err});
+            // Try with software fallback
+            const fallback_config = graphics.GraphicsConfig{
+                .preferred_backend = .software,
+                .enable_validation = false,
+                .enable_debug_layers = false,
+                .vsync = false,
+                .multisampling = 1,
+                .anisotropic_filtering = 1,
+                .max_texture_size = 1024,
+                .max_render_targets = 1,
+            };
+            break :blk graphics.init(self.allocator, fallback_config) catch null;
+        };
 
         // Create default scene
         self.current_scene = Scene.init(self.allocator, "Default Scene");
@@ -611,6 +729,109 @@ pub const Engine = struct {
         if (self.current_scene) |*scene| {
             scene.update(&self.time, &self.input);
         }
+    }
+
+    pub fn render(self: *Self, interpolation_alpha: f32) void {
+        if (self.graphics_manager) |*gm| {
+            const backend = gm.getPrimaryBackend() catch {
+                log.warn("No graphics backend available for rendering", .{});
+                return;
+            };
+
+            // Create a command buffer for this frame
+            const cmd = backend.createCommandBuffer() catch |err| {
+                log.warn("Failed to create command buffer: {}", .{err});
+                return;
+            };
+            // Note: Command buffer cleanup is handled by the backend after submission
+
+            // Begin command recording
+            backend.beginCommandBuffer(cmd) catch |err| {
+                log.warn("Failed to begin command buffer: {}", .{err});
+                return;
+            };
+
+            // Get the current back buffer for rendering
+            const back_buffer = backend.getCurrentBackBuffer() catch |err| {
+                log.warn("Failed to get back buffer: {}", .{err});
+                return;
+            };
+
+            // Begin render pass with clear
+            const render_pass_desc = graphics.backends.interface.RenderPassDesc{
+                .color_targets = &[_]graphics.backends.interface.ColorTargetDesc{
+                    .{
+                        .texture = back_buffer,
+                        .load_action = .clear,
+                        .store_action = .store,
+                    },
+                },
+                .clear_color = .{ .r = 0.1, .g = 0.1, .b = 0.2, .a = 1.0 },
+            };
+
+            backend.beginRenderPass(cmd, &render_pass_desc) catch |err| {
+                log.warn("Failed to begin render pass: {}", .{err});
+                return;
+            };
+
+            // Render current scene
+            if (self.current_scene) |*scene| {
+                self.renderScene(backend, cmd, scene, interpolation_alpha);
+            }
+
+            // End render pass
+            backend.endRenderPass(cmd) catch |err| {
+                log.warn("Failed to end render pass: {}", .{err});
+            };
+
+            // End command recording
+            backend.endCommandBuffer(cmd) catch |err| {
+                log.warn("Failed to end command buffer: {}", .{err});
+                return;
+            };
+
+            // Submit command buffer
+            backend.submitCommandBuffer(cmd) catch |err| {
+                log.warn("Failed to submit command buffer: {}", .{err});
+                return;
+            };
+
+            // Present the frame
+            backend.present() catch |err| {
+                log.warn("Failed to present frame: {}", .{err});
+            };
+        }
+    }
+
+    fn renderScene(self: *Self, backend: *graphics.backends.interface.GraphicsBackend, cmd: *graphics.backends.interface.CommandBuffer, scene: *Scene, interpolation_alpha: f32) void {
+        _ = interpolation_alpha; // TODO: Use for interpolation
+        _ = self;
+        _ = backend;
+        _ = cmd;
+        _ = scene;
+
+        // TODO: Implement proper entity iteration and rendering
+        // For now, this is a placeholder that does nothing
+        // In a full implementation, we would:
+        // 1. Iterate over all entities with RenderComponent
+        // 2. Sort by depth/material for optimal rendering
+        // 3. Set up view/projection matrices
+        // 4. Render each entity's geometry
+    }
+
+    fn renderEntity(self: *Self, backend: *graphics.backends.interface.GraphicsBackend, cmd: *graphics.backends.interface.CommandBuffer, entity_id: EntityId, render_comp: *const RenderComponent) void {
+        _ = self;
+        _ = backend;
+        _ = cmd;
+        _ = entity_id;
+        _ = render_comp;
+
+        // TODO: Implement actual entity rendering
+        // This would involve:
+        // 1. Get transform component
+        // 2. Set up model matrix
+        // 3. Bind textures/materials
+        // 4. Draw geometry
     }
 
     pub fn run(self: *Self) !void {
@@ -664,4 +885,140 @@ pub fn renderSystem(system: *System, entities: *EntityManager, time: *const Time
             // Rendering logic would go here
         }
     }
+}
+
+/// Core engine functionality
+pub const EngineCore = struct {
+    allocator: std.mem.Allocator,
+    time_system: TimeSystem,
+    memory_tracker: MemoryTracker,
+
+    const Self = @This();
+
+    pub fn init(allocator: std.mem.Allocator) Self {
+        return Self{
+            .allocator = allocator,
+            .time_system = TimeSystem.init(),
+            .memory_tracker = MemoryTracker.init(),
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.memory_tracker.deinit();
+        // Nothing else to clean up for now
+    }
+
+    pub fn update(self: *Self) void {
+        self.time_system.update();
+        self.memory_tracker.update();
+    }
+
+    pub fn getDeltaTime(self: *const Self) f64 {
+        return self.time_system.getDeltaTime();
+    }
+
+    pub fn getElapsedTime(self: *const Self) f64 {
+        return self.time_system.getElapsedTime();
+    }
+};
+
+/// Simple time system for engine core
+pub const TimeSystem = struct {
+    start_time: i64,
+    last_time: i64,
+    current_time: i64,
+    delta_time: f64,
+
+    const Self = @This();
+
+    pub fn init() Self {
+        const now = std.time.nanoTimestamp();
+        return Self{
+            .start_time = now,
+            .last_time = now,
+            .current_time = now,
+            .delta_time = 0.0,
+        };
+    }
+
+    pub fn update(self: *Self) void {
+        self.last_time = self.current_time;
+        self.current_time = std.time.nanoTimestamp();
+        self.delta_time = @as(f64, @floatFromInt(self.current_time - self.last_time)) / std.time.ns_per_s;
+    }
+
+    pub fn getDeltaTime(self: *const Self) f64 {
+        return self.delta_time;
+    }
+
+    pub fn getElapsedTime(self: *const Self) f64 {
+        return @as(f64, @floatFromInt(self.current_time - self.start_time)) / std.time.ns_per_s;
+    }
+
+    pub fn getFPS(self: *const Self) f32 {
+        if (self.delta_time > 0.0) {
+            return @as(f32, @floatCast(1.0 / self.delta_time));
+        }
+        return 0.0;
+    }
+};
+
+/// Simple memory tracker
+pub const MemoryTracker = struct {
+    allocations: u64,
+    deallocations: u64,
+    bytes_allocated: u64,
+    bytes_freed: u64,
+
+    const Self = @This();
+
+    pub fn init() Self {
+        return Self{
+            .allocations = 0,
+            .deallocations = 0,
+            .bytes_allocated = 0,
+            .bytes_freed = 0,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        // Log final stats
+        std.log.info("Memory Tracker Stats:", .{});
+        std.log.info("  Allocations: {}", .{self.allocations});
+        std.log.info("  Deallocations: {}", .{self.deallocations});
+        std.log.info("  Bytes Allocated: {}", .{self.bytes_allocated});
+        std.log.info("  Bytes Freed: {}", .{self.bytes_freed});
+        std.log.info("  Potential Leaks: {} allocations, {} bytes", .{ self.allocations - self.deallocations, self.bytes_allocated - self.bytes_freed });
+    }
+
+    pub fn update(self: *Self) void {
+        _ = self; // Currently no periodic updates needed
+    }
+
+    pub fn recordAllocation(self: *Self, size: usize) void {
+        self.allocations += 1;
+        self.bytes_allocated += size;
+    }
+
+    pub fn recordDeallocation(self: *Self, size: usize) void {
+        self.deallocations += 1;
+        self.bytes_freed += size;
+    }
+
+    pub fn getCurrentUsage(self: *const Self) u64 {
+        return self.bytes_allocated - self.bytes_freed;
+    }
+};
+
+test "engine core" {
+    var core_system = EngineCore.init(std.testing.allocator);
+    defer core_system.deinit();
+
+    core_system.update();
+
+    const delta = core_system.getDeltaTime();
+    const elapsed = core_system.getElapsedTime();
+
+    try std.testing.expect(delta >= 0.0);
+    try std.testing.expect(elapsed >= 0.0);
 }

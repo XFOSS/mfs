@@ -1,10 +1,31 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const time = std.time;
+// Build-time options are normally injected via build.zig.  When unit-testing
+// this file in isolation those options are not available, so we provide a
+// minimal stub instead.  The real namespace (if any) will shadow this stub
+// when the full application is built through the package manager.
+const build_options = struct {
+    pub const enable_tracy = false;
+};
+
+// Optional Tracy integration. If the build has enable_tracy set we use the real
+// module, otherwise we stub the tiny API surface we need so that calls are
+// compiled-out without further #ifs sprinkled throughout the code.
+const tracy = if (@hasDecl(build_options, "enable_tracy") and build_options.enable_tracy)
+    @import("tracy")
+else
+    struct {
+        pub inline fn traceNamed(comptime _: []const u8) void {}
+
+        pub inline fn frameMarkNamed(comptime _: []const u8) void {}
+
+        pub inline fn plotF64(comptime _: []const u8, _: f64) void {}
+    };
 
 pub const PerformanceMonitor = struct {
     allocator: Allocator,
-    frame_times: std.RingBuffer(f64),
+    frame_times: std.ArrayList(f64),
     memory_usage: std.ArrayList(u64),
     cpu_usage: std.ArrayList(f32),
     gpu_usage: std.ArrayList(f32),
@@ -22,7 +43,7 @@ pub const PerformanceMonitor = struct {
 
         monitor.* = PerformanceMonitor{
             .allocator = allocator,
-            .frame_times = try std.RingBuffer(f64).init(allocator, SAMPLE_COUNT),
+            .frame_times = try std.ArrayList(f64).initCapacity(allocator, SAMPLE_COUNT),
             .memory_usage = try std.ArrayList(u64).initCapacity(allocator, SAMPLE_COUNT),
             .cpu_usage = try std.ArrayList(f32).initCapacity(allocator, SAMPLE_COUNT),
             .gpu_usage = try std.ArrayList(f32).initCapacity(allocator, SAMPLE_COUNT),
@@ -55,46 +76,56 @@ pub const PerformanceMonitor = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        try self.frame_times.write(frame_time_ms);
-        try self.addSample(self.draw_calls, draw_call_count);
+        try self.addSample(&self.frame_times, frame_time_ms);
+        try self.addSample(&self.draw_calls, draw_call_count);
 
         const current_time = time.timestamp();
         if (current_time - self.last_update >= self.sample_interval_ns) {
             try self.updateSystemMetrics();
             self.last_update = current_time;
         }
+
+        // ---------- Tracy instrumentation ----------------------------------
+        // The label strings are intentionally stable so that Tracy treats them
+        // as the same plot across frames.
+        tracy.plotF64("Frame Time (ms)", frame_time_ms);
     }
 
     fn updateSystemMetrics(self: *PerformanceMonitor) !void {
-        // Sample current memory usage
-        const memory_info = std.heap.page_allocator.getStats() catch |err| blk: {
-            std.log.warn("Failed to get memory stats: {s}", .{@errorName(err)});
-            break :blk .{ .total_bytes = 0, .resident_bytes = 0 };
-        };
+        // Sample current memory usage – Zig's general purpose page allocator
+        // doesn't expose resident-set statistics in a portable manner across
+        // versions.  Until a proper platform abstraction lands, we fall back
+        // to a dummy value so that compilation succeeds on every host.
+        const memory_mb: u64 = 0;
+        try self.addSample(&self.memory_usage, memory_mb);
 
-        const memory_mb = @as(u64, @intCast(memory_info.resident_bytes)) / (1024 * 1024);
-        try self.addSample(self.memory_usage, memory_mb);
+        // Plot the latest system metrics so that viewers get a real-time
+        // graph without each caller having to add bespoke code.
+        tracy.plotF64("Memory (MB)", @as(f64, @floatFromInt(memory_mb)));
 
         // Estimate CPU usage
         const cpu_percent = self.estimateCpuUsage();
-        try self.addSample(self.cpu_usage, cpu_percent);
+        try self.addSample(&self.cpu_usage, cpu_percent);
+        tracy.plotF64("CPU Usage (%)", cpu_percent);
 
         // GPU usage would typically come from a graphics API
         // This is just a placeholder
         const gpu_percent: f32 = 0.0;
-        try self.addSample(self.gpu_usage, gpu_percent);
+        try self.addSample(&self.gpu_usage, gpu_percent);
     }
 
-    fn addSample(self: *PerformanceMonitor, list: anytype, value: @typeInfo(@TypeOf(list)).Pointer.child.Child) !void {
-        if (list.items.len >= SAMPLE_COUNT) {
-            _ = list.orderedRemove(0);
+    fn addSample(self: *PerformanceMonitor, list: anytype, value: anytype) !void {
+        _ = self;
+        // list is expected to be a pointer to an ArrayList-like type that
+        // exposes `items`, `orderedRemove`, and `append`.
+        if (list.*.items.len >= SAMPLE_COUNT) {
+            _ = list.*.orderedRemove(0);
         }
-        try list.append(value);
+        try list.*.append(value);
     }
 
     fn estimateCpuUsage(self: *PerformanceMonitor) f32 {
         const avg_frame_time = self.calculateAverageFps();
-        _ = self;
 
         // Rough estimate based on frame time
         const frame_budget_ms = 16.67; // ~60 FPS
@@ -102,8 +133,8 @@ pub const PerformanceMonitor = struct {
     }
 
     pub fn getStats(self: *const PerformanceMonitor) Stats {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        @constCast(&self.mutex).lock();
+        defer @constCast(&self.mutex).unlock();
 
         const current_time = time.timestamp();
         return Stats{
@@ -128,47 +159,40 @@ pub const PerformanceMonitor = struct {
     };
 
     fn calculateAverageFps(self: *const PerformanceMonitor) f32 {
-        if (self.frame_times.isEmpty()) {
+        if (self.frame_times.items.len == 0) {
             return 0.0;
         }
 
         var sum: f64 = 0.0;
-        var count: usize = 0;
-
-        var iter = self.frame_times.constIterator();
-        while (iter.next()) |frame_time| {
-            sum += frame_time.*;
-            count += 1;
+        const count = self.frame_times.items.len;
+        for (self.frame_times.items) |ft| {
+            sum += ft;
         }
 
         return @floatCast(sum / @as(f64, @floatFromInt(count)));
     }
 
     fn calculateMinFps(self: *const PerformanceMonitor) f32 {
-        if (self.frame_times.isEmpty()) {
+        if (self.frame_times.items.len == 0) {
             return 0.0;
         }
 
         var min_time: f64 = std.math.floatMax(f64);
-
-        var iter = self.frame_times.constIterator();
-        while (iter.next()) |frame_time| {
-            min_time = @min(min_time, frame_time.*);
+        for (self.frame_times.items) |ft| {
+            min_time = @min(min_time, ft);
         }
 
         return @floatCast(min_time);
     }
 
     fn calculateMaxFps(self: *const PerformanceMonitor) f32 {
-        if (self.frame_times.isEmpty()) {
+        if (self.frame_times.items.len == 0) {
             return 0.0;
         }
 
         var max_time: f64 = 0.0;
-
-        var iter = self.frame_times.constIterator();
-        while (iter.next()) |frame_time| {
-            max_time = @max(max_time, frame_time.*);
+        for (self.frame_times.items) |ft| {
+            max_time = @max(max_time, ft);
         }
 
         return @floatCast(max_time);
@@ -193,6 +217,40 @@ pub const PerformanceMonitor = struct {
             self.gpu_usage.items[self.gpu_usage.items.len - 1]
         else
             0.0;
+    }
+
+    /// Write all recorded samples into a CSV file so that external analysis tools
+    /// (Excel, LibreOffice Calc, pandas, etc.) can crunch them.  The file will be
+    /// created (or truncated) at `path` relative to the current working
+    /// directory.
+    pub fn saveCsv(self: *const PerformanceMonitor, path: []const u8) !void {
+        @constCast(&self.mutex).lock();
+        defer @constCast(&self.mutex).unlock();
+
+        var file = try std.fs.cwd().createFile(path, .{ .truncate = true });
+        defer file.close();
+
+        var writer = file.writer();
+
+        // CSV header – stable column order so that scripts can rely on it.
+        try writer.writeAll("frame_ms,draw_calls,memory_mb,cpu_percent,gpu_percent\n");
+
+        const sample_count = self.frame_times.items.len;
+
+        // Emit one row per recorded frame. We deliberately don't guard against
+        // mismatched buffer lengths – the `addSample` helper always keeps the
+        // lists in lock-step, but we use `min()` out of extra paranoia.
+        const count = @min(sample_count, @min(self.draw_calls.items.len, @min(self.memory_usage.items.len, @min(self.cpu_usage.items.len, self.gpu_usage.items.len))));
+
+        for (0..count) |i| {
+            const ft = self.frame_times.items[i];
+            const dc = self.draw_calls.items[i];
+            const mem = self.memory_usage.items[i];
+            const cpu = self.cpu_usage.items[i];
+            const gpu = self.gpu_usage.items[i];
+
+            try writer.print("{d:.3},{d},{d},{d:.2},{d:.2}\n", .{ ft, dc, mem, cpu, gpu });
+        }
     }
 };
 

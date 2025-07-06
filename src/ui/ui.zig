@@ -1,96 +1,148 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-// Core UI components
-pub const unified_framework = @import("unified_framework.zig");
-pub const core = @import("core.zig");
+// Core UI system
 pub const backend = @import("backend/backend.zig");
-pub const gpu_accelerated = @import("backend/gpu_accelerated.zig");
 pub const color = @import("color.zig");
 pub const window = @import("window.zig");
 
-// Re-export unified framework components
-pub const UISystem = unified_framework.UISystem;
-pub const UIConfig = unified_framework.UIConfig;
-pub const BackendType = unified_framework.BackendType;
-pub const Theme = unified_framework.Theme;
-pub const ThemeColors = unified_framework.ThemeColors;
-pub const EventType = unified_framework.EventType;
-pub const MouseButton = unified_framework.MouseButton;
-pub const KeyCode = unified_framework.KeyCode;
-pub const KeyModifiers = unified_framework.KeyModifiers;
-pub const InputEvent = unified_framework.InputEvent;
-pub const RenderCommand = unified_framework.RenderCommand;
-pub const WidgetId = unified_framework.WidgetId;
-pub const WidgetState = unified_framework.WidgetState;
-pub const UIError = unified_framework.UIError;
-pub const LayoutRect = unified_framework.LayoutRect;
-
-// Re-export backend types
+// Essential types
 pub const Color = backend.Color;
 pub const Rect = backend.Rect;
-pub const TextAlign = backend.TextAlign;
-pub const FontStyle = backend.FontStyle;
-pub const FontInfo = backend.FontInfo;
-pub const Image = backend.Image;
-pub const DrawCommand = backend.DrawCommand;
 pub const UIBackend = backend.UIBackend;
-
-// Re-export gpu accelerated types
-pub const GPU = gpu_accelerated.GPU;
-pub const ShaderType = gpu_accelerated.ShaderType;
-pub const ShaderId = gpu_accelerated.ShaderId;
-pub const ShaderCompiler = gpu_accelerated.ShaderCompiler;
-
-// Re-export core types
-pub const UIFramework = core.UISystem;
-
-// Re-export color types
-pub const RGBA = color.RGBA;
-pub const HSV = color.HSV;
-pub const ColorRegistry = color.ColorRegistry;
-pub const DynamicColor = color.DynamicColor;
-pub const SemanticColor = color.SemanticColor;
-
-// Re-export window types
 pub const Window = window.Window;
 pub const WindowConfig = window.WindowConfig;
 
-// Helper functions for unified use
-pub const Themes = struct {
-    pub fn darkTheme() ThemeColors {
-        return unified_framework.darkTheme();
-    }
+// UI Configuration
+pub const UIConfig = struct {
+    backend_type: backend.UIBackendType = .gdi,
+    theme: Theme = .dark,
+    enable_animations: bool = true,
+    vsync: bool = true,
+    debug_rendering: bool = false,
+};
 
-    pub fn lightTheme() ThemeColors {
-        return unified_framework.lightTheme();
-    }
+// Theme system
+pub const Theme = enum {
+    dark,
+    light,
+    custom,
 
-    pub fn customTheme() ThemeColors {
-        return unified_framework.customTheme();
+    pub fn getColors(self: Theme) ThemeColors {
+        return switch (self) {
+            .dark => darkTheme(),
+            .light => lightTheme(),
+            .custom => lightTheme(),
+        };
     }
 };
 
-/// Create a new UI system with the specified configuration
-pub fn createUISystem(allocator: Allocator, config: UIConfig) !UISystem {
-    return UISystem.init(allocator, config);
-}
+pub const ThemeColors = struct {
+    primary: Color,
+    secondary: Color,
+    background: Color,
+    surface: Color,
+    text: Color,
+    accent: Color,
+};
 
-/// Create a new UI system with default configuration
-pub fn createDefaultUISystem(allocator: Allocator) !UISystem {
-    return UISystem.init(allocator, UIConfig{});
-}
+// Event system
+pub const EventType = enum {
+    mouse_move,
+    mouse_down,
+    mouse_up,
+    key_down,
+    key_up,
+    window_resize,
+    window_close,
+};
 
-/// Create a new UI system with GPU acceleration
-pub fn createGPUAcceleratedUISystem(allocator: Allocator, backend_type: BackendType) !UISystem {
-    const config = UIConfig{
-        .backend_type = backend_type,
-        .hardware_accelerated = true,
+pub const InputEvent = struct {
+    event_type: EventType,
+    timestamp: u64,
+    mouse_x: f32 = 0,
+    mouse_y: f32 = 0,
+    key_code: u32 = 0,
+    window_width: u32 = 0,
+    window_height: u32 = 0,
+};
+
+// Main UI System
+pub const UISystem = struct {
+    allocator: Allocator,
+    config: UIConfig,
+    backend_instance: ?UIBackend,
+    window_instance: ?Window,
+    theme_colors: ThemeColors,
+
+    const Self = @This();
+
+    pub fn init(allocator: Allocator, config: UIConfig) !Self {
+        return Self{
+            .allocator = allocator,
+            .config = config,
+            .backend_instance = null,
+            .window_instance = null,
+            .theme_colors = config.theme.getColors(),
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        if (self.backend_instance) |*backend_inst| {
+            backend_inst.deinit();
+        }
+        if (self.window_instance) |*window_inst| {
+            window_inst.deinit();
+        }
+    }
+
+    pub fn createWindow(self: *Self, window_config: WindowConfig) !void {
+        self.window_instance = try Window.init(self.allocator, window_config);
+
+        if (self.window_instance) |window_inst| {
+            self.backend_instance = try UIBackend.init(self.allocator, self.config.backend_type, window_inst.getNativeHandle());
+        }
+    }
+
+    pub fn handleEvent(self: *Self, event: InputEvent) void {
+        // Handle UI events
+        _ = self;
+        _ = event;
+    }
+
+    pub fn render(self: *Self) !void {
+        if (self.backend_instance) |*backend_inst| {
+            try backend_inst.beginFrame();
+            try backend_inst.clear(self.theme_colors.background);
+            try backend_inst.endFrame();
+        }
+    }
+};
+
+// Theme definitions
+pub fn darkTheme() ThemeColors {
+    return ThemeColors{
+        .primary = rgb(0x1E, 0x88, 0xE5),
+        .secondary = rgb(0x03, 0xDA, 0xC6),
+        .background = rgb(0x12, 0x12, 0x12),
+        .surface = rgb(0x1E, 0x1E, 0x1E),
+        .text = rgb(0xFF, 0xFF, 0xFF),
+        .accent = rgb(0xFF, 0x57, 0x22),
     };
-    return UISystem.init(allocator, config);
 }
 
-/// Create a color from RGB values (0-255)
+pub fn lightTheme() ThemeColors {
+    return ThemeColors{
+        .primary = rgb(0x19, 0x76, 0xD2),
+        .secondary = rgb(0x00, 0x96, 0x88),
+        .background = rgb(0xFF, 0xFF, 0xFF),
+        .surface = rgb(0xF5, 0xF5, 0xF5),
+        .text = rgb(0x00, 0x00, 0x00),
+        .accent = rgb(0xFF, 0x57, 0x22),
+    };
+}
+
+// Utility functions
 pub fn rgb(r: u8, g: u8, b: u8) Color {
     return Color.fromRgba(
         @as(f32, @floatFromInt(r)) / 255.0,
@@ -100,7 +152,6 @@ pub fn rgb(r: u8, g: u8, b: u8) Color {
     );
 }
 
-/// Create a color from RGBA values (0-255)
 pub fn rgba(r: u8, g: u8, b: u8, a: u8) Color {
     return Color.fromRgba(
         @as(f32, @floatFromInt(r)) / 255.0,
@@ -110,74 +161,15 @@ pub fn rgba(r: u8, g: u8, b: u8, a: u8) Color {
     );
 }
 
-/// Create a rectangle
 pub fn rect(x: f32, y: f32, width: f32, height: f32) Rect {
     return Rect.init(x, y, width, height);
 }
 
-/// Create a text-aligned rectangle
-pub fn textRect(x: f32, y: f32, width: f32, height: f32, text: []const u8, text_color: Color) RenderCommand {
-    return RenderCommand{
-        .text = .{
-            .rect = Rect.init(x, y, width, height),
-            .text = text,
-            .color = text_color,
-        },
-    };
+// Factory functions
+pub fn createUISystem(allocator: Allocator, config: UIConfig) !UISystem {
+    return UISystem.init(allocator, config);
 }
 
-/// Create a colored rectangle
-pub fn colorRect(x: f32, y: f32, width: f32, height: f32, rect_color: Color) RenderCommand {
-    return RenderCommand{
-        .rect = .{
-            .rect = Rect.init(x, y, width, height),
-            .color = rect_color,
-        },
-    };
-}
-
-/// Create a rounded rectangle
-pub fn roundRect(x: f32, y: f32, width: f32, height: f32, rect_color: Color, radius: f32) RenderCommand {
-    return RenderCommand{
-        .rect = .{
-            .rect = Rect.init(x, y, width, height),
-            .color = rect_color,
-            .border_radius = radius,
-        },
-    };
-}
-
-/// Create a clear command with specified color
-pub fn clear(clear_color: Color) RenderCommand {
-    return RenderCommand{ .clear = clear_color };
-}
-
-/// Helper enum for common UI element types
-pub const ElementType = enum {
-    button,
-    label,
-    checkbox,
-    slider,
-    textfield,
-    dropdown,
-    panel,
-    image,
-    scrollview,
-    list,
-    tab,
-    menu,
-    tooltip,
-    progress,
-};
-
-/// Convert a color to a hex string
-pub fn colorToHex(input_color: Color) []const u8 {
-    var buffer: [10]u8 = undefined;
-    const r = @as(u8, @intFromFloat(input_color.r * 255.0));
-    const g = @as(u8, @intFromFloat(input_color.g * 255.0));
-    const b = @as(u8, @intFromFloat(input_color.b * 255.0));
-    const a = @as(u8, @intFromFloat(input_color.a * 255.0));
-
-    _ = std.fmt.bufPrint(&buffer, "#{X:0>2}{X:0>2}{X:0>2}{X:0>2}", .{ r, g, b, a }) catch "invalid";
-    return buffer[0..9];
+pub fn createDefaultUISystem(allocator: Allocator) !UISystem {
+    return UISystem.init(allocator, UIConfig{});
 }

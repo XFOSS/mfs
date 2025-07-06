@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const testing = std.testing;
+const json = std.json;
 
 // Import the engine and graphics modules
 const engine = @import("../src/engine/engine.zig");
@@ -79,6 +80,12 @@ pub fn main() !void {
 
     // Print comprehensive report
     try printTestReport(test_results.items, config);
+
+    // Persist machine-readable summary for CI dashboards
+    try writeJsonReport(test_results.items);
+
+    // Also emit a CSV for quick spreadsheet import
+    try writeCsvReport(test_results.items);
 }
 
 fn getAvailableBackends() ![]const capabilities.GraphicsBackend {
@@ -523,5 +530,42 @@ fn printTestReport(results: []const TestResult, config: TestConfig) !void {
     } else {
         std.log.err("✗ SOME TESTS FAILED", .{});
         std.process.exit(1);
+    }
+}
+
+/// Write test results into backend_report.json (simple array of objects)
+fn writeJsonReport(results: []const TestResult) !void {
+    var buf = std.ArrayList(u8).init(allocator);
+    defer buf.deinit();
+
+    try json.stringify(results, .{ .whitespace = .indent_2 }, buf.writer());
+
+    const file = try std.fs.cwd().createFile("backend_report.json", .{ .truncate = true });
+    defer file.close();
+    try file.writeAll(buf.items);
+}
+
+/// Emit results into backend_report.csv with one row per backend
+fn writeCsvReport(results: []const TestResult) !void {
+    const file = try std.fs.cwd().createFile("backend_report.csv", .{ .truncate = true });
+    defer file.close();
+
+    // Header
+    try file.writer().print("backend,success,avg_fps,min_fps,max_fps,frame_count,memory_mb,error\n", .{});
+
+    for (results) |r| {
+        try file.writer().print(
+            "{s},{s},{d:.2},{d:.2},{d:.2},{},{}\n",
+            .{
+                @tagName(r.backend),
+                if (r.success) "true" else "false",
+                r.performance_stats.avg_fps,
+                r.performance_stats.min_fps,
+                r.performance_stats.max_fps,
+                r.performance_stats.frame_count,
+                r.performance_stats.memory_usage_mb,
+                r.error_message orelse "",
+            },
+        );
     }
 }

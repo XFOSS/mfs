@@ -579,3 +579,6 @@ pub const TextureArray = struct {
         try gpu.updateTexture(self.texture.?, &region, pixels);
     }
 };
+
+/// Main Texture type - alias for Texture2D for now
+pub const Texture = Texture2D;

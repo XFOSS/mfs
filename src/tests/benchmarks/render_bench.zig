@@ -1,9 +1,10 @@
 const std = @import("std");
-const math = @import("../../math/math.zig");
-const graphics = @import("../../graphics/graphics.zig");
-const render = @import("../../render/render.zig");
+const mfs = @import("mfs");
+const math = mfs.math;
+const graphics = mfs.graphics;
+const render = mfs.render;
+const platform = mfs.platform;
 const bench = @import("../benchmarks.zig");
-const platform = @import("../../platform/platform.zig");
 const build_options = @import("build_options");
 
 // Constants for benchmark scene setup

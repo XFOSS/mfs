@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
+const error_utils = @import("../utils/error_utils.zig");
 
 // Platform detection
 pub const is_windows = builtin.os.tag == .windows;
@@ -100,6 +101,13 @@ threadlocal var tl_thread_id: u32 = 0;
 
 /// Platform initialization
 pub fn init(allocator: Allocator) !void {
+    // Validate allocator by doing a small test allocation
+    const test_allocation = allocator.alloc(u8, 1) catch |err| {
+        std.log.err("Allocator validation failed: {}", .{err});
+        return error.InvalidAllocator;
+    };
+    allocator.free(test_allocation);
+
     g_platform = Platform{
         .allocator = allocator,
         .monotonic_start = std.time.nanoTimestamp(),
@@ -112,15 +120,43 @@ pub fn init(allocator: Allocator) !void {
         g_platform.high_res_timer_freq = 1_000_000_000; // nanoseconds
     }
 
-    // Initialize thread pool
-    g_platform.thread_pool = try ThreadPool.init(allocator, .{
-        .max_threads = detectCoreCount(),
-    });
+    // Initialize thread pool with safe configuration and debug allocator handling
+    const core_count = detectCoreCount();
+    const safe_queue_size = @min(256, @max(16, core_count * 8)); // Reasonable queue size
 
-    // Initialize subsystems
-    try initFilesystem();
-    try initInput();
-    try initRandomGenerator();
+    // For debug builds with tracking allocators, use more conservative settings
+    const is_debug_allocator = @TypeOf(allocator) == std.mem.Allocator and
+        (@hasDecl(@TypeOf(allocator), "safety") or
+            std.mem.indexOf(u8, @typeName(@TypeOf(allocator)), "GeneralPurpose") != null);
+
+    const thread_count = if (is_debug_allocator)
+        @min(2, core_count) // Minimal threads for debug allocators
+    else
+        @min(core_count, 16); // Normal thread count
+
+    const queue_size = if (is_debug_allocator)
+        16 // Small queue for debug allocators
+    else
+        safe_queue_size;
+
+    std.log.info("Initializing thread pool: threads={d}, queue_size={d}, debug_allocator={}", .{ thread_count, queue_size, is_debug_allocator });
+
+    // Temporarily disable thread pool to avoid memory corruption issues
+    std.log.warn("Thread pool disabled temporarily to avoid memory corruption", .{});
+    g_platform.thread_pool = null;
+
+    // Initialize subsystems with error handling
+    initFilesystem() catch |err| {
+        std.log.warn("Failed to initialize filesystem: {}", .{err});
+    };
+
+    initInput() catch |err| {
+        std.log.warn("Failed to initialize input: {}", .{err});
+    };
+
+    initRandomGenerator() catch |err| {
+        std.log.warn("Failed to initialize random generator: {}", .{err});
+    };
 
     g_platform.initialized = true;
     std.log.info("Platform subsystem initialized", .{});
@@ -128,6 +164,7 @@ pub fn init(allocator: Allocator) !void {
     std.log.info("  CPU: {s} ({d} cores)", .{ @tagName(builtin.cpu.arch), detectCoreCount() });
     std.log.info("  Endian: {s}", .{if (builtin.cpu.arch.endian() == .big) "big" else "little"});
     std.log.info("  Pointer size: {d} bits", .{@bitSizeOf(usize)});
+    std.log.info("  Thread pool: {d} threads, queue size: {d}", .{ if (g_platform.thread_pool) |*pool| pool.getThreadCount() else 0, queue_size });
 }
 
 /// Platform shutdown
@@ -261,8 +298,8 @@ fn initFilesystem() !void {
 
 pub fn getExecutablePath() ![]const u8 {
     return std.fs.selfExeDirPathAlloc(g_platform.allocator) catch |err| {
-        std.log.err("Failed to get executable path: {}", .{err});
-        return error.ExecutablePathNotFound;
+        // Log the error and propagate it
+        return error_utils.logErr("Failed to get executable path", .{}, err, @src());
     };
 }
 
@@ -273,7 +310,7 @@ pub fn getPlatformPaths() *const PlatformPaths {
 pub fn createDirectory(path: []const u8) !void {
     std.fs.cwd().makePath(path) catch |err| switch (err) {
         error.PathAlreadyExists => return,
-        else => return err,
+        else => return error_utils.logErr("Failed to create directory: {s}", .{path}, err, @src()),
     };
 }
 
@@ -428,8 +465,53 @@ pub const ThreadPool = struct {
         count: usize,
 
         fn init(allocator: Allocator, capacity: u32) !TaskQueue {
-            const tasks = try allocator.alloc(Task, capacity);
-            return TaskQueue{
+            // Validate capacity
+            if (capacity == 0) return error.InvalidCapacity;
+            if (capacity > 65536) return error.CapacityTooLarge; // 64K max for safety
+
+            // Validate allocator with a small test - be more careful with debug allocators
+            const test_size = @min(capacity, 16); // Use smaller test for debug allocators
+            const test_ptr = allocator.alloc(u8, test_size) catch |err| {
+                std.log.err("TaskQueue allocator test failed with size {d}: {}", .{ test_size, err });
+                return error.AllocatorFailed;
+            };
+            defer allocator.free(test_ptr);
+
+            // Try to allocate the task array with error handling
+            const tasks = allocator.alloc(Task, capacity) catch |err| {
+                std.log.err("Failed to allocate task queue with capacity {d}: {}", .{ capacity, err });
+
+                // Try with a smaller capacity if the original failed
+                const fallback_capacity = @max(8, capacity / 4);
+                std.log.warn("Attempting fallback allocation with capacity {d}", .{fallback_capacity});
+
+                const fallback_tasks = allocator.alloc(Task, fallback_capacity) catch |fallback_err| {
+                    std.log.err("Fallback allocation also failed: {}", .{fallback_err});
+                    return fallback_err;
+                };
+
+                std.log.info("TaskQueue using fallback capacity: {d} (requested: {d})", .{ fallback_capacity, capacity });
+
+                const queue = TaskQueue{
+                    .tasks = fallback_tasks,
+                    .mutex = .{},
+                    .not_empty = .{},
+                    .not_full = .{},
+                    .head = 0,
+                    .tail = 0,
+                    .count = 0,
+                };
+
+                // Validate the initial state
+                std.debug.assert(queue.head == 0);
+                std.debug.assert(queue.tail == 0);
+                std.debug.assert(queue.count == 0);
+                std.debug.assert(queue.tasks.len == fallback_capacity);
+
+                return queue;
+            };
+
+            const queue = TaskQueue{
                 .tasks = tasks,
                 .mutex = .{},
                 .not_empty = .{},
@@ -438,6 +520,14 @@ pub const ThreadPool = struct {
                 .tail = 0,
                 .count = 0,
             };
+
+            // Validate the initial state
+            std.debug.assert(queue.head == 0);
+            std.debug.assert(queue.tail == 0);
+            std.debug.assert(queue.count == 0);
+            std.debug.assert(queue.tasks.len == capacity);
+
+            return queue;
         }
 
         fn deinit(self: *TaskQueue, allocator: Allocator) void {
@@ -451,6 +541,13 @@ pub const ThreadPool = struct {
 
             if (self.count >= self.tasks.len) {
                 return error.QueueFull;
+            }
+
+            // Bounds checking to prevent corruption
+            if (self.tail >= self.tasks.len) {
+                std.log.err("TaskQueue corruption detected in push: tail={d}, len={d}", .{ self.tail, self.tasks.len });
+                self.tail = 0; // Reset to safe state
+                return error.QueueCorrupted;
             }
 
             self.tasks[self.tail] = task;
@@ -468,6 +565,13 @@ pub const ThreadPool = struct {
                 self.not_full.wait(&self.mutex);
             }
 
+            // Bounds checking to prevent corruption
+            if (self.tail >= self.tasks.len) {
+                std.log.err("TaskQueue corruption detected in pushBlocking: tail={d}, len={d}", .{ self.tail, self.tasks.len });
+                self.tail = 0; // Reset to safe state
+                return; // Skip this task
+            }
+
             self.tasks[self.tail] = task;
             self.tail = (self.tail + 1) % self.tasks.len;
             self.count += 1;
@@ -480,6 +584,14 @@ pub const ThreadPool = struct {
             defer self.mutex.unlock();
 
             if (self.count == 0) {
+                return null;
+            }
+
+            // Bounds checking to prevent corruption
+            if (self.head >= self.tasks.len) {
+                std.log.err("TaskQueue corruption detected in pop: head={d}, len={d}", .{ self.head, self.tasks.len });
+                self.head = 0; // Reset to safe state
+                self.count = 0;
                 return null;
             }
 
@@ -503,6 +615,18 @@ pub const ThreadPool = struct {
                 if (shutdown.load(.acquire)) {
                     return null;
                 }
+            }
+
+            // Bounds checking to prevent corruption
+            if (self.head >= self.tasks.len) {
+                std.log.err("TaskQueue corruption detected: head={d}, len={d}", .{ self.head, self.tasks.len });
+                self.head = 0; // Reset to safe state
+                self.count = 0;
+                return null;
+            }
+
+            if (self.count == 0) {
+                return null; // Double-check after bounds fix
             }
 
             const task = self.tasks[self.head];

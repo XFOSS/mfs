@@ -405,7 +405,7 @@ pub const ShaderPreprocessor = struct {
         try self.include_stack.append(base_path);
         defer _ = self.include_stack.pop();
 
-        var lines = std.mem.split(u8, source, "\n");
+        var lines = std.mem.splitSequence(u8, source, "\n");
         var line_number: usize = 1;
 
         while (lines.next()) |line| {

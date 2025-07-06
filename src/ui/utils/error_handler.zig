@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const error_utils = @import("../../utils/error_utils.zig");
 
 /// Error handling utility to track and manage UI component errors
 pub const ErrorHandler = struct {
@@ -373,7 +374,7 @@ pub fn setGlobalError(code: ErrorHandler.ErrorCode, message: []const u8) void {
 
     if (global_error_handler) |*handler| {
         handler.setError(code, message) catch |err| {
-            std.log.err("Failed to set global error: {s}", .{@errorName(err)});
+            _ = error_utils.logErr("Failed to set global error", .{}, err);
         };
     }
 }
@@ -385,7 +386,7 @@ pub fn setGlobalErrorWithSource(code: ErrorHandler.ErrorCode, message: []const u
 
     if (global_error_handler) |*handler| {
         handler.setErrorWithSource(code, message, source_file, line) catch |err| {
-            std.log.err("Failed to set global error: {s}", .{@errorName(err)});
+            _ = error_utils.logErr("Failed to set global error", .{}, err);
         };
     }
 }
