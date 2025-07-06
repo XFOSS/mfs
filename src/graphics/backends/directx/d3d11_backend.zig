@@ -5,13 +5,13 @@ const build_options = @import("build_options");
 const interface = @import("../interface.zig");
 const types = @import("../../types.zig");
 const common = @import("../common.zig");
-
 // DirectX 11 C bindings
 const c = @cImport({
     @cDefine("COBJMACROS", "");
     @cDefine("WIN32_LEAN_AND_MEAN", "1");
     @cInclude("windows.h");
     @cInclude("d3d11.h");
+});
     @cInclude("dxgi.h");
     @cInclude("d3dcompiler.h");
 });
