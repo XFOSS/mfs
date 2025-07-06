@@ -8,7 +8,7 @@ pub const color_bridge = @import("color_bridge.zig");
 pub const simple_window = @import("simple_window.zig");
 pub const window = @import("window.zig");
 pub const worker = @import("worker.zig");
-pub const utils = @import("libs/utils/utils.zig");
+pub const utils = @import("../utils/utils.zig");
 
 // UI Systems
 pub const swiftui = @import("swiftui.zig");

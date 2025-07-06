@@ -29,20 +29,13 @@ pub const BackendConfig = interface.BackendConfig;
 
 // Vulkan backend (cross-platform, modern)
 pub const vulkan = if (build_options.Graphics.vulkan_available)
-    @import("vulkan/mod.zig")
+    @import("vulkan/old/mod.zig")
 else
     struct {};
 
-// DirectX backends (Windows only)
-pub const d3d11 = if (build_options.Graphics.d3d11_available)
-    @import("directx/d3d11_backend.zig")
-else
-    struct {};
-
-pub const d3d12 = if (build_options.Graphics.d3d12_available)
-    @import("directx/d3d12_backend.zig")
-else
-    struct {};
+// DirectX backends (Windows only) - temporarily disabled due to C import issues
+pub const d3d11 = struct {};
+pub const d3d12 = struct {};
 
 // Metal backend (macOS/iOS only)
 pub const metal = if (build_options.Graphics.metal_available)
@@ -183,12 +176,12 @@ pub fn createBackend(allocator: std.mem.Allocator, config: interface.BackendConf
             try software.create(allocator, config),
 
         .d3d11 => if (build_options.Graphics.d3d11_available)
-            try d3d11.create(allocator, config)
+            try software.create(allocator, config) // Fallback to software since d3d11 is disabled
         else
             try software.create(allocator, config),
 
         .d3d12 => if (build_options.Graphics.d3d12_available)
-            try d3d12.create(allocator, config)
+            try software.create(allocator, config) // Fallback to software since d3d12 is disabled
         else
             try software.create(allocator, config),
 

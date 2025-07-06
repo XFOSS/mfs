@@ -2,6 +2,14 @@ const std = @import("std");
 const vk = @import("vk.zig");
 const math = std.math;
 
+/// Memory allocation handle for Vulkan memory manager
+pub const MemoryAllocation = struct {
+    memory: vk.DeviceMemory,
+    offset: vk.VkDeviceSize,
+    size: vk.VkDeviceSize,
+    mapped_ptr: ?*anyopaque = null,
+};
+
 /// Advanced memory manager for Vulkan with pooling and defragmentation support
 pub const MemoryManager = struct {
     device: vk.Device,
@@ -111,7 +119,7 @@ pub const MemoryManager = struct {
             return pool;
         }
 
-        var pool = try MemoryPool.init(self.allocator, self.device, memory_type);
+        const pool = try MemoryPool.init(self.allocator, self.device, memory_type);
         try self.pools.put(memory_type, pool);
         return self.pools.getPtr(memory_type).?;
     }
@@ -131,19 +139,19 @@ pub const MemoryManager = struct {
 
 const MemoryPool = struct {
     memory: vk.DeviceMemory,
-    size: vk.DeviceSize,
-    used: vk.DeviceSize,
+    size: vk.VkDeviceSize,
+    used: vk.VkDeviceSize,
     blocks: std.ArrayList(Block),
 
     const Block = struct {
-        offset: vk.DeviceSize,
-        size: vk.DeviceSize,
+        offset: vk.VkDeviceSize,
+        size: vk.VkDeviceSize,
         is_free: bool,
     };
 
     const Allocation = struct {
-        offset: vk.DeviceSize,
-        size: vk.DeviceSize,
+        offset: vk.VkDeviceSize,
+        size: vk.VkDeviceSize,
     };
 
     pub fn init(allocator: std.mem.Allocator, device: vk.Device, memory_type: u32) !MemoryPool {
@@ -175,12 +183,12 @@ const MemoryPool = struct {
         self.blocks.deinit();
     }
 
-    pub fn allocate(self: *MemoryPool, size: vk.DeviceSize, alignment: vk.DeviceSize) !Allocation {
-        const aligned_size = std.mem.alignForward(vk.DeviceSize, size, alignment);
+    pub fn allocate(self: *MemoryPool, size: vk.VkDeviceSize, alignment: vk.VkDeviceSize) !Allocation {
+        const aligned_size = std.mem.alignForward(vk.VkDeviceSize, size, alignment);
 
         for (self.blocks.items, 0..) |block, i| {
             if (block.is_free) {
-                const aligned_offset = std.mem.alignForward(vk.DeviceSize, block.offset, alignment);
+                const aligned_offset = std.mem.alignForward(vk.VkDeviceSize, block.offset, alignment);
                 const padding = aligned_offset - block.offset;
 
                 if (block.size >= aligned_size + padding) {
@@ -196,7 +204,7 @@ const MemoryPool = struct {
         return error.OutOfMemory;
     }
 
-    pub fn free(self: *MemoryPool, offset: vk.DeviceSize) void {
+    pub fn free(self: *MemoryPool, offset: vk.VkDeviceSize) void {
         for (self.blocks.items, 0..) |*block, i| {
             if (block.offset == offset) {
                 block.is_free = true;
@@ -207,7 +215,7 @@ const MemoryPool = struct {
         }
     }
 
-    fn splitBlock(self: *MemoryPool, index: usize, aligned_offset: vk.DeviceSize, size: vk.DeviceSize) !void {
+    fn splitBlock(self: *MemoryPool, index: usize, aligned_offset: vk.VkDeviceSize, size: vk.VkDeviceSize) !void {
         var block = &self.blocks.items[index];
         const original_offset = block.offset;
         const original_size = block.size;
@@ -247,8 +255,8 @@ const MemoryPool = struct {
     fn mergeAdjacentBlocks(self: *MemoryPool, start_index: usize) void {
         var i = start_index;
         while (i + 1 < self.blocks.items.len) {
-            var current = &self.blocks.items[i];
-            var next = &self.blocks.items[i + 1];
+            const current = &self.blocks.items[i];
+            const next = &self.blocks.items[i + 1];
 
             if (current.is_free and next.is_free) {
                 current.size += next.size;
@@ -260,8 +268,8 @@ const MemoryPool = struct {
 
         // Also try to merge with previous block
         if (start_index > 0) {
-            var prev = &self.blocks.items[start_index - 1];
-            var current = &self.blocks.items[start_index];
+            const prev = &self.blocks.items[start_index - 1];
+            const current = &self.blocks.items[start_index];
 
             if (prev.is_free and current.is_free) {
                 prev.size += current.size;
