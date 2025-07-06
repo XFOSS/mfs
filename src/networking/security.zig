@@ -38,18 +38,18 @@ pub const SecureConnection = struct {
         switch (self.encryption_method) {
             .none => {
                 if (output.len < data.len) return SecurityError.EncryptionFailed;
-                @memcpy(output[0..data.len], data);
+                std.mem.copy(u8, output[0..data.len], data);
             },
             .aes256 => {
                 // TODO: Implement AES256 encryption
                 if (output.len < data.len) return SecurityError.EncryptionFailed;
-                @memcpy(output[0..data.len], data); // Placeholder - no actual encryption
+                std.mem.copy(u8, output[0..data.len], data); // Placeholder - no actual encryption
                 return SecurityError.EncryptionFailed;
             },
             .chacha20 => {
                 // TODO: Implement ChaCha20 encryption
                 if (output.len < data.len) return SecurityError.EncryptionFailed;
-                @memcpy(output[0..data.len], data); // Placeholder - no actual encryption
+                std.mem.copy(u8, output[0..data.len], data); // Placeholder - no actual encryption
                 return SecurityError.EncryptionFailed;
             },
         }
@@ -59,18 +59,18 @@ pub const SecureConnection = struct {
         switch (self.encryption_method) {
             .none => {
                 if (output.len < data.len) return SecurityError.DecryptionFailed;
-                @memcpy(output[0..data.len], data);
+                std.mem.copy(u8, output[0..data.len], data);
             },
             .aes256 => {
                 // TODO: Implement AES256 decryption
                 if (output.len < data.len) return SecurityError.DecryptionFailed;
-                @memcpy(output[0..data.len], data); // Placeholder - no actual decryption
+                std.mem.copy(u8, output[0..data.len], data); // Placeholder - no actual decryption
                 return SecurityError.DecryptionFailed;
             },
             .chacha20 => {
                 // TODO: Implement ChaCha20 decryption
                 if (output.len < data.len) return SecurityError.DecryptionFailed;
-                @memcpy(output[0..data.len], data); // Placeholder - no actual decryption
+                std.mem.copy(u8, output[0..data.len], data); // Placeholder - no actual decryption
                 return SecurityError.DecryptionFailed;
             },
         }
@@ -127,13 +127,13 @@ pub const SecurityManager = struct {
 
     pub fn encryptMessage(_: *SecurityManager, message: []const u8, output: []u8) !usize {
         if (output.len < message.len) return error.BufferTooSmall;
-        @memcpy(output[0..message.len], message);
+        std.mem.copy(u8, output[0..message.len], message);
         return message.len;
     }
 
     pub fn decryptMessage(_: *SecurityManager, encrypted: []const u8, output: []u8) !usize {
         if (output.len < encrypted.len) return error.BufferTooSmall;
-        @memcpy(output[0..encrypted.len], encrypted);
+        std.mem.copy(u8, output[0..encrypted.len], encrypted);
         return encrypted.len;
     }
 
