@@ -15,21 +15,6 @@ const build_options = @import("../build_options.zig");
 // Stub Systems (temporary implementations)
 // =============================================================================
 
-/// Temporary scene system stub until full scene system integration
-const SceneSystemStub = struct {
-    pub fn update(self: *SceneSystemStub, delta_time: f64) !void {
-        _ = self;
-        _ = delta_time;
-        // TODO: Implement scene update
-    }
-
-    pub fn render(self: *SceneSystemStub, graphics_system: *graphics.GraphicsSystem) !void {
-        _ = self;
-        _ = graphics_system;
-        // TODO: Implement scene rendering
-    }
-};
-
 /// Temporary input system stub until full input integration
 const InputSystemStub = struct {
     pub fn update(self: *InputSystemStub) !void {
@@ -117,7 +102,7 @@ pub const Application = struct {
     graphics_system: ?*graphics.GraphicsSystem = null,
     audio_system: ?*audio.AudioSystem = null,
     physics_system: ?*physics.PhysicsEngine = null,
-    scene_system: ?*SceneSystemStub = null,
+    scene_system: ?*scene.Scene = null,
     input_system: ?*InputSystemStub = null,
 
     // State
@@ -155,7 +140,7 @@ pub const Application = struct {
         }
 
         if (self.scene_system) |sys| {
-            self.allocator.destroy(sys);
+            scene.deinit(sys);
             self.scene_system = null;
         }
 
@@ -242,7 +227,7 @@ pub const Application = struct {
         }
 
         if (self.scene_system) |sys| {
-            try sys.update(delta_time);
+            sys.update(@floatCast(delta_time));
         }
 
         self.frame_count += 1;
@@ -254,7 +239,7 @@ pub const Application = struct {
             try graphics_sys.beginFrame();
 
             if (self.scene_system) |scene_sys| {
-                try scene_sys.render(graphics_sys);
+                // Render system is part of scene update order; any per-frame render happens via scene systems.
             }
 
             try graphics_sys.endFrame();
@@ -320,8 +305,7 @@ pub const Application = struct {
         }
 
         // Initialize scene system (stub for now)
-        self.scene_system = try self.allocator.create(SceneSystemStub);
-        self.scene_system.?.* = SceneSystemStub{};
+        self.scene_system = try scene.init(self.allocator, .{});
 
         // Initialize input system (stub for now)
         self.input_system = try self.allocator.create(InputSystemStub);
