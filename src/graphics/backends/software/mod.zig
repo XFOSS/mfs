@@ -13,12 +13,30 @@ pub const SoftwareBackend = struct {
 
     const Self = @This();
 
+    // Simple ID counters to give each resource a unique handle in the CPU
+    next_buffer_id: usize = 1,
+    next_texture_id: usize = 1,
+    next_shader_id: usize = 1,
+    next_pipeline_id: usize = 1,
+
+    // In-memory representations of resources so we can at least move data
+    buffers: std.AutoHashMap(usize, []u8),
+    shaders: std.AutoHashMap(usize, types.Shader),
+    pipelines: std.AutoHashMap(usize, *interface.Pipeline),
+
+    fn initInternal(self: *Self) void {
+        self.buffers = std.AutoHashMap(usize, []u8).init(self.allocator);
+        self.shaders = std.AutoHashMap(usize, types.Shader).init(self.allocator);
+        self.pipelines = std.AutoHashMap(usize, *interface.Pipeline).init(self.allocator);
+    }
+
     pub fn init(allocator: std.mem.Allocator, config: interface.BackendConfig) !*Self {
         const backend = try allocator.create(Self);
         backend.* = Self{
             .allocator = allocator,
             .config = config,
         };
+        backend.initInternal();
         return backend;
     }
 
@@ -68,22 +86,48 @@ pub const SoftwareBackend = struct {
     }
 
     fn createBufferWrapper(impl_data: *anyopaque, buffer: *types.Buffer, data: ?[]const u8) interface.GraphicsBackendError!void {
-        _ = @as(*Self, @ptrCast(@alignCast(impl_data)));
-        _ = buffer;
-        _ = data;
-        return interface.GraphicsBackendError.UnsupportedOperation;
+        const self = @as(*Self, @ptrCast(@alignCast(impl_data)));
+
+        // Allocate CPU memory for the buffer
+        var mem = try self.allocator.alloc(u8, buffer.size);
+        if (data) |d| {
+            std.mem.copy(u8, mem, d);
+        } else {
+            // Zero init
+            std.mem.set(u8, mem, 0);
+        }
+
+        const id = self.next_buffer_id;
+        self.next_buffer_id += 1;
+
+        buffer.id = id;
+        buffer.handle = @intFromPtr(mem.ptr);
+
+        try self.buffers.put(id, mem);
+        return;
     }
 
     fn createShaderWrapper(impl_data: *anyopaque, shader: *types.Shader) interface.GraphicsBackendError!void {
-        _ = @as(*Self, @ptrCast(@alignCast(impl_data)));
-        _ = shader;
-        return interface.GraphicsBackendError.UnsupportedOperation;
+        const self = @as(*Self, @ptrCast(@alignCast(impl_data)));
+        const id = self.next_shader_id;
+        self.next_shader_id += 1;
+        shader.id = id;
+        shader.compiled = true; // Pretend compilation success
+        try self.shaders.put(id, shader.*);
+        return;
     }
 
     fn createPipelineWrapper(impl_data: *anyopaque, desc: *const interface.PipelineDesc) interface.GraphicsBackendError!*interface.Pipeline {
-        _ = @as(*Self, @ptrCast(@alignCast(impl_data)));
-        _ = desc;
-        return interface.GraphicsBackendError.UnsupportedOperation;
+        const self = @as(*Self, @ptrCast(@alignCast(impl_data)));
+        const pipe = try self.allocator.create(interface.Pipeline);
+        pipe.* = interface.Pipeline{
+            .id = self.next_pipeline_id,
+            .backend_handle = undefined,
+            .allocator = self.allocator,
+        };
+        self.next_pipeline_id += 1;
+        try self.pipelines.put(pipe.id, pipe);
+        return pipe;
     }
 
     fn createRenderTargetWrapper(impl_data: *anyopaque, render_target: *types.RenderTarget) interface.GraphicsBackendError!void {
@@ -94,10 +138,14 @@ pub const SoftwareBackend = struct {
 
     // Resource management stubs
     fn updateBufferWrapper(impl_data: *anyopaque, buffer: *types.Buffer, offset: u64, data: []const u8) interface.GraphicsBackendError!void {
-        _ = @as(*Self, @ptrCast(@alignCast(impl_data)));
-        _ = buffer;
-        _ = offset;
-        _ = data;
+        const self = @as(*Self, @ptrCast(@alignCast(impl_data)));
+        const id = buffer.id;
+        if (self.buffers.get(id)) |slice| {
+            if (offset + data.len > slice.len) {
+                return interface.GraphicsBackendError.OutOfMemory;
+            }
+            std.mem.copy(u8, slice[offset..][0..data.len], data);
+        }
     }
 
     fn updateTextureWrapper(impl_data: *anyopaque, texture: *types.Texture, region: *const interface.TextureCopyRegion, data: []const u8) interface.GraphicsBackendError!void {
@@ -113,13 +161,15 @@ pub const SoftwareBackend = struct {
     }
 
     fn destroyBufferWrapper(impl_data: *anyopaque, buffer: *types.Buffer) void {
-        _ = @as(*Self, @ptrCast(@alignCast(impl_data)));
-        _ = buffer;
+        const self = @as(*Self, @ptrCast(@alignCast(impl_data)));
+        if (self.buffers.fetchRemove(buffer.id)) |entry| {
+            self.allocator.free(entry.value);
+        }
     }
 
     fn destroyShaderWrapper(impl_data: *anyopaque, shader: *types.Shader) void {
-        _ = @as(*Self, @ptrCast(@alignCast(impl_data)));
-        _ = shader;
+        const self = @as(*Self, @ptrCast(@alignCast(impl_data)));
+        _ = self.shaders.remove(shader.id);
     }
 
     fn destroyRenderTargetWrapper(impl_data: *anyopaque, render_target: *types.RenderTarget) void {
