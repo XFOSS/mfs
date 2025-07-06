@@ -312,9 +312,3 @@ pub fn approxEqual(a: f32, b: f32, epsilon: ?f32) bool {
     const eps = epsilon orelse EPSILON;
     return @abs(a - b) <= eps;
 }
-
-/// Check if a floating point value is approximately zero
-///
-/// **Parameters**:
-/// - `x`: Value to check
-/// - `

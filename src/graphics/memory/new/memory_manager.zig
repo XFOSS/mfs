@@ -236,7 +236,7 @@ pub const MemoryManager = struct {
         const memory_type_index = try self.findMemoryType(memory_type_bits, properties);
 
         // Allocate from pool
-        var block = try self.pools.items[memory_type_index].allocate(size, alignment);
+        const block = try self.pools.items[memory_type_index].allocate(size, alignment);
 
         // Update stats
         self.stats.total_allocated += size;
