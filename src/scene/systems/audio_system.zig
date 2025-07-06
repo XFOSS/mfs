@@ -67,14 +67,19 @@ pub const AudioSystem = struct {
 
                 // Update source position if spatial
                 if (source.spatial) {
-                    const position = transform.getWorldPosition();
-                    // Assuming OpenAL function to set source position
-                    openal.alSource3f(source.alSource, openal.AL_POSITION, position.x, position.y, position.z);
+                    const position = transform.position; // Use current world position (local for now)
+                    // Ensure we have a valid OpenAL source id before sending commands
+                    if (source.source_id) |sid| {
+                        // Assuming OpenAL function to set source position
+                        openal.alSource3f(sid, openal.AL_POSITION, position.x, position.y, position.z);
+                    }
                 }
 
                 // Update source volume
                 const volume = source.volume * self.master_volume;
-                openal.alSourcef(source.alSource, openal.AL_GAIN, volume);
+                if (source.source_id) |sid_gain| {
+                    openal.alSourcef(sid_gain, openal.AL_GAIN, volume);
+                }
             } else if (audio.isListener()) {
                 const listener = audio.getListener() orelse continue;
 
@@ -82,11 +87,12 @@ pub const AudioSystem = struct {
                 if (!listener.enabled) continue;
 
                 // Update listener position
-                const listener_position = transform.getWorldPosition();
-                // Assuming OpenAL function to set listener position
+                const listener_position = transform.position;
+
+                // Ensure we have a valid listener id before sending commands (optional in OpenAL, using global listener here)
                 openal.alListener3f(openal.AL_POSITION, listener_position.x, listener_position.y, listener_position.z);
 
-                // Update listener volume
+                // Update listener volume (global listener gain)
                 const volume = listener.volume * self.master_volume;
                 openal.alListenerf(openal.AL_GAIN, volume);
             }
@@ -147,9 +153,70 @@ pub const AudioSystem = struct {
 /// Standalone update function for use with Scene.addSystem
 pub fn update(system: *System, scene: *Scene, delta_time: f32) void {
     _ = system;
-    _ = scene;
-    _ = delta_time;
+    // The standalone update mirrors the behaviour of the AudioSystem struct‐based
+    // implementation above but operates directly on the Scene.
+    _ = delta_time; // Currently unused but kept for future time-based effects
 
-    // TODO: Implement audio system functionality
-    // This would typically update 3D audio sources based on entity positions
+    var master_volume: f32 = 1.0;
+
+    // ---------------------------------------------------------------------
+    // 1. Locate the active listener (if any) and update its properties
+    // ---------------------------------------------------------------------
+    var listener_position = Vec3.init(0, 0, 0);
+    var listener_volume: f32 = 1.0;
+
+    var entity_iter = scene.entities.iterator();
+    while (entity_iter.next()) |entry| {
+        const entity = entry.value_ptr;
+
+        if (entity.getComponent(AudioComponent)) |audio| {
+            if (audio.isListener()) {
+                if (audio.getListener()) |listener| {
+                    listener_volume = listener.volume * master_volume;
+                }
+
+                if (entity.getComponent(TransformComponent)) |transform| {
+                    listener_position = transform.position;
+                }
+
+                // Found listener, no need to search further
+                break;
+            }
+        }
+    }
+
+    // Apply listener settings via OpenAL (global listener)
+    openal.alListener3f(openal.AL_POSITION, listener_position.x, listener_position.y, listener_position.z);
+    openal.alListenerf(openal.AL_GAIN, listener_volume);
+
+    // ---------------------------------------------------------------------
+    // 2. Iterate over all audio sources and update their spatial data / gain
+    // ---------------------------------------------------------------------
+    var source_iter = scene.entities.iterator();
+    while (source_iter.next()) |entry| {
+        const entity = entry.value_ptr;
+
+        if (entity.getComponent(AudioComponent)) |audio| {
+            if (!audio.isSource()) continue;
+
+            const src = audio.getSource() orelse continue;
+
+            // Skip sources that are not currently playing
+            if (!src.playing or src.paused) continue;
+
+            const sid = src.source_id orelse continue; // OpenAL source handle must exist
+
+            // Spatial position update
+            if (src.spatial) {
+                if (entity.getComponent(TransformComponent)) |transform| {
+                    const pos = transform.position;
+                    openal.alSource3f(sid, openal.AL_POSITION, pos.x, pos.y, pos.z);
+                }
+            }
+
+            // Gain update
+            const vol = src.volume * master_volume;
+            openal.alSourcef(sid, openal.AL_GAIN, vol);
+        }
+    }
 }
