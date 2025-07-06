@@ -234,9 +234,15 @@ pub const MultiThreadingStats = struct {
     avg_recording_time_ms: f64 = 0.0,
     parallel_recording_speedup: f32 = 1.0,
 
-    pub fn init(allocator: std.mem.Allocator, thread_count: u32) MultiThreadingStats {
+    /// Initialize statistics storage.  Allocation failures are bubbled up instead
+    /// of being silently ignored, ensuring the caller can react appropriately.
+    pub fn init(allocator: std.mem.Allocator, thread_count: u32) !MultiThreadingStats {
+        const util = try allocator.alloc(f32, thread_count);
+        // Zero-initialize so the first read produces deterministic values.
+        @memset(util, 0);
+
         return MultiThreadingStats{
-            .thread_utilization = allocator.alloc(f32, thread_count) catch &.{},
+            .thread_utilization = util,
         };
     }
 
@@ -599,7 +605,7 @@ pub const MultiThreadedGraphics = struct {
             .work_queue = work_queue,
             .graphics_backend = graphics_backend,
             .load_balancer = LoadBalancer.init(allocator, thread_count),
-            .stats = MultiThreadingStats.init(allocator, thread_count),
+            .stats = try MultiThreadingStats.init(allocator, thread_count),
             .frame_fence = createFrameFence(graphics_backend),
         };
 
@@ -801,9 +807,21 @@ pub const MultiThreadedGraphics = struct {
                 worker.work_queue.completeWorkItem(work_item.id);
                 system.stats.completed_work_items += 1;
             } else {
-                // No work available, wait a bit
-                std.time.sleep(100_000); // 0.1ms
-                worker.idle_time_ns += 100_000;
+                // No work available – go to sleep on the condition variable instead
+                // of performing an active spin-loop.  This dramatically reduces CPU
+                // usage when the system is idle while still providing fast wake-up
+                // times when new work is queued.
+
+                const wait_start = std.time.nanoTimestamp();
+
+                // Acquire the queue mutex before waiting as required by Zig's
+                // condition variable API.
+                worker.work_queue.mutex.lock();
+                worker.work_queue.condition.wait(&worker.work_queue.mutex);
+                worker.work_queue.mutex.unlock();
+
+                const wait_end = std.time.nanoTimestamp();
+                worker.idle_time_ns += @intCast(wait_end - wait_start);
             }
         }
 
