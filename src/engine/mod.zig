@@ -15,15 +15,6 @@ const build_options = @import("../build_options.zig");
 // Stub Systems (temporary implementations)
 // =============================================================================
 
-/// Temporary physics system stub until full physics integration
-const PhysicsSystemStub = struct {
-    pub fn update(self: *PhysicsSystemStub, delta_time: f64) !void {
-        _ = self;
-        _ = delta_time;
-        // TODO: Implement physics update
-    }
-};
-
 /// Temporary scene system stub until full scene system integration
 const SceneSystemStub = struct {
     pub fn update(self: *SceneSystemStub, delta_time: f64) !void {
@@ -125,7 +116,7 @@ pub const Application = struct {
     window_system: ?*window.WindowSystem = null,
     graphics_system: ?*graphics.GraphicsSystem = null,
     audio_system: ?*audio.AudioSystem = null,
-    physics_system: ?*PhysicsSystemStub = null,
+    physics_system: ?*physics.PhysicsEngine = null,
     scene_system: ?*SceneSystemStub = null,
     input_system: ?*InputSystemStub = null,
 
@@ -169,6 +160,7 @@ pub const Application = struct {
         }
 
         if (self.physics_system) |sys| {
+            physics.deinit(sys);
             self.allocator.destroy(sys);
             self.physics_system = null;
         }
@@ -242,7 +234,7 @@ pub const Application = struct {
 
         // Update game systems
         if (self.physics_system) |sys| {
-            try sys.update(delta_time);
+            sys.update(@floatCast(delta_time));
         }
 
         if (self.audio_system) |sys| {
@@ -323,8 +315,8 @@ pub const Application = struct {
 
         // Initialize physics system (stub for now)
         if (self.config.enable_physics) {
-            self.physics_system = try self.allocator.create(PhysicsSystemStub);
-            self.physics_system.?.* = PhysicsSystemStub{};
+            const physics_config = physics.Config{}; // Default config
+            self.physics_system = try physics.init(self.allocator, physics_config);
         }
 
         // Initialize scene system (stub for now)
