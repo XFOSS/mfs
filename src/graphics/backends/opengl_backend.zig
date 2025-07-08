@@ -15,6 +15,12 @@ const c = @cImport({
     @cDefine("GLAD_GL_IMPLEMENTATION", "");
 });
 
+const has_headers = comptime blk: {
+    // If the C import failed due to missing headers, the file would not even compile.
+    // So for safety we expose a comptime constant that can be toggled via build options in the future.
+    break :blk build_options.Graphics.opengl_available;
+};
+
 pub const OpenGLError = error{
     InitializationFailed,
     ShaderCompilationFailed,
@@ -86,9 +92,38 @@ pub const OpenGLBackend = struct {
     };
 
     /// Create and initialize an OpenGL backend, returning a pointer to the interface.GraphicsBackend
-    pub fn createBackend(_: Allocator) !*interface.GraphicsBackend {
-        // OpenGL backend is not fully implemented yet, return not available
-        return interface.GraphicsBackendError.BackendNotAvailable;
+    pub fn createBackend(allocator: Allocator) !*interface.GraphicsBackend {
+        if (!has_headers) {
+            return interface.GraphicsBackendError.BackendNotAvailable;
+        }
+
+        // Allocate implementation
+        var impl = try allocator.create(OpenGLBackend);
+        impl.* = OpenGLBackend{
+            .allocator = allocator,
+            .extensions = std.StringHashMap(bool).init(allocator),
+            .viewport = types.Viewport{ .width = 640, .height = 480 }, // default
+        };
+
+        if (!impl.initializeContext()) {
+            return interface.GraphicsBackendError.InitializationFailed;
+        }
+        impl.initialized = true;
+
+        // Allocate vtable (already comptime const but we need pointer)
+        const vt_ptr = try allocator.create(interface.GraphicsBackend.VTable);
+        vt_ptr.* = OpenGLBackend.vtable;
+
+        const backend = try allocator.create(interface.GraphicsBackend);
+        backend.* = interface.GraphicsBackend{
+            .allocator = allocator,
+            .backend_type = .opengl,
+            .initialized = true,
+            .vtable = vt_ptr,
+            .impl_data = impl,
+        };
+
+        return backend;
     }
 
     pub fn deinit(self: *Self) void {
@@ -735,9 +770,9 @@ pub const OpenGLBackend = struct {
 };
 
 /// Create an OpenGL backend instance (module-level wrapper for OpenGLBackend.createBackend)
-pub fn create(allocator: Allocator, config: anytype) !*interface.GraphicsBackend {
-    _ = config; // Config not used yet but may be in the future
-    return OpenGLBackend.createBackend(allocator);
+pub fn create(allocator: Allocator, config: interface.BackendConfig) !*interface.GraphicsBackend {
+    _ = config; // Currently ignored in stub implementation
+    return createBackend(allocator);
 }
 
 /// Create an OpenGL backend instance (alternative name for compatibility)
