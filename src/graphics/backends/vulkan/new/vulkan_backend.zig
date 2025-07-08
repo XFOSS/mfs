@@ -9,7 +9,7 @@
 
 const std = @import("std");
 const vk = @import("vulkan");
-const memory_manager = @import("../../memory/new/memory_manager.zig");
+const memory_manager = @import("../../../memory/new/memory_manager.zig");
 const MemoryManager = memory_manager.MemoryManager;
 const MemoryBlock = memory_manager.MemoryBlock;
 

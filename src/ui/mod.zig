@@ -34,7 +34,7 @@ pub const ui_framework = @import("ui_framework.zig");
 pub const uix = @import("uix.zig");
 
 // Utilities
-pub const utils = @import("libs/utils/utils.zig");
+pub const utils = @import("../utils/utils.zig");
 pub const worker = @import("worker.zig");
 pub const perf_overlay = @import("perf_overlay.zig");
 

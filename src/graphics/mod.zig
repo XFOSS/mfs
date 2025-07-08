@@ -79,7 +79,7 @@ pub const VertexFormat = interface.VertexFormat;
 pub const VertexLayout = interface.VertexLayout;
 
 // Export backend-specific renderers for examples
-pub const VulkanCubeRenderer = @import("backends/vulkan/cube.zig").VulkanCubeRenderer;
+pub const VulkanCubeRenderer = @import("backends/vulkan/old/cube.zig").VulkanCubeRenderer;
 
 // Export DirectX-specific renderers for examples (Windows only)
 pub const directx = if (build_options.Graphics.d3d12_available)
