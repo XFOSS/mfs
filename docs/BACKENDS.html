@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backends - MFS Engine Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            color: white;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+        }
+        
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+        
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .content {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin-bottom: 2.5rem;
+        }
+        
+        .section h2 {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+        
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .doc-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .doc-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .doc-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .doc-card h3 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            font-size: 1.3rem;
+        }
+        
+        .doc-card p {
+            color: #718096;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+        
+        .doc-card a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .doc-card a:hover {
+            color: #764ba2;
+        }
+        
+        .quick-start {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .quick-start h2 {
+            color: white;
+            border-bottom: 3px solid rgba(255,255,255,0.3);
+        }
+        
+        .code-block {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .feature {
+            background: rgba(255,255,255,0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .feature h4 {
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .feature ul {
+            list-style: none;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .feature li:before {
+            content: "✓ ";
+            color: #4ade80;
+            font-weight: bold;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 2rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+            
+            .doc-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Additional styles for markdown content */
+        h1, h2, h3, h4, h5, h6 {
+            color: #2d3748;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+        
+        h2 {
+            font-size: 2rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.3rem;
+        }
+        
+        h3 {
+            font-size: 1.5rem;
+        }
+        
+        h4 {
+            font-size: 1.3rem;
+        }
+        
+        p {
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+        
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+        }
+        
+        li {
+            margin-bottom: 0.5rem;
+        }
+        
+        code {
+            background: #f7fafc;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            color: #e53e3e;
+        }
+        
+        pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        
+        blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: #4a5568;
+            font-style: italic;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        
+        th {
+            background: #f7fafc;
+            font-weight: 600;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            color: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🎮 MFS Engine</div>
+            <div class="tagline">Multi-Platform Game Engine Documentation</div>
+            <div class="badges">
+                <span class="badge">Production Ready</span>
+                <span class="badge">Zig 0.12.0</span>
+                <span class="badge">Cross-Platform</span>
+                <span class="badge">Ray Tracing</span>
+                <span class="badge">Open Source</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <a href="index.html" class="back-link">← Back to Documentation Index</a>
+            
+            <div class="markdown-content">
+                <h1>MFS Engine Rendering Backends</h1>
+<p>This document provides an overview of the various graphics backends supported by the MFS Engine.</p>
+<h2>Supported Backends</h2>
+<p>MFS Engine supports multiple rendering backends to ensure cross-platform compatibility and leverage platform-specific optimizations: | Backend | Platforms | Features | Status | |---------|-----------|----------|--------| | <strong>Vulkan</strong> | Windows, Linux, Android | High performance, low overhead | Complete | | <strong>DirectX 12</strong> | Windows 10+ | Modern GPU features, raytracing | Complete | | <strong>DirectX 11</strong> | Windows 7+ | Wide compatibility | Complete | | <strong>Metal</strong> | macOS, iOS | Native Apple performance | Beta | | <strong>OpenGL</strong> | Windows, Linux, macOS | Cross-platform compatibility | Complete | | <strong>OpenGL ES</strong> | Android, iOS | Mobile support | Beta | | <strong>WebGPU</strong> | Web browsers | Modern web standard | Alpha | | <strong>Software</strong> | All platforms | Fallback renderer | Basic |</p>
+<h2>Backend Selection</h2>
+<p>The engine will automatically choose the most performant backend available on the current platform. You can also explicitly select a backend: <pre><code class="zig">// Using the Config struct
+var config = mfs.Config{
+    .renderer_backend = .vulkan,
+    // other configuration...
+};
+
+// Or at runtime
+app.setGraphicsBackend(.dx12) catch |err| {
+    // Handle error if backend is not available
+};</code></pre></p>
+<h2>Backend-Specific Features</h2>
+<h3>Vulkan</h3>
+<p>The Vulkan backend provides:</p>
+<ul>
+<li>Compute shader support</li>
+<li>Advanced memory management</li>
+<li>Multi-threaded command buffer recording</li>
+<li>Full validation layer integration</li>
+<li>Explicit synchronization control</li>
+</ul>
+<p>File location: <code>src/graphics/backends/vulkan_backend.zig</code></p>
+<h3>DirectX 12</h3>
+<p>The DirectX 12 backend provides:</p>
+<ul>
+<li>DirectX Raytracing (DXR) integration</li>
+<li>DirectStorage API support</li>
+<li>Variable Rate Shading (VRS)</li>
+<li>Mesh shaders</li>
+<li>DirectML for hardware accelerated machine learning</li>
+</ul>
+<p>File location: <code>src/graphics/backends/d3d12_backend.zig</code></p>
+<h3>DirectX 11</h3>
+<p>The DirectX 11 backend provides:</p>
+<ul>
+<li>Wide compatibility with Windows systems</li>
+<li>Feature level targeting</li>
+<li>Legacy hardware support</li>
+<li>Mature tooling integration</li>
+</ul>
+<p>File location: <code>src/graphics/backends/d3d11_backend.zig</code></p>
+<h3>Metal</h3>
+<p>The Metal backend provides:</p>
+<ul>
+<li>Native performance on Apple platforms</li>
+<li>Metal shader language compilation</li>
+<li>Metal Performance Shaders integration</li>
+<li>Dynamic resource management</li>
+</ul>
+<p>File location: <code>src/graphics/backends/metal_backend.zig</code></p>
+<h3>OpenGL</h3>
+<p>The OpenGL backend provides:</p>
+<ul>
+<li>Maximum cross-platform compatibility</li>
+<li>Legacy hardware support</li>
+<li>Simpler API for learning and debugging</li>
+</ul>
+<p>File location: <code>src/graphics/backends/opengl_backend.zig</code></p>
+<h3>WebGPU</h3>
+<p>The WebGPU backend provides:</p>
+<ul>
+<li>Modern web standard support</li>
+<li>Cross-browser compatibility</li>
+<li>Web worker integration</li>
+</ul>
+<p>File location: <code>src/graphics/backends/webgpu_backend.zig</code></p>
+<h2>Shader System</h2>
+<p>MFS uses a unified shader system that compiles to each backend's native format: 1. Write shaders in a high-level shader language (HLSL/GLSL-like syntax) 2. The engine shader compiler converts to backend-specific formats 3. Shader reflection generates appropriate bindings for each backend 4. Hot reloading is supported across all backends Example shader definition: <pre><code class="zig">const standard_shader = mfs.shader.define(.{
+    .vertex = @embedFile("shaders/standard.vert"),
+    .fragment = @embedFile("shaders/standard.frag"),
+    .reflection = true, // Enable automatic binding reflection
+});</code></pre></p>
+<h2>Feature Compatibility</h2>
+<p>The following table shows feature support across backends: | Feature | Vulkan | DX12 | DX11 | Metal | OpenGL | WebGPU | |---------|--------|------|------|-------|--------|--------| | Compute | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ | | Raytracing | ✅ | ✅ | ❌ | ✅* | ❌ | ❌ | | Mesh Shaders | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | | VRS | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | | Bindless | ✅ | ✅ | ✅<em> | ✅ | ✅</em> | ❌ | | Async Compute | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | | HDR Output | ✅ | ✅ | ✅ | ✅ | ✅<em> | ✅</em> | | GPU Timeline | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | \* Limited support or extension dependent</p>
+<h2>Backend Implementation Details</h2>
+<p>Each backend implements the core <code>GraphicsDevice</code> interface: <pre><code class="zig">pub const GraphicsDevice = struct {
+    // Interface functions implemented by each backend
+    initFn: fn (allocator: std.mem.Allocator, options: Options) !*GraphicsDevice,
+    deinitFn: fn (self: *GraphicsDevice) void,
+    beginFrameFn: fn (self: *GraphicsDevice) !void,
+    endFrameFn: fn (self: *GraphicsDevice) !void,
+    createBufferFn: fn (self: *GraphicsDevice, desc: BufferDesc) !ResourceHandle,
+    createTextureFn: fn (self: *GraphicsDevice, desc: TextureDesc) !ResourceHandle,
+    // ... and many more functions
+};</code></pre></p>
+<h2>Adding Custom Backends</h2>
+<p>The engine supports adding custom rendering backends by implementing the <code>GraphicsDevice</code> interface: 1. Create a new file in <code>src/graphics/backends/my_backend.zig</code> 2. Implement the required interface functions 3. Register your backend with the engine See <code>src/graphics/backends/template_backend.zig</code> for a starting point.</p>
+<h2>Debugging and Profiling</h2>
+<p>Each backend includes specialized debugging and profiling capabilities:</p>
+<ul>
+<li><strong>Vulkan</strong>: Debug markers, validation layers, RenderDoc integration</li>
+<li><strong>DirectX</strong>: PIX integration, debug layers, GPU-based validation</li>
+<li><strong>Metal</strong>: Frame capture, shader debugging, Metal System Trace</li>
+<li><strong>OpenGL</strong>: KHR_debug extension, ARB_debug_output</li>
+</ul>
+<p>Use the common API for cross-backend debugging: <pre><code class="zig">renderer.beginDebugGroup("Shadow pass");
+defer renderer.endDebugGroup();
+// Rendering operations here</code></pre></p>
+<h2>Performance Considerations</h2>
+<p>Different backends have different performance characteristics:</p>
+<ul>
+<li><strong>Vulkan/DX12</strong>: Require more explicit management but offer highest performance</li>
+<li><strong>Metal</strong>: Best performance on Apple platforms</li>
+<li><strong>DX11</strong>: Good balance of simplicity and performance on Windows</li>
+<li><strong>OpenGL</strong>: Simpler API with potentially higher driver overhead</li>
+<li><strong>WebGPU</strong>: Performance constrained by browser environment</li>
+</ul>
+<h2>Limitations and Known Issues</h2>
+<ul>
+<li><strong>Feature Availability</strong>: Not all features are available on all backends</li>
+<li><strong>Extension Support</strong>: Some features rely on optional extensions</li>
+<li><strong>API Differences</strong>: Subtle differences in behavior may exist between backends</li>
+<li><strong>WebGPU</strong>: Still evolving, more limited than native backends</li>
+</ul>
+<h2>Testing Backend Compatibility</h2>
+<p>Use the built-in testing system to verify your code works across backends: <pre><code class="bash"># Test all backends
+zig build test
+
+# Test specific backends
+zig build test-vulkan
+zig build test-d3d12
+zig build test-opengl</code></pre></p>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2024 MFS Engine - Built with ❤️ and Zig</p>
+            <p>Production-ready, cross-platform game engine for next-generation applications</p>
+        </footer>
+    </div>
+</body>
+</html>

@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coding Standards - MFS Engine Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            color: white;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+        }
+        
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+        
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .content {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin-bottom: 2.5rem;
+        }
+        
+        .section h2 {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+        
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .doc-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .doc-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .doc-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .doc-card h3 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            font-size: 1.3rem;
+        }
+        
+        .doc-card p {
+            color: #718096;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+        
+        .doc-card a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .doc-card a:hover {
+            color: #764ba2;
+        }
+        
+        .quick-start {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .quick-start h2 {
+            color: white;
+            border-bottom: 3px solid rgba(255,255,255,0.3);
+        }
+        
+        .code-block {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .feature {
+            background: rgba(255,255,255,0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .feature h4 {
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .feature ul {
+            list-style: none;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .feature li:before {
+            content: "✓ ";
+            color: #4ade80;
+            font-weight: bold;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 2rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+            
+            .doc-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Additional styles for markdown content */
+        h1, h2, h3, h4, h5, h6 {
+            color: #2d3748;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+        
+        h2 {
+            font-size: 2rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.3rem;
+        }
+        
+        h3 {
+            font-size: 1.5rem;
+        }
+        
+        h4 {
+            font-size: 1.3rem;
+        }
+        
+        p {
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+        
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+        }
+        
+        li {
+            margin-bottom: 0.5rem;
+        }
+        
+        code {
+            background: #f7fafc;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            color: #e53e3e;
+        }
+        
+        pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        
+        blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: #4a5568;
+            font-style: italic;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        
+        th {
+            background: #f7fafc;
+            font-weight: 600;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            color: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🎮 MFS Engine</div>
+            <div class="tagline">Multi-Platform Game Engine Documentation</div>
+            <div class="badges">
+                <span class="badge">Production Ready</span>
+                <span class="badge">Zig 0.12.0</span>
+                <span class="badge">Cross-Platform</span>
+                <span class="badge">Ray Tracing</span>
+                <span class="badge">Open Source</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <a href="index.html" class="back-link">← Back to Documentation Index</a>
+            
+            <div class="markdown-content">
+                <h1>MFS Engine - Coding Standards and Style Guide</h1>
+<h2>Overview</h2>
+<p>This document defines the coding standards and best practices for the MFS Engine codebase. Following these guidelines ensures consistency, maintainability, and quality across all modules.</p>
+<h2>Zig Language Standards</h2>
+<h3>1. Naming Conventions</h3>
+<p>#### Files</p>
+<ul>
+<li>Use <code>snake_case</code> for file names: <code>ray_tracing.zig</code>, <code>asset_manager.zig</code></li>
+<li>Module index files should be named <code>mod.zig</code></li>
+<li>Test files should end with <code>_test.zig</code> or be in a <code>tests/</code> directory</li>
+</ul>
+<p>#### Types and Structs <pre><code class="zig">// ✅ Good - PascalCase for types
+const RenderContext = struct { ... };
+const GraphicsBackend = enum { ... };
+
+// ❌ Bad
+const render_context = struct { ... };
+const GRAPHICS_BACKEND = enum { ... };</code></pre> #### Functions and Variables <pre><code class="zig">// ✅ Good - camelCase for functions and variables
+pub fn createWindow(config: WindowConfig) !Window { ... }
+const maxVertexCount = 65536;
+
+// ❌ Bad
+pub fn CreateWindow(config: WindowConfig) !Window { ... }
+const MAX_VERTEX_COUNT = 65536;</code></pre> #### Constants <pre><code class="zig">// ✅ Good - Use const with descriptive names
+const default_window_width = 1280;
+const max_texture_size = 4096;
+
+// For compile-time constants that act like enums
+const VK_SUCCESS = 0;
+const GL_TEXTURE_2D = 0x0DE1;</code></pre></p>
+<h3>2. Error Handling</h3>
+<p>#### Always Prefer Error Unions <pre><code class="zig">// ✅ Good - Return error unions
+pub fn loadTexture(path: []const u8) !Texture {
+    const file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
+    // ...
+}
+
+// ❌ Bad - Using catch unreachable
+pub fn loadTexture(path: []const u8) Texture {
+    const file = std.fs.cwd().openFile(path, .{}) catch unreachable;
+    defer file.close();
+    // ...
+}</code></pre> #### Error Logging <pre><code class="zig">// ✅ Good - Log errors with context
+allocator.alloc(u8, size) catch |err| {
+    std.log.err("Failed to allocate {} bytes: {}", .{ size, err });
+    return error.OutOfMemory;
+};
+
+// ❌ Bad - Silent failure
+allocator.alloc(u8, size) catch return null;</code></pre></p>
+<h3>3. Memory Management</h3>
+<p>#### Always Use Allocators Explicitly <pre><code class="zig">// ✅ Good - Pass allocator explicitly
+pub fn init(allocator: std.mem.Allocator, config: Config) !Self {
+    return Self{
+        .allocator = allocator,
+        .buffer = try allocator.alloc(u8, config.buffer_size),
+    };
+}
+
+// ❌ Bad - Hidden allocation
+var global_buffer: [1024]u8 = undefined;</code></pre> #### Cleanup Resources <pre><code class="zig">// ✅ Good - Proper cleanup with errdefer
+pub fn createPipeline(allocator: std.mem.Allocator) !Pipeline {
+    const shaders = try allocator.alloc(Shader, 2);
+    errdefer allocator.free(shaders);
+    
+    const pipeline = try allocator.create(Pipeline);
+    errdefer allocator.destroy(pipeline);
+    
+    // Initialize...
+    return pipeline;
+}</code></pre></p>
+<h3>4. Documentation</h3>
+<p>#### Module Documentation <pre><code class="zig">//! Graphics Backend Interface
+//! 
+//! This module provides a unified interface for different graphics APIs
+//! including Vulkan, DirectX 12, Metal, and OpenGL.
+//!
+//! ## Example
+//!</code></pre>zig //! const backend = try GraphicsBackend.init(allocator, .vulkan); //! defer backend.deinit(); //! <pre><code class="">const std = @import("std");</code></pre> #### Function Documentation <pre><code class="zig">/// Creates a new render pass with the specified configuration.
+/// 
+/// Parameters:
+///   - config: Render pass configuration including attachments and dependencies
+/// 
+/// Returns:
+///   - RenderPass on success
+///   - Error.InvalidConfig if configuration is invalid
+///   - Error.OutOfMemory if allocation fails
+/// 
+/// Example:
+///</code></pre>zig /// const pass = try createRenderPass(.{ ///     .color_attachment = .{ .format = .rgba8_unorm }, ///     .depth_attachment = .{ .format = .d32_float }, /// }); /// <pre><code class="">pub fn createRenderPass(config: RenderPassConfig) !RenderPass {
+    // Implementation
+}</code></pre></p>
+<h3>5. Code Organization</h3>
+<p>#### Module Structure <pre><code class="">src/graphics/
+├── mod.zig              # Module interface
+├── types.zig            # Common types
+├── buffer.zig           # Buffer management
+├── texture.zig          # Texture management
+├── pipeline.zig         # Pipeline management
+├── backends/            # Backend implementations
+│   ├── mod.zig
+│   ├── vulkan/
+│   ├── directx/
+│   └── opengl/
+└── tests/               # Module tests
+    ├── buffer_test.zig
+    └── texture_test.zig</code></pre> #### Import Organization <pre><code class="zig">// 1. Standard library imports
+const std = @import("std");
+const builtin = @import("builtin");
+
+// 2. External dependencies
+const vk = @import("vulkan");
+
+// 3. Internal imports (absolute from src/)
+const math = @import("math/mod.zig");
+const core = @import("core/mod.zig");
+
+// 4. Local imports (relative)
+const types = @import("types.zig");
+const utils = @import("utils.zig");
+
+// 5. Type aliases
+const Allocator = std.mem.Allocator;
+const ArrayList = std.ArrayList;</code></pre></p>
+<h3>6. Testing</h3>
+<p>#### Test Organization <pre><code class="zig">// In the same file for unit tests
+test "Buffer.init creates buffer with correct size" {
+    const allocator = std.testing.allocator;
+    const buffer = try Buffer.init(allocator, 1024);
+    defer buffer.deinit();
+    
+    try std.testing.expect(buffer.size == 1024);
+}
+
+// In separate test files for integration tests
+// tests/graphics_integration_test.zig
+test "Graphics pipeline integration" {
+    // Complex integration test
+}</code></pre> #### Test Naming <pre><code class="zig">// ✅ Good - Descriptive test names
+test "Matrix4x4.multiply produces correct result for identity matrices" { }
+test "TextureLoader.load returns error for missing file" { }
+
+// ❌ Bad - Vague test names  
+test "multiply" { }
+test "load error" { }</code></pre></p>
+<h3>7. Performance Guidelines</h3>
+<p>#### Prefer Stack Allocation <pre><code class="zig">// ✅ Good - Stack allocation for small, fixed-size data
+var vertices: [4]Vertex = undefined;
+
+// ❌ Bad - Heap allocation for small, fixed-size data
+const vertices = try allocator.alloc(Vertex, 4);
+defer allocator.free(vertices);</code></pre> #### Use Appropriate Data Structures <pre><code class="zig">// ✅ Good - Use ArrayList for dynamic arrays
+var vertices = ArrayList(Vertex).init(allocator);
+
+// ✅ Good - Use StaticBitSet for fixed-size bit flags
+var flags = std.StaticBitSet(32).initEmpty();
+
+// ✅ Good - Use HashMap for key-value lookups
+var texture_cache = std.HashMap(u32, Texture, std.hash_map.AutoContext(u32), 80).init(allocator);</code></pre></p>
+<h3>8. Platform-Specific Code</h3>
+<p>#### Use Build Options <pre><code class="zig">const build_options = @import("build_options");
+
+pub fn createWindow() !Window {
+    if (build_options.Platform.is_windows) {
+        return createWindowsWindow();
+    } else if (build_options.Platform.is_linux) {
+        return createLinuxWindow();
+    } else {
+        return error.UnsupportedPlatform;
+    }
+}</code></pre> #### Compile-Time Platform Checks <pre><code class="zig">pub fn init() !void {
+    if (comptime builtin.os.tag == .windows) {
+        // Windows-specific initialization
+    } else if (comptime builtin.os.tag == .linux) {
+        // Linux-specific initialization
+    } else {
+        @compileError("Unsupported platform");
+    }
+}</code></pre></p>
+<h3>9. Concurrency</h3>
+<p>#### Thread Safety Documentation <pre><code class="zig">/// TextureCache manages texture resources.
+/// 
+/// Thread Safety: This struct is NOT thread-safe. 
+/// Use external synchronization when accessing from multiple threads.
+pub const TextureCache = struct {
+    // ...
+};
+
+/// ThreadSafeQueue provides a thread-safe FIFO queue.
+/// 
+/// Thread Safety: All methods are thread-safe and can be called
+/// concurrently from multiple threads.
+pub const ThreadSafeQueue = struct {
+    mutex: std.Thread.Mutex,
+    // ...
+};</code></pre></p>
+<h3>10. Code Review Checklist</h3>
+<p>Before submitting code for review, ensure:</p>
+<ul>
+<li>[ ] All public functions have documentation comments</li>
+<li>[ ] Error handling uses proper error unions (no <code>catch unreachable</code>)</li>
+<li>[ ] Resources are properly cleaned up (defer/errdefer)</li>
+<li>[ ] Tests are included for new functionality</li>
+<li>[ ] No compiler warnings</li>
+<li>[ ] Code follows naming conventions</li>
+<li>[ ] Complex algorithms have explanatory comments</li>
+<li>[ ] Platform-specific code is properly isolated</li>
+<li>[ ] Performance-critical paths are optimized</li>
+<li>[ ] Thread safety is documented</li>
+</ul>
+<h2>Git Commit Standards</h2>
+<h3>Commit Message Format</h3>
+<p><pre><code class=""><type>(<scope>): <subject>
+
+<body>
+
+<footer></code></pre></p>
+<h3>Types</h3>
+<ul>
+<li><code>feat</code>: New feature</li>
+<li><code>fix</code>: Bug fix</li>
+<li><code>docs</code>: Documentation changes</li>
+<li><code>style</code>: Code style changes (formatting, etc.)</li>
+<li><code>refactor</code>: Code refactoring</li>
+<li><code>perf</code>: Performance improvements</li>
+<li><code>test</code>: Test additions or modifications</li>
+<li><code>build</code>: Build system changes</li>
+<li><code>ci</code>: CI configuration changes</li>
+</ul>
+<h3>Examples</h3>
+<p><pre><code class="">feat(graphics): add Vulkan ray tracing support
+
+Implemented hardware-accelerated ray tracing using Vulkan RT extensions.
+Includes BLAS/TLAS management and shader binding table generation.
+
+Closes #123</code></pre> <pre><code class="">fix(physics): correct collision detection for rotated boxes
+
+The previous implementation didn't account for object rotation when
+calculating SAT projections. This fix properly transforms vertices
+before projection.</code></pre></p>
+<h2>Conclusion</h2>
+<p>Following these standards ensures that the MFS Engine codebase remains:</p>
+<ul>
+<li><strong>Consistent</strong>: Easy to read and understand</li>
+<li><strong>Maintainable</strong>: Easy to modify and extend</li>
+<li><strong>Reliable</strong>: Proper error handling and resource management</li>
+<li><strong>Performant</strong>: Efficient use of resources</li>
+<li><strong>Portable</strong>: Clean platform abstractions</li>
+</ul>
+<p>All contributors should familiarize themselves with these guidelines and apply them consistently throughout the codebase.</p>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2024 MFS Engine - Built with ❤️ and Zig</p>
+            <p>Production-ready, cross-platform game engine for next-generation applications</p>
+        </footer>
+    </div>
+</body>
+</html>

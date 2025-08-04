@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ray Tracing - MFS Engine Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            color: white;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+        }
+        
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+        
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .content {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin-bottom: 2.5rem;
+        }
+        
+        .section h2 {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+        
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .doc-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .doc-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .doc-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .doc-card h3 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            font-size: 1.3rem;
+        }
+        
+        .doc-card p {
+            color: #718096;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+        
+        .doc-card a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .doc-card a:hover {
+            color: #764ba2;
+        }
+        
+        .quick-start {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .quick-start h2 {
+            color: white;
+            border-bottom: 3px solid rgba(255,255,255,0.3);
+        }
+        
+        .code-block {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .feature {
+            background: rgba(255,255,255,0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .feature h4 {
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .feature ul {
+            list-style: none;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .feature li:before {
+            content: "✓ ";
+            color: #4ade80;
+            font-weight: bold;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 2rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+            
+            .doc-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Additional styles for markdown content */
+        h1, h2, h3, h4, h5, h6 {
+            color: #2d3748;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+        
+        h2 {
+            font-size: 2rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.3rem;
+        }
+        
+        h3 {
+            font-size: 1.5rem;
+        }
+        
+        h4 {
+            font-size: 1.3rem;
+        }
+        
+        p {
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+        
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+        }
+        
+        li {
+            margin-bottom: 0.5rem;
+        }
+        
+        code {
+            background: #f7fafc;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            color: #e53e3e;
+        }
+        
+        pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        
+        blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: #4a5568;
+            font-style: italic;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        
+        th {
+            background: #f7fafc;
+            font-weight: 600;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            color: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🎮 MFS Engine</div>
+            <div class="tagline">Multi-Platform Game Engine Documentation</div>
+            <div class="badges">
+                <span class="badge">Production Ready</span>
+                <span class="badge">Zig 0.12.0</span>
+                <span class="badge">Cross-Platform</span>
+                <span class="badge">Ray Tracing</span>
+                <span class="badge">Open Source</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <a href="index.html" class="back-link">← Back to Documentation Index</a>
+            
+            <div class="markdown-content">
+                <h1>MFS Engine - Ray Tracing Documentation</h1>
+<h2>Overview</h2>
+<p>The MFS Engine now includes comprehensive ray tracing support across multiple graphics backends, with particular emphasis on Vulkan 1.3 KHR ray tracing and DirectX Ray Tracing (DXR). This implementation follows modern ray tracing best practices and supports hardware-accelerated ray tracing on compatible GPUs.</p>
+<h2>Supported Backends</h2>
+<h3>Vulkan 1.3 Ray Tracing (VK_KHR_ray_tracing)</h3>
+<ul>
+<li><strong>Primary backend</strong> for cross-platform ray tracing</li>
+<li>Supports the latest Vulkan 1.3 ray tracing extensions</li>
+<li>Hardware-accelerated on RTX, RDNA2+, and Intel Arc GPUs</li>
+<li>HLSL to SPIR-V shader compilation via DXC</li>
+</ul>
+<h3>DirectX Ray Tracing (DXR)</h3>
+<ul>
+<li><strong>Windows-native</strong> ray tracing implementation</li>
+<li>Supports DXR 1.0 and DXR 1.1 features</li>
+<li>Direct HLSL shader support</li>
+<li>Optimized for Windows gaming and enterprise applications</li>
+</ul>
+<h3>Metal Ray Tracing</h3>
+<ul>
+<li><strong>macOS-native</strong> ray tracing implementation</li>
+<li>Supports Metal Performance Shaders ray tracing</li>
+<li>Hardware-accelerated on Apple Silicon and modern AMD GPUs</li>
+</ul>
+<h3>Software Fallback</h3>
+<ul>
+<li><strong>CPU-based</strong> ray tracing for compatibility</li>
+<li>Embree-based high-performance software ray tracing</li>
+<li>Automatic fallback when hardware acceleration is unavailable</li>
+</ul>
+<h2>Architecture</h2>
+<h3>Core Components</h3>
+<p><pre><code class="zig">// Main ray tracing context
+const RayTracingContext = struct {
+    allocator: std.mem.Allocator,
+    backend_type: BackendType,
+    capabilities: RayTracingCapabilities,
+    device_handle: *anyopaque,
+};
+
+// Acceleration structures
+const AccelerationStructure = struct {
+    handle: *anyopaque,
+    backend_type: BackendType,
+    as_type: AccelerationStructureType, // BLAS or TLAS
+    size: u64,
+    device_address: u64,
+};
+
+// Ray tracing pipeline
+const RayTracingPipelineState = struct {
+    raygen_shader: *anyopaque,
+    miss_shaders: []*anyopaque,
+    hit_groups: []HitGroup,
+    callable_shaders: []*anyopaque,
+    max_recursion_depth: u32,
+};</code></pre></p>
+<h3>Shader Compilation</h3>
+<p>The engine supports HLSL ray tracing shaders compiled to SPIR-V for Vulkan using Microsoft's DXC compiler: <pre><code class="bash"># Compile HLSL ray tracing shader to SPIR-V
+dxc.exe -T lib_6_4 raytrace.rchit.hlsl -spirv -Fo raytrace.rchit.spv -fvk-use-scalar-layout -fspv-extension="SPV_KHR_ray_tracing"</code></pre></p>
+<h2>Usage Examples</h2>
+<h3>Basic Ray Tracing Setup</h3>
+<p><pre><code class="zig">const std = @import("std");
+const mfs = @import("mfs");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    
+    // Initialize engine with ray tracing
+    const engine_config = mfs.EngineConfig{
+        .graphics = .{
+            .preferred_backend = .vulkan,
+            .enable_ray_tracing = true,
+        },
+    };
+    
+    const engine = try mfs.init(allocator, engine_config);
+    defer mfs.deinit(engine);
+    
+    // Initialize ray tracing
+    const rt_config = mfs.graphics.RayTracingConfig{
+        .enable_hardware_acceleration = true,
+        .max_recursion_depth = 8,
+    };
+    
+    const rt_context = try mfs.graphics.ray_tracing.init(
+        allocator,
+        rt_config,
+        engine.graphics.getDeviceHandle(),
+    );
+    defer mfs.graphics.ray_tracing.deinit(rt_context);
+    
+    // Create geometry
+    const vertices = [_]Vertex{
+        .{ .position = .{ -1, -1, 0 }, .normal = .{ 0, 0, 1 } },
+        .{ .position = .{  1, -1, 0 }, .normal = .{ 0, 0, 1 } },
+        .{ .position = .{  0,  1, 0 }, .normal = .{ 0, 0, 1 } },
+    };
+    
+    const indices = [_]u32{ 0, 1, 2 };
+    
+    // Create geometry description
+    const geometry_desc = mfs.graphics.GeometryDesc{
+        .geometry_type = .triangles,
+        .flags = .{ .opaque = true },
+        .vertex_buffer = &vertices,
+        .vertex_stride = @sizeOf(Vertex),
+        .vertex_format = .float3,
+        .vertex_count = vertices.len,
+        .index_buffer = &indices,
+        .index_format = .uint32,
+        .index_count = indices.len,
+    };
+    
+    // Build bottom-level acceleration structure
+    const build_flags = mfs.graphics.BuildFlags{
+        .prefer_fast_trace = true,
+    };
+    
+    const blas = try rt_context.createBottomLevelAS(
+        &[_]mfs.graphics.GeometryDesc{geometry_desc},
+        build_flags,
+    );
+    defer blas.deinit(allocator);
+    
+    // Create instance for top-level acceleration structure
+    const instance_desc = mfs.graphics.InstanceDesc{
+        .transform = mfs.math.Mat4.identity(),
+        .instance_id = 0,
+        .acceleration_structure_reference = blas.device_address,
+    };
+    
+    // Build top-level acceleration structure
+    const tlas = try rt_context.createTopLevelAS(
+        &[_]mfs.graphics.InstanceDesc{instance_desc},
+        build_flags,
+    );
+    defer tlas.deinit(allocator);
+    
+    std.log.info("Ray tracing setup complete!", .{});
+}</code></pre></p>
+<h3>Ray Tracing Shaders</h3>
+<p>#### Ray Generation Shader (HLSL) <pre><code class="hlsl">#include "raycommon.hlsl"
+
+[[vk::binding(0, 0)]] RaytracingAccelerationStructure topLevelAS;
+[[vk::binding(1, 0)]] RWTexture2D<float4> image;
+
+struct RayPayload {
+    float3 color;
+    int depth;
+};
+
+[shader("raygeneration")]
+void RayGenMain() {
+    const float2 pixelCenter = float2(DispatchRaysIndex().xy) + float2(0.5, 0.5);
+    const float2 inUV = pixelCenter / float2(DispatchRaysDimensions().xy);
+    float2 d = inUV * 2.0 - 1.0;
+    
+    float4 origin = float4(0, 0, -2, 1);
+    float4 target = float4(d.x, d.y, 0, 1);
+    float4 direction = normalize(target - origin);
+    
+    RayDesc ray;
+    ray.Origin = origin.xyz;
+    ray.Direction = direction.xyz;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+    
+    RayPayload payload;
+    payload.color = float3(0, 0, 0);
+    payload.depth = 0;
+    
+    TraceRay(topLevelAS, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 0, 0, ray, payload);
+    
+    image[DispatchRaysIndex().xy] = float4(payload.color, 1.0);
+}</code></pre> #### Miss Shader (HLSL) <pre><code class="hlsl">#include "raycommon.hlsl"
+
+struct RayPayload {
+    float3 color;
+    int depth;
+};
+
+[shader("miss")]
+void MissMain(inout RayPayload payload) {
+    // Sky color gradient
+    float3 unitDirection = normalize(WorldRayDirection());
+    float t = 0.5 * (unitDirection.y + 1.0);
+    payload.color = (1.0 - t) * float3(1.0, 1.0, 1.0) + t * float3(0.5, 0.7, 1.0);
+}</code></pre> #### Closest Hit Shader (HLSL) <pre><code class="hlsl">#include "raycommon.hlsl"
+
+struct RayPayload {
+    float3 color;
+    int depth;
+};
+
+struct Attributes {
+    float2 bary;
+};
+
+[shader("closesthit")]
+void ClosestHitMain(inout RayPayload payload, in Attributes attr) {
+    const float3 barycentrics = float3(1.0 - attr.bary.x - attr.bary.y, attr.bary.x, attr.bary.y);
+    
+    // Simple diffuse material
+    payload.color = float3(0.8, 0.8, 0.8) * barycentrics.x;
+}</code></pre></p>
+<h2>Performance Considerations</h2>
+<h3>Hardware Requirements</h3>
+<strong>Minimum Requirements:</strong>
+<ul>
+<li>NVIDIA RTX 20-series or newer</li>
+<li>AMD RDNA2 (RX 6000 series) or newer</li>
+<li>Intel Arc A-series</li>
+<li>Apple Silicon M1/M2 (for Metal backend)</li>
+</ul>
+<strong>Recommended:</strong>
+<ul>
+<li>NVIDIA RTX 30-series or newer</li>
+<li>AMD RDNA3 (RX 7000 series) or newer</li>
+<li>8GB+ VRAM for complex scenes</li>
+</ul>
+<h3>Optimization Guidelines</h3>
+<p>1. <strong>Acceleration Structure Optimization</strong></p>
+<ul>
+<li>Use <code>prefer_fast_trace</code> for static geometry</li>
+<li>Use <code>prefer_fast_build</code> for dynamic geometry</li>
+<li>Enable compaction for memory-constrained scenarios</li>
+</ul>
+<p>2. <strong>Shader Optimization</strong></p>
+<ul>
+<li>Minimize ray recursion depth (≤8 levels)</li>
+<li>Use early ray termination when possible</li>
+<li>Optimize shader binding table layout</li>
+</ul>
+<p>3. <strong>Memory Management</strong></p>
+<ul>
+<li>Batch acceleration structure builds</li>
+<li>Reuse scratch buffers when possible</li>
+<li>Monitor VRAM usage for large scenes</li>
+</ul>
+<h2>Cross-Platform Compatibility</h2>
+<h3>Vulkan 1.3 Extensions Required</h3>
+<p><pre><code class="cpp">VK_KHR_acceleration_structure
+VK_KHR_ray_tracing_pipeline
+VK_KHR_ray_query
+VK_KHR_deferred_host_operations
+VK_KHR_buffer_device_address
+VK_KHR_spirv_1_4
+VK_KHR_shader_float_controls</code></pre></p>
+<h3>DirectX Requirements</h3>
+<ul>
+<li>Windows 10 version 1903 or later</li>
+<li>DirectX 12 Ultimate compatible driver</li>
+<li>DXR 1.1 support recommended</li>
+</ul>
+<h3>Metal Requirements</h3>
+<ul>
+<li>macOS 12.0 or later</li>
+<li>Metal 3.0 compatible hardware</li>
+<li>Apple Silicon or AMD RDNA2+ GPU</li>
+</ul>
+<h2>Future Enhancements</h2>
+<h3>Planned Features</h3>
+<p>1. <strong>Ray Query Support</strong></p>
+<ul>
+<li>Inline ray tracing in compute shaders</li>
+<li>Hybrid rasterization + ray tracing techniques</li>
+</ul>
+<p>2. <strong>Mesh Shaders Integration</strong></p>
+<ul>
+<li>Modern geometry pipeline support</li>
+<li>Optimized culling and LOD</li>
+</ul>
+<p>3. <strong>Variable Rate Shading</strong></p>
+<ul>
+<li>Adaptive quality for VR/AR applications</li>
+<li>Performance scaling for mobile platforms</li>
+</ul>
+<p>4. <strong>Real-Time Global Illumination</strong></p>
+<ul>
+<li>Multi-bounce lighting</li>
+<li>Temporal accumulation</li>
+<li>Denoising integration</li>
+</ul>
+<h3>Advanced Techniques</h3>
+<ul>
+<li><strong>ReSTIR</strong> (Reservoir-based Spatiotemporal Importance Resampling)</li>
+<li><strong>RTXGI</strong> integration for dynamic global illumination</li>
+<li><strong>Hardware-accelerated denoising</strong> (DLSS, FSR)</li>
+<li><strong>Mesh shaders</strong> for modern geometry processing</li>
+</ul>
+<h2>Troubleshooting</h2>
+<h3>Common Issues</h3>
+<p>1. <strong>Driver Compatibility</strong></p>
+<ul>
+<li>Ensure latest GPU drivers are installed</li>
+<li>Verify ray tracing support in device capabilities</li>
+</ul>
+<p>2. <strong>Memory Issues</strong></p>
+<ul>
+<li>Monitor acceleration structure sizes</li>
+<li>Use memory debugging tools for leaks</li>
+</ul>
+<p>3. <strong>Performance Problems</strong></p>
+<ul>
+<li>Profile shader execution times</li>
+<li>Optimize acceleration structure builds</li>
+<li>Reduce ray recursion depth</li>
+</ul>
+<h3>Debug Tools</h3>
+<ul>
+<li><strong>NVIDIA Nsight Graphics</strong> for RTX debugging</li>
+<li><strong>AMD Radeon GPU Profiler</strong> for RDNA debugging</li>
+<li><strong>Vulkan Validation Layers</strong> for API validation</li>
+<li><strong>PIX</strong> for DirectX ray tracing debugging</li>
+</ul>
+<h2>References</h2>
+<ul>
+<li><a href="https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/VK_KHR_ray_tracing_pipeline.html">Vulkan Ray Tracing Specification</a></li>
+<li><a href="https://docs.microsoft.com/en-us/windows/win32/direct3d12/direct3d-12-raytracing">DirectX Ray Tracing Documentation</a></li>
+<li><a href="https://developer.nvidia.com/blog/bringing-hlsl-ray-tracing-to-vulkan/">NVIDIA Ray Tracing Best Practices</a></li>
+<li><a href="https://developer.apple.com/documentation/metalperformanceshaders/metal_for_accelerating_ray_tracing">Metal Ray Tracing Guide</a></li>
+</ul>
+<h2>Examples</h2>
+<p>The <code>examples/ray_tracing_demo/</code> directory contains a comprehensive ray tracing demonstration that showcases:</p>
+<ul>
+<li>Multi-backend ray tracing support</li>
+<li>Cornell box scene rendering</li>
+<li>HLSL shader compilation</li>
+<li>Real-time ray tracing pipeline</li>
+<li>Performance monitoring and debugging</li>
+</ul>
+<p>Run the demo with: <pre><code class="bash">zig build run-ray-tracing-demo</code></pre> This implementation represents a state-of-the-art ray tracing system that leverages the latest GPU hardware capabilities while maintaining broad compatibility across different platforms and graphics APIs.</p>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2024 MFS Engine - Built with ❤️ and Zig</p>
+            <p>Production-ready, cross-platform game engine for next-generation applications</p>
+        </footer>
+    </div>
+</body>
+</html>
