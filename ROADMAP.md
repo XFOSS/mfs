@@ -64,6 +64,23 @@ Build a modern, high-performance, cross-platform game engine in Zig with multipl
 - [ ] **Ray Tracing** - Hardware-accelerated ray tracing
 - [ ] **Compute Shaders** - GPU compute integration
 
+### Phase 7: Platform Expansion 📋 FUTURE (2025+)
+**Focus**: Extended platform support and advanced features
+
+- [ ] **Linux Window System** - X11/Wayland backend implementation
+- [ ] **macOS Platform** - Cocoa/Carbon window system and Metal optimization
+- [ ] **Mobile Platforms** - iOS/Android native ports with touch optimization
+- [ ] **WebGPU Completion** - Full WebGPU API implementation
+- [ ] **Asset Pipeline GUI** - Visual asset processor and management tools
+
+### Phase 8: Advanced Audio & AI 📋 FUTURE (2025+)
+**Focus**: Next-generation audio and AI capabilities
+
+- [ ] **Physically-Based Audio** - Real-time acoustic simulation and environmental modeling
+- [ ] **Advanced AI Behaviors** - Neural network integration and procedural AI systems
+- [ ] **Cloud Rendering** - Remote rendering capabilities and distributed clusters
+- [ ] **Machine Learning** - GPU-accelerated ML inference and training
+
 ## Technical Priorities
 
 ### Performance Targets
@@ -106,6 +123,18 @@ Build a modern, high-performance, cross-platform game engine in Zig with multipl
 - Implement AI and networking features
 - Add XR/VR support
 - Optimize for production deployment
+
+### 2025: Platform Expansion
+- Linux window system implementation
+- macOS platform support
+- WebGPU backend completion
+- Asset pipeline GUI tools
+
+### 2025+: Advanced Features
+- Physically-based audio system
+- Advanced AI behaviors
+- Cloud rendering support
+- Mobile platform support
 
 ## Success Metrics
 

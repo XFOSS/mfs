@@ -193,17 +193,69 @@ Areas of interest:
 
 ## 🔄 Roadmap
 
-### Near Term
-- [ ] Linux window system implementation
-- [ ] macOS platform support
-- [ ] WebGPU backend completion
-- [ ] Asset pipeline GUI tools
+### 🚀 Near Term (Q1-Q2 2024)
+- [ ] **Linux Window System Implementation**
+  - X11/Wayland backend support
+  - Native Linux window management
+  - Input handling for Linux desktop
+- [ ] **macOS Platform Support**
+  - Cocoa/Carbon window system
+  - Metal graphics backend optimization
+  - macOS-specific input handling
+- [ ] **WebGPU Backend Completion**
+  - Full WebGPU API implementation
+  - Compute shader support
+  - Cross-platform WebGPU compatibility
+- [ ] **Asset Pipeline GUI Tools**
+  - Visual asset processor
+  - Real-time asset preview
+  - Drag-and-drop asset management
 
-### Long Term
-- [ ] Physically-based audio
-- [ ] Advanced AI behaviors
-- [ ] Cloud rendering support
-- [ ] Mobile platform support
+### 🎯 Medium Term (Q3-Q4 2024)
+- [ ] **Enhanced Graphics Features**
+  - Ray tracing optimization
+  - Advanced post-processing effects
+  - Real-time global illumination
+- [ ] **Physics System Improvements**
+  - Soft body physics
+  - Fluid simulation
+  - Advanced collision detection
+- [ ] **Audio System Enhancement**
+  - 3D spatial audio improvements
+  - Audio effects and filters
+  - Multi-channel audio support
+
+### 🌟 Long Term (2025+)
+- [ ] **Physically-Based Audio**
+  - Real-time acoustic simulation
+  - Environmental audio modeling
+  - Advanced audio propagation
+- [ ] **Advanced AI Behaviors**
+  - Neural network integration
+  - Procedural AI systems
+  - Machine learning optimization
+- [ ] **Cloud Rendering Support**
+  - Remote rendering capabilities
+  - Distributed rendering clusters
+  - Cloud-based asset streaming
+- [ ] **Mobile Platform Support**
+  - iOS/Android native ports
+  - Mobile-optimized rendering
+  - Touch interface enhancements
+
+### 🔧 Technical Improvements
+- [ ] **Performance Optimization**
+  - Multi-threading improvements
+  - Memory management optimization
+  - GPU utilization enhancement
+- [ ] **Developer Experience**
+  - Enhanced debugging tools
+  - Visual scripting system
+  - Plugin architecture
+- [ ] **Documentation & Examples**
+  - Comprehensive tutorials
+  - Advanced example projects
+  - Community showcase
 
 ## 📄 License
 
