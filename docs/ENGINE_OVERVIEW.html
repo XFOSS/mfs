@@ -334,6 +334,8 @@
             <a href="index.html" class="back-link">← Back to Documentation Index</a>
             
             <div class="markdown-content">
+                <!-- Interactive Demo -->
+                <div id="mfs-demo-container" style="margin: 2rem 0;"></div>
                 <h1>MFS Engine Overview</h1>
 <h2>Architecture</h2>
 <p>MFS is built on a modular layered architecture designed for flexibility and performance. The engine is organized into several major subsystems that can work independently or together to create sophisticated applications.</p>
@@ -416,5 +418,17 @@
             <p>Production-ready, cross-platform game engine for next-generation applications</p>
         </footer>
     </div>
+    
+    <!-- Load MFS Engine Demo -->
+    <script src="../web/spinning_cube_embed.js"></script>
+    <script>
+        // Initialize the demo when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const demoContainer = document.getElementById('mfs-demo-container');
+            if (demoContainer && window.MFSEngineDemo) {
+                window.MFSEngineDemo.create(demoContainer);
+            }
+        });
+    </script>
 </body>
 </html>

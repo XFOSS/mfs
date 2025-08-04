@@ -242,6 +242,9 @@ zig build
 zig build run-example
                 </div>
                 
+                <!-- Interactive Demo -->
+                <div id="mfs-demo-container"></div>
+                
                 <div class="features-grid">
                     <div class="feature">
                         <h4>🎨 Graphics</h4>
@@ -392,5 +395,17 @@ zig build run-example
             <p>Production-ready, cross-platform game engine for next-generation applications</p>
         </footer>
     </div>
+    
+    <!-- Load MFS Engine Demo -->
+    <script src="../web/spinning_cube_embed.js"></script>
+    <script>
+        // Initialize the demo when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const demoContainer = document.getElementById('mfs-demo-container');
+            if (demoContainer && window.MFSEngineDemo) {
+                window.MFSEngineDemo.create(demoContainer);
+            }
+        });
+    </script>
 </body>
 </html>

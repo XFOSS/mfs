@@ -334,6 +334,9 @@
             <a href="index.html" class="back-link">← Back to Documentation Index</a>
             
             <div class="markdown-content">
+                <!-- Interactive Demo -->
+                <div id="mfs-demo-container" style="margin: 2rem 0;"></div>
+                
                 <h1>Enhanced Physics System</h1>
 <p>This directory contains an improved physics simulation system for the MFS engine. The system has been reorganized and enhanced for better performance, flexibility, and feature support.</p>
 <h2>Key Improvements</h2>
@@ -466,5 +469,17 @@ if (world.rigid_body_manager) |*rbm| {
             <p>Production-ready, cross-platform game engine for next-generation applications</p>
         </footer>
     </div>
+    
+    <!-- Load MFS Engine Demo -->
+    <script src="../web/spinning_cube_embed.js"></script>
+    <script>
+        // Initialize the demo when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const demoContainer = document.getElementById('mfs-demo-container');
+            if (demoContainer && window.MFSEngineDemo) {
+                window.MFSEngineDemo.create(demoContainer);
+            }
+        });
+    </script>
 </body>
 </html>

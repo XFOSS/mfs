@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MFS Engine - Spinning Cube Demo</title>
+    <style>
+        .demo-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .demo-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+        }
+
+        .demo-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .demo-header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .canvas-container {
+            position: relative;
+            background: #000;
+            width: 100%;
+            height: 400px;
+        }
+
+        #demo-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .demo-controls {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .demo-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9rem;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.8rem;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .demo-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .demo-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s ease;
+        }
+
+        .demo-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .demo-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: #ff6b6b;
+            color: white;
+            padding: 10px 20px;
+            margin: 10px 0;
+            border-radius: 5px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .demo-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .demo-stats {
+                justify-content: space-around;
+            }
+
+            .demo-buttons {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h3>🎮 MFS Engine Spinning Cube Demo</h3>
+            <p>Real-time 3D rendering powered by WebAssembly</p>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="demo-canvas" width="800" height="400"></canvas>
+            <div id="loading-overlay" class="loading-overlay">
+                <div class="spinner"></div>
+                <div>Loading MFS Engine...</div>
+            </div>
+        </div>
+
+        <div class="demo-controls">
+            <div class="demo-stats">
+                <div class="stat-item">
+                    <div class="stat-label">FPS</div>
+                    <div class="stat-value" id="fps-display">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Memory</div>
+                    <div class="stat-value" id="memory-display">0 MB</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Status</div>
+                    <div class="stat-value" id="status-display">Loading</div>
+                </div>
+            </div>
+
+            <div class="demo-buttons">
+                <button id="start-btn" class="demo-btn" disabled>Start</button>
+                <button id="pause-btn" class="demo-btn" disabled>Pause</button>
+                <button id="reset-btn" class="demo-btn" disabled>Reset</button>
+            </div>
+        </div>
+
+        <div id="error-message" class="error-message"></div>
+    </div>
+
+    <script>
+        // Demo state
+        let Module = {};
+        let engineRunning = false;
+        let engineInitialized = false;
+
+        // UI elements
+        const canvas = document.getElementById('demo-canvas');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const startBtn = document.getElementById('start-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const fpsDisplay = document.getElementById('fps-display');
+        const memoryDisplay = document.getElementById('memory-display');
+        const statusDisplay = document.getElementById('status-display');
+        const errorMessage = document.getElementById('error-message');
+
+        // Performance tracking
+        let lastTime = performance.now();
+        let frameCount = 0;
+
+        function updateFPS(fps) {
+            fpsDisplay.textContent = Math.round(fps);
+        }
+
+        function updateMemoryUsage(bytes) {
+            const mb = (bytes / (1024 * 1024)).toFixed(1);
+            memoryDisplay.textContent = mb + ' MB';
+        }
+
+        function updateStatus(status) {
+            statusDisplay.textContent = status;
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            updateStatus('Error');
+        }
+
+        function hideLoading() {
+            loadingOverlay.classList.add('hidden');
+        }
+
+        // Module configuration
+        Module = {
+            canvas: canvas,
+            print: function(text) {
+                console.log('MFS Engine:', text);
+            },
+            printErr: function(text) {
+                console.error('MFS Engine Error:', text);
+                showError(text);
+            },
+            onRuntimeInitialized: function() {
+                console.log('MFS Engine WASM Runtime initialized');
+                
+                try {
+                    // Initialize the engine
+                    if (Module._initialize_spinning_cube_demo) {
+                        const result = Module._initialize_spinning_cube_demo();
+                        if (result === 0) {
+                            engineInitialized = true;
+                            hideLoading();
+                            updateStatus('Ready');
+                            startBtn.disabled = false;
+                            resetBtn.disabled = false;
+                        } else {
+                            showError('Failed to initialize demo: ' + result);
+                        }
+                    } else {
+                        // Fallback to basic WebGL demo if WASM not available
+                        initializeWebGLDemo();
+                    }
+                } catch (e) {
+                    console.log('WASM not available, using WebGL fallback');
+                    initializeWebGLDemo();
+                }
+            },
+            locateFile: function(path, prefix) {
+                if (path.endsWith('.wasm')) {
+                    return 'mfs-spinning-cube.wasm';
+                }
+                return prefix + path;
+            }
+        };
+
+        // WebGL fallback demo
+        function initializeWebGLDemo() {
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!gl) {
+                showError('WebGL not supported');
+                return;
+            }
+
+            // Simple spinning cube with WebGL
+            const vertexShaderSource = `
+                attribute vec3 position;
+                attribute vec3 color;
+                uniform mat4 modelViewMatrix;
+                uniform mat4 projectionMatrix;
+                varying vec3 vColor;
+                void main() {
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    vColor = color;
+                }
+            `;
+
+            const fragmentShaderSource = `
+                precision mediump float;
+                varying vec3 vColor;
+                void main() {
+                    gl_FragColor = vec4(vColor, 1.0);
+                }
+            `;
+
+            // Create shaders
+            const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+            const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+            const program = createProgram(gl, vertexShader, fragmentShader);
+
+            // Cube vertices
+            const vertices = new Float32Array([
+                // Front face
+                -1, -1,  1,  1, 0, 0,
+                 1, -1,  1,  0, 1, 0,
+                 1,  1,  1,  0, 0, 1,
+                -1,  1,  1,  1, 1, 0,
+                // Back face
+                -1, -1, -1,  1, 0, 1,
+                 1, -1, -1,  0, 1, 1,
+                 1,  1, -1,  1, 1, 1,
+                -1,  1, -1,  0, 0, 0,
+            ]);
+
+            const indices = new Uint16Array([
+                0, 1, 2,  0, 2, 3,  // Front
+                1, 5, 6,  1, 6, 2,  // Right
+                5, 4, 7,  5, 7, 6,  // Back
+                4, 0, 3,  4, 3, 7,  // Left
+                3, 2, 6,  3, 6, 7,  // Top
+                4, 5, 1,  4, 1, 0   // Bottom
+            ]);
+
+            // Create buffers
+            const vertexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+            const indexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+            // Set up attributes
+            const positionLocation = gl.getAttribLocation(program, 'position');
+            const colorLocation = gl.getAttribLocation(program, 'color');
+
+            gl.enableVertexAttribArray(positionLocation);
+            gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 24, 0);
+
+            gl.enableVertexAttribArray(colorLocation);
+            gl.vertexAttribPointer(colorLocation, 3, gl.FLOAT, false, 24, 12);
+
+            // Get uniform locations
+            const modelViewMatrixLocation = gl.getUniformLocation(program, 'modelViewMatrix');
+            const projectionMatrixLocation = gl.getUniformLocation(program, 'projectionMatrix');
+
+            // Set up viewport
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.enable(gl.DEPTH_TEST);
+
+            // Animation variables
+            let rotation = 0;
+            let lastTime = 0;
+
+            // Render function
+            function render(currentTime) {
+                if (!engineRunning) return;
+
+                const deltaTime = currentTime - lastTime;
+                rotation += deltaTime * 0.001;
+
+                // Clear
+                gl.clearColor(0.1, 0.1, 0.2, 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+                // Use program
+                gl.useProgram(program);
+
+                // Set up matrices
+                const modelViewMatrix = createModelViewMatrix(rotation);
+                const projectionMatrix = createProjectionMatrix();
+
+                gl.uniformMatrix4fv(modelViewMatrixLocation, false, modelViewMatrix);
+                gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
+
+                // Draw
+                gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+
+                // Update stats
+                frameCount++;
+                if (currentTime - lastTime >= 1000) {
+                    const fps = (frameCount * 1000) / deltaTime;
+                    updateFPS(fps);
+                    frameCount = 0;
+                    lastTime = currentTime;
+                }
+
+                requestAnimationFrame(render);
+            }
+
+            // Start rendering
+            engineInitialized = true;
+            hideLoading();
+            updateStatus('Ready (WebGL)');
+            startBtn.disabled = false;
+            resetBtn.disabled = false;
+
+            // Store render function for start/pause
+            window.webglRender = render;
+        }
+
+        // WebGL helper functions
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('Shader compilation error:', gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        function createProgram(gl, vertexShader, fragmentShader) {
+            const program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                console.error('Program linking error:', gl.getProgramInfoLog(program));
+                gl.deleteProgram(program);
+                return null;
+            }
+            return program;
+        }
+
+        function createModelViewMatrix(rotation) {
+            const matrix = new Float32Array(16);
+            const cos = Math.cos(rotation);
+            const sin = Math.sin(rotation);
+            
+            matrix[0] = cos; matrix[1] = 0; matrix[2] = sin; matrix[3] = 0;
+            matrix[4] = 0; matrix[5] = 1; matrix[6] = 0; matrix[7] = 0;
+            matrix[8] = -sin; matrix[9] = 0; matrix[10] = cos; matrix[11] = 0;
+            matrix[12] = 0; matrix[13] = 0; matrix[14] = -5; matrix[15] = 1;
+            
+            return matrix;
+        }
+
+        function createProjectionMatrix() {
+            const matrix = new Float32Array(16);
+            const aspect = canvas.width / canvas.height;
+            const fov = Math.PI / 4;
+            const near = 0.1;
+            const far = 100;
+            
+            const f = 1.0 / Math.tan(fov / 2);
+            matrix[0] = f / aspect; matrix[1] = 0; matrix[2] = 0; matrix[3] = 0;
+            matrix[4] = 0; matrix[5] = f; matrix[6] = 0; matrix[7] = 0;
+            matrix[8] = 0; matrix[9] = 0; matrix[10] = (far + near) / (near - far); matrix[11] = -1;
+            matrix[12] = 0; matrix[13] = 0; matrix[14] = (2 * far * near) / (near - far); matrix[15] = 0;
+            
+            return matrix;
+        }
+
+        // Button event handlers
+        startBtn.addEventListener('click', function() {
+            if (engineInitialized && !engineRunning) {
+                engineRunning = true;
+                updateStatus('Running');
+                startBtn.disabled = true;
+                pauseBtn.disabled = false;
+
+                if (Module._start_spinning_cube_demo) {
+                    Module._start_spinning_cube_demo();
+                } else if (window.webglRender) {
+                    requestAnimationFrame(window.webglRender);
+                }
+            }
+        });
+
+        pauseBtn.addEventListener('click', function() {
+            if (engineRunning) {
+                engineRunning = false;
+                updateStatus('Paused');
+                startBtn.disabled = false;
+                pauseBtn.disabled = true;
+
+                if (Module._pause_spinning_cube_demo) {
+                    Module._pause_spinning_cube_demo();
+                }
+            }
+        });
+
+        resetBtn.addEventListener('click', function() {
+            if (engineInitialized) {
+                if (Module._reset_spinning_cube_demo) {
+                    Module._reset_spinning_cube_demo();
+                }
+                updateStatus('Reset');
+                engineRunning = false;
+                startBtn.disabled = false;
+                pauseBtn.disabled = true;
+            }
+        });
+
+        // Performance monitoring
+        function updatePerformanceStats() {
+            const currentTime = performance.now();
+            
+            if (currentTime - lastTime >= 1000) {
+                if (performance.memory) {
+                    updateMemoryUsage(performance.memory.usedJSHeapSize);
+                }
+                lastTime = currentTime;
+            }
+
+            if (engineRunning) {
+                requestAnimationFrame(updatePerformanceStats);
+            }
+        }
+
+        // Start performance monitoring
+        updatePerformanceStats();
+
+        // Resize handling
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+
+            if (Module._web_resize && engineInitialized) {
+                Module._web_resize(container.clientWidth, container.clientHeight);
+            }
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // Initialize
+        updateStatus('Loading...');
+    </script>
+
+    <!-- Load WASM module (optional) -->
+    <script>
+        // Try to load WASM module, fallback to WebGL if not available
+        const script = document.createElement('script');
+        script.src = 'mfs-spinning-cube.js';
+        script.onerror = function() {
+            console.log('WASM module not available, using WebGL fallback');
+            // Trigger initialization without WASM
+            setTimeout(() => {
+                if (!engineInitialized) {
+                    initializeWebGLDemo();
+                }
+            }, 100);
+        };
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>
