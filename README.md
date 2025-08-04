@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Zig Version](https://img.shields.io/badge/Zig-0.12.0-orange.svg)](https://ziglang.org/)
 [![Build Status](https://img.shields.io/badge/Build-Passing-green.svg)](build.zig)
-[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)](PRODUCTION_READINESS_FINAL_ASSESSMENT.md)
+[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)](docs/ENGINE_OVERVIEW.html)
 
 A high-performance, cross-platform game engine written in Zig, featuring modern rendering capabilities, comprehensive physics simulation, and advanced systems for creating next-generation games and applications.
 
@@ -16,7 +16,7 @@ The MFS Engine has achieved **production-ready status** with:
 - ✅ Comprehensive testing and benchmarking
 - ✅ Professional documentation and coding standards
 
-See [Production Readiness Assessment](PRODUCTION_READINESS_FINAL_ASSESSMENT.md) for details.
+See [Engine Overview](docs/ENGINE_OVERVIEW.html) for details.
 
 ## ✨ Key Features
 
@@ -155,7 +155,7 @@ zig build docs
 
 ### Coding Standards
 
-We follow strict coding standards to ensure quality and consistency. See [CODING_STANDARDS.md](docs/CODING_STANDARDS.md) for details.
+We follow strict coding standards to ensure quality and consistency. See [Coding Standards](docs/CODING_STANDARDS.html) for details.
 
 Key principles:
 - Explicit error handling (no `catch unreachable`)
@@ -171,11 +171,11 @@ The codebase has undergone significant refactoring:
 - ✅ Added Windows platform support
 - ✅ Created comprehensive documentation
 
-See [REFACTORING_PROGRESS.md](REFACTORING_PROGRESS.md) for details.
+See [Refactoring Roadmap](REFACTORING_ROADMAP_FILEBYFILE.md) for details.
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
+We welcome contributions! Please see [Contributing Guidelines](docs/CONTRIBUTING.html) for guidelines.
 
 Areas of interest:
 - Platform implementations (Linux X11/Wayland, macOS Cocoa)
@@ -185,11 +185,11 @@ Areas of interest:
 
 ## 📚 Documentation
 
-- [API Reference](docs/API_REFERENCE.md)
-- [Architecture Overview](docs/ENGINE_OVERVIEW.md)
-- [Graphics Backends](docs/BACKENDS.md)
-- [Migration Guide](docs/MIGRATION_GUIDE.md)
-- [Production Deployment](PRODUCTION_DEPLOYMENT_GUIDE.md)
+- [API Reference](docs/API_REFERENCE.html)
+- [Architecture Overview](docs/ENGINE_OVERVIEW.html)
+- [Graphics Backends](docs/BACKENDS.html)
+- [Migration Guide](docs/MIGRATION_GUIDE.html)
+- [Getting Started](docs/README.html)
 
 ## 🔄 Roadmap
 

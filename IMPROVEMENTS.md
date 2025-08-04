@@ -102,7 +102,7 @@ This document summarizes the improvements made to make the MFS Engine codebase m
 - `src/graphics/backends/vulkan/ray_tracing.zig` - Vulkan 1.3 implementation
 - `src/graphics/mod.zig` - Added ray tracing exports
 - `examples/ray_tracing_demo/main.zig` - Comprehensive demo
-- `docs/RAY_TRACING.md` - Complete documentation
+- `docs/RAY_TRACING.html` - Complete documentation
 
 ## ✅ NEW: Compilation Fixes and Code Quality Improvements (December 2024)
 
@@ -275,7 +275,7 @@ The codebase is now significantly more maintainable, with essential functionalit
 - `src/graphics/backends/vulkan/ray_tracing.zig` - Vulkan 1.3 implementation
 - `src/graphics/mod.zig` - Added ray tracing exports
 - `examples/ray_tracing_demo/main.zig` - Comprehensive demo
-- `docs/RAY_TRACING.md` - Complete documentation
+- `docs/RAY_TRACING.html` - Complete documentation
 
 ### ✅ Source Code Organization (COMPLETED)
 
