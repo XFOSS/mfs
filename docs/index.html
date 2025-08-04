@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MFS Engine Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            color: white;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+        }
+        
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+        
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .content {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin-bottom: 2.5rem;
+        }
+        
+        .section h2 {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+        
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .doc-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .doc-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .doc-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .doc-card h3 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            font-size: 1.3rem;
+        }
+        
+        .doc-card p {
+            color: #718096;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+        
+        .doc-card a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .doc-card a:hover {
+            color: #764ba2;
+        }
+        
+        .quick-start {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .quick-start h2 {
+            color: white;
+            border-bottom: 3px solid rgba(255,255,255,0.3);
+        }
+        
+        .code-block {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .feature {
+            background: rgba(255,255,255,0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .feature h4 {
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .feature ul {
+            list-style: none;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .feature li:before {
+            content: "✓ ";
+            color: #4ade80;
+            font-weight: bold;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 2rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+            
+            .doc-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🎮 MFS Engine</div>
+            <div class="tagline">Multi-Platform Game Engine Documentation</div>
+            <div class="badges">
+                <span class="badge">Production Ready</span>
+                <span class="badge">Zig 0.12.0</span>
+                <span class="badge">Cross-Platform</span>
+                <span class="badge">Ray Tracing</span>
+                <span class="badge">Open Source</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <div class="quick-start">
+                <h2>🚀 Quick Start</h2>
+                <p>Get started with MFS Engine in minutes:</p>
+                <div class="code-block">
+# Clone the repository
+git clone https://github.com/XFOSS/mfs.git
+cd mfs
+
+# Build the engine
+zig build
+
+# Run examples
+zig build run-example
+                </div>
+                
+                <div class="features-grid">
+                    <div class="feature">
+                        <h4>🎨 Graphics</h4>
+                        <ul>
+                            <li>Vulkan, DirectX 12, Metal</li>
+                            <li>Hardware Ray Tracing</li>
+                            <li>Compute Shaders</li>
+                            <li>PBR Rendering</li>
+                        </ul>
+                    </div>
+                    <div class="feature">
+                        <h4>🌊 Physics</h4>
+                        <ul>
+                            <li>Rigid Body Dynamics</li>
+                            <li>10,000+ Objects</li>
+                            <li>Collision Detection</li>
+                            <li>Constraints System</li>
+                        </ul>
+                    </div>
+                    <div class="feature">
+                        <h4>🎮 Core Systems</h4>
+                        <ul>
+                            <li>Entity Component System</li>
+                            <li>Asset Pipeline</li>
+                            <li>3D Spatial Audio</li>
+                            <li>Cross-platform Input</li>
+                        </ul>
+                    </div>
+                    <div class="feature">
+                        <h4>🧠 Advanced</h4>
+                        <ul>
+                            <li>Neural Networks</li>
+                            <li>Voxel Engine</li>
+                            <li>VR/XR Support</li>
+                            <li>Networking</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>📚 Core Documentation</h2>
+                <div class="doc-grid">
+                    <div class="doc-card">
+                        <h3>🏗️ Engine Overview</h3>
+                        <p>High-level architecture and design principles of the MFS Engine</p>
+                        <a href="ENGINE_OVERVIEW.md">Read Documentation →</a>
+                    </div>
+                    
+                    <div class="doc-card">
+                        <h3>📖 API Reference</h3>
+                        <p>Complete API documentation with examples and usage patterns</p>
+                        <a href="API_REFERENCE.md">View API Docs →</a>
+                    </div>
+                    
+                    <div class="doc-card">
+                        <h3>🔧 API Guide</h3>
+                        <p>Quick API reference and common usage patterns</p>
+                        <a href="API.md">Quick Reference →</a>
+                    </div>
+                    
+                    <div class="doc-card">
+                        <h3>🤝 Contributing</h3>
+                        <p>Guidelines for contributing to the MFS Engine project</p>
+                        <a href="CONTRIBUTING.md">Contribute →</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🎨 Graphics & Rendering</h2>
+                <div class="doc-grid">
+                    <div class="doc-card">
+                        <h3>🖥️ Rendering Backends</h3>
+                        <p>Multi-platform rendering backend implementations and architecture</p>
+                        <a href="BACKENDS.md">Learn More →</a>
+                    </div>
+                    
+                    <div class="doc-card">
+                        <h3>✨ Ray Tracing</h3>
+                        <p>Hardware-accelerated ray tracing implementation and usage</p>
+                        <a href="RAY_TRACING.md">Explore Ray Tracing →</a>
+                    </div>
+                    
+                    <div class="doc-card">
+                        <h3>🌐 WebAssembly + DirectX12</h3>
+                        <p>Advanced WebAssembly integration with DirectX12 backend</p>
+                        <a href="WASM_DIRECTX12_INTEGRATION.md">Technical Details →</a>
+                    </div>
+                    
+                    <div class="doc-card">
+                        <h3>🔄 OpenGL Fallback</h3>
+                        <p>OpenGL fallback solution for legacy hardware support</p>
+                        <a href="OPENGL_FALLBACK_SOLUTION.md">Implementation →</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🛠️ Development</h2>
+                <div class="doc-grid">
+                    <div class="doc-card">
+                        <h3>📏 Coding Standards</h3>
+                        <p>Code style guidelines and best practices for the project</p>
+                        <a href="CODING_STANDARDS.md">Style Guide →</a>
+                    </div>
+                    
+                    <div class="doc-card">
+                        <h3>🔄 Migration Guide</h3>
+                        <p>Guide for migrating between different versions of the engine</p>
+                        <a href="MIGRATION_GUIDE.md">Migration Steps →</a>
+                    </div>
+                    
+                    <div class="doc-card">
+                        <h3>📋 Getting Started</h3>
+                        <p>Detailed setup instructions and first steps with the engine</p>
+                        <a href="README.md">Get Started →</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🔗 External Resources</h2>
+                <div class="doc-grid">
+                    <div class="doc-card">
+                        <h3>📊 GitHub Repository</h3>
+                        <p>Source code, issues, and project management</p>
+                        <a href="https://github.com/XFOSS/mfs" target="_blank">View on GitHub →</a>
+                    </div>
+                    
+                    <div class="doc-card">
+                        <h3>🦎 Zig Language</h3>
+                        <p>Official documentation for the Zig programming language</p>
+                        <a href="https://ziglang.org/documentation/" target="_blank">Zig Docs →</a>
+                    </div>
+                    
+                    <div class="doc-card">
+                        <h3>📝 License</h3>
+                        <p>MIT License - free for commercial and personal use</p>
+                        <a href="https://github.com/XFOSS/mfs/blob/main/LICENSE" target="_blank">View License →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2024 MFS Engine - Built with ❤️ and Zig</p>
+            <p>Production-ready, cross-platform game engine for next-generation applications</p>
+        </footer>
+    </div>
+</body>
+</html>
