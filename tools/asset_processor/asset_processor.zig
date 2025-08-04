@@ -351,10 +351,44 @@ const AssetProcessor = struct {
     }
 
     fn processShader(self: *AssetProcessor, input_path: []const u8, relative_path: []const u8) !void {
+        // Read the shader source
+        const shader_source = try std.fs.cwd().readFileAlloc(self.allocator, input_path, 1024 * 1024);
+        defer self.allocator.free(shader_source);
+
+        // Determine shader type from file extension
+        const ext = std.fs.path.extension(relative_path);
+        var shader_type: []const u8 = "unknown";
+        
+        if (std.mem.eql(u8, ext, ".vert")) {
+            shader_type = "vertex";
+        } else if (std.mem.eql(u8, ext, ".frag")) {
+            shader_type = "fragment";
+        } else if (std.mem.eql(u8, ext, ".comp")) {
+            shader_type = "compute";
+        } else if (std.mem.eql(u8, ext, ".geom")) {
+            shader_type = "geometry";
+        } else if (std.mem.eql(u8, ext, ".tesc")) {
+            shader_type = "tessellation_control";
+        } else if (std.mem.eql(u8, ext, ".tese")) {
+            shader_type = "tessellation_evaluation";
+        }
+
+        std.log.info("Processing {s} shader: {s}", .{ shader_type, relative_path });
+
         // For now, just copy the shader file
+        // In a full implementation, this would:
+        // 1. Parse the shader source
+        // 2. Validate syntax and semantics
+        // 3. Compile to target format (SPIR-V, DXIL, etc.)
+        // 4. Optimize the shader
+        // 5. Generate reflection data
         try self.copyFile(input_path, relative_path);
 
-        // TODO: Implement shader compilation once we know the target format
+        // TODO: Implement actual shader compilation with:
+        // - GLSL to SPIR-V compilation
+        // - HLSL to DXIL compilation
+        // - Shader validation and optimization
+        // - Reflection data generation
     }
 
     fn processFont(self: *AssetProcessor, input_path: []const u8, relative_path: []const u8) !void {

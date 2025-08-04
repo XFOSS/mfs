@@ -8,7 +8,7 @@
 //! - Thread-safe operations
 
 const std = @import("std");
-const vk = @import("vulkan");
+const vk = @import("../../backends/vulkan/new/vulkan_backend.zig");
 const assert = std.debug.assert;
 
 /// Memory allocation statistics for monitoring and debugging

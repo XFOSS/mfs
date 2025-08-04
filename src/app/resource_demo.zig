@@ -10,7 +10,7 @@
 const std = @import("std");
 const types = @import("../graphics/types.zig");
 const interface = @import("../graphics/backends/interface.zig");
-// const vulkan_resource_demo = @import("../../vulkan/vulkan_resource_demo.zig"); // TODO: Fix path
+const vulkan_resource_demo = @import("../graphics/backends/vulkan/new/vulkan_backend.zig");
 
 /// Run the resource demonstration for the given app.
 /// Creates a texture, buffer, shader, mesh, material, and advanced resources, then cleans them up.

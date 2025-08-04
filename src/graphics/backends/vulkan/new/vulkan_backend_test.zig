@@ -1,6 +1,6 @@
 const std = @import("std");
 const testing = std.testing;
-const vk = @import("vulkan");
+const vk = @import("vulkan_backend.zig");
 const vulkan_backend = @import("vulkan_backend.zig");
 const VulkanBackend = vulkan_backend.VulkanBackend;
 

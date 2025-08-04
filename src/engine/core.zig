@@ -10,8 +10,8 @@ const Mutex = std.Thread.Mutex;
 const builtin = @import("builtin");
 
 // Import engine modules
-const vk = @import("../graphics/backends/vulkan/vk.zig");
-const material = @import("../graphics/backends/vulkan/material.zig");
+const vk = @import("../graphics/backends/vulkan/new/vulkan_backend.zig");
+const material = @import("../graphics/backends/vulkan/new/vulkan_backend.zig");
 const ui = @import("../ui/window.zig");
 const worker = @import("../ui/worker.zig");
 const graphics = @import("../graphics/mod.zig");

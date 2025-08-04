@@ -1,6 +1,6 @@
 const std = @import("std");
 const testing = std.testing;
-const vk = @import("vulkan");
+const vk = @import("../../backends/vulkan/new/vulkan_backend.zig");
 const memory_manager = @import("memory_manager.zig");
 const MemoryManager = memory_manager.MemoryManager;
 const MemoryBlock = memory_manager.MemoryBlock;
