@@ -271,20 +271,28 @@
     <div class="info-panel">
         <h3>Features Demonstrated</h3>
         <ul>
-            <li><strong>Multi-Platform Graphics:</strong> WebGPU with OpenGL ES fallback</li>
-            <li><strong>3D Rendering:</strong> PBR materials, lighting, and shadows</li>
-            <li><strong>Performance:</strong> 60 FPS target with efficient memory management</li>
-            <li><strong>Input Handling:</strong> Mouse, keyboard, and touch support</li>
-            <li><strong>Real-time Updates:</strong> Live FPS and memory monitoring</li>
+            <li><strong>WebAssembly Integration:</strong> MFS Engine compiled to WASM</li>
+            <li><strong>WebGL Rendering:</strong> Hardware-accelerated 3D graphics</li>
+            <li><strong>Real-time Animation:</strong> Smooth 60 FPS spinning cube</li>
+            <li><strong>Matrix Mathematics:</strong> 3D transformations and perspective projection</li>
+            <li><strong>Shader Pipeline:</strong> Vertex and fragment shaders for colored cube faces</li>
         </ul>
 
-        <h3>Controls</h3>
+        <h3>Technical Details</h3>
         <ul>
-            <li><strong>Mouse:</strong> Rotate camera view</li>
-            <li><strong>WASD:</strong> Move camera position</li>
-            <li><strong>Space:</strong> Move camera up</li>
-            <li><strong>Shift:</strong> Move camera down</li>
-            <li><strong>R:</strong> Reset camera position</li>
+            <li><strong>Engine:</strong> MFS Engine (Zig/WASM)</li>
+            <li><strong>Graphics API:</strong> WebGL 1.0</li>
+            <li><strong>Shaders:</strong> GLSL vertex and fragment shaders</li>
+            <li><strong>Geometry:</strong> 36 vertices (6 faces × 6 vertices)</li>
+            <li><strong>Animation:</strong> Real-time rotation with delta time</li>
+        </ul>
+
+        <h3>Cube Features</h3>
+        <ul>
+            <li><strong>Colored Faces:</strong> Each face has a different color (red, green, blue, yellow, magenta, cyan)</li>
+            <li><strong>Dual Rotation:</strong> Rotates around both Y and X axes simultaneously</li>
+            <li><strong>Perspective Projection:</strong> 3D to 2D projection with depth</li>
+            <li><strong>Responsive:</strong> Adapts to canvas size changes</li>
         </ul>
     </div>
 
@@ -293,6 +301,8 @@
         let Module = {};
         let engineRunning = false;
         let engineInitialized = false;
+        let animationId = null;
+        let lastTime = 0;
 
         // UI elements
         const canvas = document.getElementById('canvas');
@@ -339,6 +349,21 @@
             engineStatus.textContent = status;
         }
 
+        // Animation loop for spinning cube
+        function animate(currentTime) {
+            if (!lastTime) lastTime = currentTime;
+            const deltaTime = (currentTime - lastTime) / 1000.0;
+            lastTime = currentTime;
+
+            if (Module._render_cube && engineRunning) {
+                Module._render_cube(deltaTime);
+            }
+
+            if (engineRunning) {
+                animationId = requestAnimationFrame(animate);
+            }
+        }
+
         // Module configuration
         Module = {
             canvas: canvas,
@@ -354,9 +379,15 @@
                 updateProgress(50);
 
                 try {
-                    // Initialize the engine
-                    if (Module._initialize_engine) {
-                        const result = Module._initialize_engine();
+                    // Initialize the spinning cube demo
+                    if (Module._initialize_webgl) {
+                        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                        if (!gl) {
+                            showError('WebGL not supported');
+                            return;
+                        }
+
+                        const result = Module._initialize_webgl(gl);
                         if (result === 0) {
                             engineInitialized = true;
                             updateProgress(100);
@@ -364,12 +395,12 @@
                             updateEngineStatus('Ready');
                             startBtn.disabled = false;
                             resetBtn.disabled = false;
-                            graphicsBackend.textContent = 'WebGPU/OpenGL ES';
+                            graphicsBackend.textContent = 'WebGL (MFS Engine)';
                         } else {
-                            showError('Failed to initialize engine: ' + result);
+                            showError('Failed to initialize WebGL: ' + result);
                         }
                     } else {
-                        showError('Engine initialization function not found');
+                        showError('WebGL initialization function not found');
                     }
                 } catch (e) {
                     showError('Engine initialization error: ' + e.message);
@@ -383,7 +414,7 @@
             locateFile: function(path, prefix) {
                 // Handle .wasm file loading
                 if (path.endsWith('.wasm')) {
-                    return 'mfs-web.wasm';
+                    return 'mfs-cube-demo.wasm';
                 }
                 return prefix + path;
             }
@@ -397,10 +428,11 @@
                 startBtn.disabled = true;
                 pauseBtn.disabled = false;
 
-                // Start the engine main loop
-                if (Module._start_main_loop) {
-                    Module._start_main_loop();
+                // Start the spinning cube animation
+                if (Module._start_demo) {
+                    Module._start_demo();
                 }
+                animate(0);
             }
         });
 
@@ -411,21 +443,29 @@
                 startBtn.disabled = false;
                 pauseBtn.disabled = true;
 
-                if (Module._pause_main_loop) {
-                    Module._pause_main_loop();
+                if (Module._stop_demo) {
+                    Module._stop_demo();
+                }
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
                 }
             }
         });
 
         resetBtn.addEventListener('click', function() {
             if (engineInitialized) {
-                if (Module._reset_engine) {
-                    Module._reset_engine();
+                if (Module._reset_demo) {
+                    Module._reset_demo();
                 }
                 updateEngineStatus('Reset');
                 engineRunning = false;
                 startBtn.disabled = false;
                 pauseBtn.disabled = true;
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
             }
         });
 
@@ -481,8 +521,8 @@
             canvas.width = containerWidth;
             canvas.height = containerHeight;
 
-            if (Module._web_resize && engineInitialized) {
-                Module._web_resize(containerWidth, containerHeight);
+            if (Module._set_canvas_size && engineInitialized) {
+                Module._set_canvas_size(containerWidth, containerHeight);
             }
         }
 
@@ -494,6 +534,6 @@
     </script>
 
     <!-- Load the WASM module -->
-    <script src="mfs-web.js"></script>
+    <script src="mfs-cube-demo.js"></script>
 </body>
 </html>
