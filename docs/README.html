@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Readme - MFS Engine Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            color: white;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+        }
+        
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+        
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .content {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin-bottom: 2.5rem;
+        }
+        
+        .section h2 {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+        
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .doc-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .doc-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .doc-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .doc-card h3 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            font-size: 1.3rem;
+        }
+        
+        .doc-card p {
+            color: #718096;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+        
+        .doc-card a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .doc-card a:hover {
+            color: #764ba2;
+        }
+        
+        .quick-start {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .quick-start h2 {
+            color: white;
+            border-bottom: 3px solid rgba(255,255,255,0.3);
+        }
+        
+        .code-block {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .feature {
+            background: rgba(255,255,255,0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .feature h4 {
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .feature ul {
+            list-style: none;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .feature li:before {
+            content: "✓ ";
+            color: #4ade80;
+            font-weight: bold;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 2rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+            
+            .doc-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Additional styles for markdown content */
+        h1, h2, h3, h4, h5, h6 {
+            color: #2d3748;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+        
+        h2 {
+            font-size: 2rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.3rem;
+        }
+        
+        h3 {
+            font-size: 1.5rem;
+        }
+        
+        h4 {
+            font-size: 1.3rem;
+        }
+        
+        p {
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+        
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+        }
+        
+        li {
+            margin-bottom: 0.5rem;
+        }
+        
+        code {
+            background: #f7fafc;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            color: #e53e3e;
+        }
+        
+        pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        
+        blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: #4a5568;
+            font-style: italic;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        
+        th {
+            background: #f7fafc;
+            font-weight: 600;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            color: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🎮 MFS Engine</div>
+            <div class="tagline">Multi-Platform Game Engine Documentation</div>
+            <div class="badges">
+                <span class="badge">Production Ready</span>
+                <span class="badge">Zig 0.12.0</span>
+                <span class="badge">Cross-Platform</span>
+                <span class="badge">Ray Tracing</span>
+                <span class="badge">Open Source</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <a href="index.html" class="back-link">← Back to Documentation Index</a>
+            
+            <div class="markdown-content">
+                <!-- Interactive Demo -->
+                <div id="mfs-demo-container" style="margin: 2rem 0;"></div>
+                
+                <h1>Enhanced Physics System</h1>
+<p>This directory contains an improved physics simulation system for the MFS engine. The system has been reorganized and enhanced for better performance, flexibility, and feature support.</p>
+<h2>Key Improvements</h2>
+<h3>1. Modular Architecture</h3>
+<p>The physics system has been split into multiple modules for better organization:</p>
+<ul>
+<li><code>physics.zig</code> - Core physics types and world simulation</li>
+<li><code>collision.zig</code> - Enhanced collision detection and resolution</li>
+<li><code>constraints.zig</code> - Advanced constraint system</li>
+<li><code>rigid_body.zig</code> - Full rigid body dynamics with proper rotational physics</li>
+</ul>
+<h3>2. Enhanced Collision System</h3>
+<ul>
+<li>Spatial partitioning for O(n+m) collision detection instead of O(n²)</li>
+<li>Contact point generation for more accurate collision resolution</li>
+<li>Collision filtering using group/mask system</li>
+<li>Improved collision response with proper impulse resolution</li>
+</ul>
+<h3>3. Extended Constraint System</h3>
+<p>Added new constraint types beyond basic springs:</p>
+<ul>
+<li><strong>Distance Constraints</strong> - Maintains exact distances between bodies</li>
+<li><strong>Position Constraints</strong> - Pins objects to specific world positions</li>
+<li><strong>Angle Constraints</strong> - Controls orientation between bodies</li>
+<li><strong>Spring Constraints</strong> - Enhanced with min/max length and directionality</li>
+</ul>
+<h3>4. Full Rigid Body Dynamics</h3>
+<ul>
+<li>Proper inertia tensor handling for accurate rotation</li>
+<li>Support for various shapes: boxes, spheres, cylinders</li>
+<li>Force and torque application at arbitrary points</li>
+<li>Sleepable bodies for better performance</li>
+</ul>
+<h3>5. Performance Optimizations</h3>
+<ul>
+<li>Object sleeping for inactive bodies</li>
+<li>Optimized broadphase collision detection</li>
+<li>Fine-grained performance tracking</li>
+<li>SIMD acceleration where available</li>
+</ul>
+<h2>Usage Examples</h2>
+<h3>Basic World Setup</h3>
+<p><pre><code class="zig">// Create physics config
+var config = physics.PhysicsConfig{
+    .gravity = physics.Vec3f{ 0, -9.81, 0, 0 },
+    .enable_sleeping = true,
+};
+
+// Initialize physics world
+var world = try physics.World.init(allocator, config);
+defer world.deinit();</code></pre></p>
+<h3>Creating Objects</h3>
+<p><pre><code class="zig">// Create a sphere
+const sphere_idx = try world.createRigidBodySphere(
+    physics.Vec3f{ 0, 5, 0, 0 },  // position
+    1.0,                          // radius
+    2.0                           // mass
+);
+
+// Create a box
+const box_idx = try world.createRigidBodyBox(
+    physics.Vec3f{ 2, 5, 0, 0 },               // position
+    physics.Vec3f{ 1.0, 1.0, 1.0, 0.0 },       // size
+    1.5                                         // mass
+);
+
+// Create a static plane (ground)
+const plane_idx = try world.createStaticPlane(
+    physics.Vec3f{ 0, 0, 0, 0 },               // position  
+    physics.Vec3f{ 0, 1, 0, 0 },               // normal
+    50.0                                        // size
+);</code></pre></p>
+<h3>Creating Constraints</h3>
+<p><pre><code class="zig">// Create a spring between objects
+const spring_idx = try world.createConstraint(
+    object_a_idx,            // first object
+    object_b_idx,            // second object
+    null,                    // auto calculate rest length
+    10.0,                    // stiffness
+    0.1                      // damping
+);
+
+// Create a distance constraint (using the constraint manager)
+const distance = try world.constraint_manager.?.addDistance(.{
+    .object_index_a = object_a_idx,
+    .object_index_b = object_b_idx,
+    .distance = 2.0,
+    .compliance = 0.0001,
+});</code></pre></p>
+<h3>Simulation Update</h3>
+<p><pre><code class="zig">// Main game loop
+while (running) {
+    // Calculate delta time
+    const dt = timer.lap();
+    
+    // Update physics
+    world.update(dt);
+    
+    // Get physics stats
+    const stats = world.getPerformanceStats();
+    std.debug.print("Active objects: {d}, Update time: {d}ns\n", 
+        .{stats.active_objects, stats.update_time_ns});
+}</code></pre></p>
+<h3>Advanced Usage</h3>
+<p><pre><code class="zig">// Apply forces to objects
+var obj = &world.objects[object_idx];
+obj.applyForce(physics.Vec3f{ 10, 0, 0, 0 }, dt);
+
+// Apply torque
+obj.applyTorque(physics.Vec3f{ 0, 1, 0, 0 }, dt);
+
+// Get rigid body for advanced control
+if (world.rigid_body_manager) |*rbm| {
+    if (rbm.getRigidBody(object_idx)) |rb| {
+        // Apply force at specific point
+        rb.applyForceAtPoint(
+            physics.Vec3f{ 10, 0, 0, 0 },         // force
+            physics.Vec3f{ 0, 1, 0, 0 },          // point
+            &world.objects[object_idx]            // object
+        );
+    }
+}</code></pre></p>
+<h2>Migration from Old Physics System</h2>
+<p>To use the improved physics system: 1. Import the improved physics module: <code>const physics = @import("physics/physics_improved.zig");</code> 2. Use the enhanced constraint types from the constraint manager 3. Set up the rigid body manager for proper rotational physics 4. Use the collision system for more accurate collisions The improved system is designed to be backward compatible with existing physics code while providing enhanced functionality.</p>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2024 MFS Engine - Built with ❤️ and Zig</p>
+            <p>Production-ready, cross-platform game engine for next-generation applications</p>
+        </footer>
+    </div>
+    
+    <!-- Load MFS Engine Demo -->
+    <script src="../web/spinning_cube_embed.js"></script>
+    <script>
+        // Initialize the demo when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const demoContainer = document.getElementById('mfs-demo-container');
+            if (demoContainer && window.MFSEngineDemo) {
+                window.MFSEngineDemo.create(demoContainer);
+            }
+        });
+    </script>
+</body>
+</html>

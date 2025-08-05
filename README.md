@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Zig Version](https://img.shields.io/badge/Zig-0.12.0-orange.svg)](https://ziglang.org/)
 [![Build Status](https://img.shields.io/badge/Build-Passing-green.svg)](build.zig)
-[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)](PRODUCTION_READINESS_FINAL_ASSESSMENT.md)
+[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)](docs/ENGINE_OVERVIEW.html)
 
 A high-performance, cross-platform game engine written in Zig, featuring modern rendering capabilities, comprehensive physics simulation, and advanced systems for creating next-generation games and applications.
 
@@ -16,7 +16,7 @@ The MFS Engine has achieved **production-ready status** with:
 - ✅ Comprehensive testing and benchmarking
 - ✅ Professional documentation and coding standards
 
-See [Production Readiness Assessment](PRODUCTION_READINESS_FINAL_ASSESSMENT.md) for details.
+See [Engine Overview](docs/ENGINE_OVERVIEW.html) for details.
 
 ## ✨ Key Features
 
@@ -155,7 +155,7 @@ zig build docs
 
 ### Coding Standards
 
-We follow strict coding standards to ensure quality and consistency. See [CODING_STANDARDS.md](docs/CODING_STANDARDS.md) for details.
+We follow strict coding standards to ensure quality and consistency. See [Coding Standards](docs/CODING_STANDARDS.html) for details.
 
 Key principles:
 - Explicit error handling (no `catch unreachable`)
@@ -171,11 +171,11 @@ The codebase has undergone significant refactoring:
 - ✅ Added Windows platform support
 - ✅ Created comprehensive documentation
 
-See [REFACTORING_PROGRESS.md](REFACTORING_PROGRESS.md) for details.
+See [Refactoring Roadmap](REFACTORING_ROADMAP_FILEBYFILE.md) for details.
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
+We welcome contributions! Please see [Contributing Guidelines](docs/CONTRIBUTING.html) for guidelines.
 
 Areas of interest:
 - Platform implementations (Linux X11/Wayland, macOS Cocoa)
@@ -185,25 +185,77 @@ Areas of interest:
 
 ## 📚 Documentation
 
-- [API Reference](docs/API_REFERENCE.md)
-- [Architecture Overview](docs/ENGINE_OVERVIEW.md)
-- [Graphics Backends](docs/BACKENDS.md)
-- [Migration Guide](docs/MIGRATION_GUIDE.md)
-- [Production Deployment](PRODUCTION_DEPLOYMENT_GUIDE.md)
+- [API Reference](docs/API_REFERENCE.html)
+- [Architecture Overview](docs/ENGINE_OVERVIEW.html)
+- [Graphics Backends](docs/BACKENDS.html)
+- [Migration Guide](docs/MIGRATION_GUIDE.html)
+- [Getting Started](docs/README.html)
 
 ## 🔄 Roadmap
 
-### Near Term
-- [ ] Linux window system implementation
-- [ ] macOS platform support
-- [ ] WebGPU backend completion
-- [ ] Asset pipeline GUI tools
+### 🚀 Near Term (Q1-Q2 2024)
+- [ ] **Linux Window System Implementation**
+  - X11/Wayland backend support
+  - Native Linux window management
+  - Input handling for Linux desktop
+- [ ] **macOS Platform Support**
+  - Cocoa/Carbon window system
+  - Metal graphics backend optimization
+  - macOS-specific input handling
+- [ ] **WebGPU Backend Completion**
+  - Full WebGPU API implementation
+  - Compute shader support
+  - Cross-platform WebGPU compatibility
+- [ ] **Asset Pipeline GUI Tools**
+  - Visual asset processor
+  - Real-time asset preview
+  - Drag-and-drop asset management
 
-### Long Term
-- [ ] Physically-based audio
-- [ ] Advanced AI behaviors
-- [ ] Cloud rendering support
-- [ ] Mobile platform support
+### 🎯 Medium Term (Q3-Q4 2024)
+- [ ] **Enhanced Graphics Features**
+  - Ray tracing optimization
+  - Advanced post-processing effects
+  - Real-time global illumination
+- [ ] **Physics System Improvements**
+  - Soft body physics
+  - Fluid simulation
+  - Advanced collision detection
+- [ ] **Audio System Enhancement**
+  - 3D spatial audio improvements
+  - Audio effects and filters
+  - Multi-channel audio support
+
+### 🌟 Long Term (2025+)
+- [ ] **Physically-Based Audio**
+  - Real-time acoustic simulation
+  - Environmental audio modeling
+  - Advanced audio propagation
+- [ ] **Advanced AI Behaviors**
+  - Neural network integration
+  - Procedural AI systems
+  - Machine learning optimization
+- [ ] **Cloud Rendering Support**
+  - Remote rendering capabilities
+  - Distributed rendering clusters
+  - Cloud-based asset streaming
+- [ ] **Mobile Platform Support**
+  - iOS/Android native ports
+  - Mobile-optimized rendering
+  - Touch interface enhancements
+
+### 🔧 Technical Improvements
+- [ ] **Performance Optimization**
+  - Multi-threading improvements
+  - Memory management optimization
+  - GPU utilization enhancement
+- [ ] **Developer Experience**
+  - Enhanced debugging tools
+  - Visual scripting system
+  - Plugin architecture
+- [ ] **Documentation & Examples**
+  - Comprehensive tutorials
+  - Advanced example projects
+  - Community showcase
 
 ## 📄 License
 

@@ -359,7 +359,7 @@ try events.publish("entity_created", entity.id);
 ## For More Information
 
 Refer to the following resources for more detailed information:
-- [Engine Overview](ENGINE_OVERVIEW.md)
-- [Getting Started](GETTING_STARTED.md)
-- [Examples](EXAMPLES.md)
-- [Backend-specific details](BACKENDS.md)
+- [Engine Overview](ENGINE_OVERVIEW.html)
+- [Getting Started](README.html)
+- [API Reference](API_REFERENCE.html)
+- [Backend-specific details](BACKENDS.html)

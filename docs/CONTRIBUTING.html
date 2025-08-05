@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contributing - MFS Engine Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            color: white;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+        }
+        
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+        
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .content {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin-bottom: 2.5rem;
+        }
+        
+        .section h2 {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+        
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .doc-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .doc-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .doc-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .doc-card h3 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            font-size: 1.3rem;
+        }
+        
+        .doc-card p {
+            color: #718096;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+        
+        .doc-card a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .doc-card a:hover {
+            color: #764ba2;
+        }
+        
+        .quick-start {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .quick-start h2 {
+            color: white;
+            border-bottom: 3px solid rgba(255,255,255,0.3);
+        }
+        
+        .code-block {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .feature {
+            background: rgba(255,255,255,0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .feature h4 {
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .feature ul {
+            list-style: none;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .feature li:before {
+            content: "✓ ";
+            color: #4ade80;
+            font-weight: bold;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 2rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+            
+            .doc-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Additional styles for markdown content */
+        h1, h2, h3, h4, h5, h6 {
+            color: #2d3748;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+        
+        h2 {
+            font-size: 2rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.3rem;
+        }
+        
+        h3 {
+            font-size: 1.5rem;
+        }
+        
+        h4 {
+            font-size: 1.3rem;
+        }
+        
+        p {
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+        
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+        }
+        
+        li {
+            margin-bottom: 0.5rem;
+        }
+        
+        code {
+            background: #f7fafc;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            color: #e53e3e;
+        }
+        
+        pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        
+        blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: #4a5568;
+            font-style: italic;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        
+        th {
+            background: #f7fafc;
+            font-weight: 600;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            color: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🎮 MFS Engine</div>
+            <div class="tagline">Multi-Platform Game Engine Documentation</div>
+            <div class="badges">
+                <span class="badge">Production Ready</span>
+                <span class="badge">Zig 0.12.0</span>
+                <span class="badge">Cross-Platform</span>
+                <span class="badge">Ray Tracing</span>
+                <span class="badge">Open Source</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <a href="index.html" class="back-link">← Back to Documentation Index</a>
+            
+            <div class="markdown-content">
+                <h1>Contributing to MFS Engine</h1>
+<p>Thank you for your interest in contributing to MFS Engine! This document outlines the process and guidelines for contributing to the project.</p>
+<h2>Code of Conduct</h2>
+<p>By participating in this project, you agree to abide by our Code of Conduct, which expects all participants to be respectful, inclusive, and considerate towards others.</p>
+<h2>Getting Started</h2>
+<p>1. Fork the repository on GitHub 2. Clone your fork to your local machine 3. Set up the development environment 4. Create a new branch for your changes</p>
+<h2>Development Environment</h2>
+<p>To set up the development environment: <pre><code class="bash"># Clone your fork
+git clone https://github.com/YOUR_USERNAME/mfs.git
+cd mfs
+
+# Build the project
+zig build
+
+# Run tests to ensure everything works
+zig build test</code></pre></p>
+<h2>Making Changes</h2>
+<p>1. <strong>Create a feature branch</strong>: <pre><code class="bash">git checkout -b feature/your-feature-name</code></pre> 2. <strong>Follow the coding style</strong>:</p>
+<ul>
+<li>Use <code>zig fmt</code> to format your code</li>
+<li>Follow the existing patterns in the codebase</li>
+<li>Keep functions small and focused</li>
+<li>Write clear comments for complex logic</li>
+</ul>
+<p>3. <strong>Add tests</strong>:</p>
+<ul>
+<li>Add tests for new features</li>
+<li>Ensure all tests pass with <code>zig build test</code></li>
+</ul>
+<p>4. <strong>Commit your changes</strong>: <pre><code class="bash">git commit -m "Clear, descriptive commit message"</code></pre></p>
+<h2>Pull Request Process</h2>
+<p>1. Update your fork to the latest upstream master <pre><code class="bash">git remote add upstream https://github.com/ORIGINAL_OWNER/mfs.git
+   git fetch upstream
+   git rebase upstream/master</code></pre> 2. Push your changes to your fork <pre><code class="bash">git push origin feature/your-feature-name</code></pre> 3. Open a Pull Request (PR) on GitHub</p>
+<ul>
+<li>Provide a clear description of the changes</li>
+<li>Link any related issues</li>
+<li>Fill out the PR template if provided</li>
+</ul>
+<p>4. Address feedback from maintainers</p>
+<ul>
+<li>Make requested changes</li>
+<li>Squash commits if asked</li>
+<li>Rebase if necessary</li>
+</ul>
+<p>5. Once approved, your PR will be merged</p>
+<h2>Coding Standards</h2>
+<ul>
+<li><strong>Follow Zig idioms</strong>: Write code that is idiomatic to Zig</li>
+<li><strong>Error handling</strong>: All errors should be properly handled</li>
+<li><strong>Memory management</strong>: Be mindful of allocations and ensure proper cleanup</li>
+<li><strong>Documentation</strong>: Document public APIs and complex functionality</li>
+<li><strong>Performance</strong>: Consider performance implications of your code</li>
+</ul>
+<h2>Testing</h2>
+<ul>
+<li><strong>Unit tests</strong>: Write tests for individual functions and components</li>
+<li><strong>Integration tests</strong>: Ensure components work together correctly</li>
+<li><strong>Performance tests</strong>: For performance-sensitive code, include benchmarks</li>
+</ul>
+<h2>Documentation</h2>
+<ul>
+<li>Update documentation when changing functionality</li>
+<li>Document new features</li>
+<li>Improve existing documentation where needed</li>
+</ul>
+<h2>Issue Reporting</h2>
+<p>When reporting issues: 1. Check if the issue already exists 2. Use the issue template if provided 3. Include:</p>
+<ul>
+<li>Steps to reproduce</li>
+<li>Expected behavior</li>
+<li>Actual behavior</li>
+<li>Environment details (OS, Zig version, etc.)</li>
+<li>Screenshots or logs if relevant</li>
+</ul>
+<h2>Feature Requests</h2>
+<p>When requesting features: 1. Clearly describe the feature and its benefits 2. Explain use cases 3. Consider implementation complexity and compatibility</p>
+<h2>License</h2>
+<p>By contributing to MFS Engine, you agree that your contributions will be licensed under the project's MIT license.</p>
+<h2>Questions?</h2>
+<p>If you have questions or need help, feel free to:</p>
+<ul>
+<li>Open an issue with the "question" tag</li>
+<li>Contact the maintainers</li>
+<li>Ask in the community chat or forum</li>
+</ul>
+<p>Thank you for contributing to MFS Engine!</p>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2024 MFS Engine - Built with ❤️ and Zig</p>
+            <p>Production-ready, cross-platform game engine for next-generation applications</p>
+        </footer>
+    </div>
+</body>
+</html>

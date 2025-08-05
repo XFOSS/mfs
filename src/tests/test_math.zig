@@ -199,20 +199,19 @@ test "matrix scaling" {
     try expectEqual(scaled.z, v.z * sz);
 }
 
-// TODO: Re-enable when matrix rotation is implemented
-// test "matrix rotation" {
-//     // Test rotation around Y axis by 90 degrees
-//     const angle = std.math.pi / 2.0; // 90 degrees in radians
-//     const r = math.Mat4.rotation(math.Vec3.new(0.0, 1.0, 0.0), angle);
-//
-//     // Rotating (1,0,0) around Y by 90 degrees should give (0,0,-1)
-//     const v = math.Vec3.new(1.0, 0.0, 0.0);
-//     const rotated = r.mulDirection(v);
-//
-//     try expectApproxEqAbs(rotated.x, 0.0, 0.0001);
-//     try expectApproxEqAbs(rotated.y, 0.0, 0.0001);
-//     try expectApproxEqAbs(rotated.z, -1.0, 0.0001);
-// }
+test "matrix rotation" {
+    // Test rotation around Y axis by 90 degrees
+    const angle = std.math.pi / 2.0; // 90 degrees in radians
+    const r = math.Mat4.rotationY(angle);
+
+    // Rotating (1,0,0) around Y by 90 degrees should give (0,0,-1)
+    const v = math.Vec4{ 1.0, 0.0, 0.0, 0.0 };
+    const rotated = r.mul(v);
+
+    try expectApproxEqAbs(rotated.x, 0.0, 0.0001);
+    try expectApproxEqAbs(rotated.y, 0.0, 0.0001);
+    try expectApproxEqAbs(rotated.z, -1.0, 0.0001);
+}
 
 // TODO: Re-enable when matrix inversion and chaining are implemented
 // test "matrix inversion" {
@@ -239,79 +238,76 @@ test "matrix scaling" {
 //     // ... etc for all off-diagonal elements
 // }
 
-// TODO: Re-enable when perspective matrix is implemented
-// test "matrix projection" {
-//     const fov = std.math.pi / 4.0; // 45 degrees
-//     const aspect = 16.0 / 9.0; // Widescreen aspect ratio
-//     const near = 0.1;
-//     const far = 100.0;
-//
-//     const proj = math.Mat4.perspective(fov, aspect, near, far);
-//
-//     // Perspective matrix should have some specific properties
-//     try expect(proj.m[0][0] > 0.0); // X scale should be positive
-//     try expect(proj.m[1][1] > 0.0); // Y scale should be positive
-//     try expectEqual(proj.m[2][2], -(far + near) / (far - near)); // Z projection formula
-//     try expectEqual(proj.m[3][2], -1.0); // W component gets Z value
-// }
+test "matrix projection" {
+    const fov = std.math.pi / 4.0; // 45 degrees
+    const aspect = 16.0 / 9.0; // Widescreen aspect ratio
+    const near = 0.1;
+    const far = 100.0;
 
-// TODO: Re-enable when Quaternion type is properly exported
-// test "quaternion basics" {
-//     // Test identity quaternion
-//     const q_id = math.Quat.identity();
-//     try expectEqual(q_id.x, 0.0);
-//     try expectEqual(q_id.y, 0.0);
-//     try expectEqual(q_id.z, 0.0);
-//     try expectEqual(q_id.w, 1.0);
-//
-//     // Test axis-angle construction
-//     const axis = math.Vec3.new(0.0, 1.0, 0.0); // Y axis
-//     const angle = std.math.pi / 2.0; // 90 degrees
-//     const q = math.Quat.fromAxisAngle(axis, angle);
-//
-//     // Values for 90 degree rotation around Y (0, sin(45°), 0, cos(45°))
-//     const s = @sin(angle / 2.0);
-//     const c = @cos(angle / 2.0);
-//     try expectApproxEqAbs(q.x, 0.0, 0.0001);
-//     try expectApproxEqAbs(q.y, s, 0.0001);
-//     try expectApproxEqAbs(q.z, 0.0, 0.0001);
-//     try expectApproxEqAbs(q.w, c, 0.0001);
-// }
+    const proj = math.Mat4.perspective(fov, aspect, near, far);
 
-// TODO: Re-enable when Quaternion type is properly exported
-// test "quaternion vector rotation" {
-//     // Create a quaternion for 90 degree rotation around Y axis
-//     const axis = math.Vec3.new(0.0, 1.0, 0.0);
-//     const angle = std.math.pi / 2.0; // 90 degrees
-//     const q = math.Quat.fromAxisAngle(axis, angle);
-//
-//     // Rotate the vector (1,0,0) -> should become (0,0,-1)
-//     const v = math.Vec3.new(1.0, 0.0, 0.0);
-//     const rotated = q.rotate(v);
-//
-//     try expectApproxEqAbs(rotated.x, 0.0, 0.0001);
-//     try expectApproxEqAbs(rotated.y, 0.0, 0.0001);
-//     try expectApproxEqAbs(rotated.z, -1.0, 0.0001);
-// }
+    // Perspective matrix should have some specific properties
+    try expect(proj.m[0][0] > 0.0); // X scale should be positive
+    try expect(proj.m[1][1] > 0.0); // Y scale should be positive
+    try expectEqual(proj.m[2][2], -(far + near) / (far - near)); // Z projection formula
+    try expectEqual(proj.m[3][2], -1.0); // W component gets Z value
+}
 
-// TODO: Re-enable when Quaternion type is properly exported
-// test "quaternion multiplication" {
-//     // Create two 90 degree rotations around Y
-//     const q1 = math.Quat.fromAxisAngle(math.Vec3.new(0.0, 1.0, 0.0), std.math.pi / 2.0);
-//     const q2 = math.Quat.fromAxisAngle(math.Vec3.new(0.0, 1.0, 0.0), std.math.pi / 2.0);
-//
-//     // Combine them (should be equivalent to 180 degree rotation)
-//     const q_combined = q1.mul(q2);
-//
-//     // Rotate a vector with the combined quaternion
-//     const v = math.Vec3.new(1.0, 0.0, 0.0);
-//     const rotated = q_combined.rotate(v);
-//
-//     // After 180 degree rotation around Y, (1,0,0) should become (-1,0,0)
-//     try expectApproxEqAbs(rotated.x, -1.0, 0.0001);
-//     try expectApproxEqAbs(rotated.y, 0.0, 0.0001);
-//     try expectApproxEqAbs(rotated.z, 0.0, 0.0001);
-// }
+test "quaternion basics" {
+    // Test identity quaternion
+    const q_id = math.Quaternion.identity();
+    try expectEqual(q_id.x, 0.0);
+    try expectEqual(q_id.y, 0.0);
+    try expectEqual(q_id.z, 0.0);
+    try expectEqual(q_id.w, 1.0);
+
+    // Test axis-angle construction
+    const axis = [_]f32{ 0.0, 1.0, 0.0 }; // Y axis
+    const angle = std.math.pi / 2.0; // 90 degrees
+    const q = math.Quaternion.fromAxisAngle(&axis, angle);
+
+    // Values for 90 degree rotation around Y (0, sin(45°), 0, cos(45°))
+    const s = @sin(angle / 2.0);
+    const c = @cos(angle / 2.0);
+    try expectApproxEqAbs(q.x, 0.0, 0.0001);
+    try expectApproxEqAbs(q.y, s, 0.0001);
+    try expectApproxEqAbs(q.z, 0.0, 0.0001);
+    try expectApproxEqAbs(q.w, c, 0.0001);
+}
+
+test "quaternion vector rotation" {
+    // Create a quaternion for 90 degree rotation around Y axis
+    const axis = [_]f32{ 0.0, 1.0, 0.0 };
+    const angle = std.math.pi / 2.0; // 90 degrees
+    const q = math.Quaternion.fromAxisAngle(&axis, angle);
+
+    // Rotate the vector (1,0,0) -> should become (0,0,-1)
+    const v = math.Vec4{ 1.0, 0.0, 0.0, 0.0 };
+    const rotated = q.rotateVector(v);
+
+    try expectApproxEqAbs(rotated.x, 0.0, 0.0001);
+    try expectApproxEqAbs(rotated.y, 0.0, 0.0001);
+    try expectApproxEqAbs(rotated.z, -1.0, 0.0001);
+}
+
+test "quaternion multiplication" {
+    // Create two 90 degree rotations around Y
+    const axis = [_]f32{ 0.0, 1.0, 0.0 };
+    const q1 = math.Quaternion.fromAxisAngle(&axis, std.math.pi / 2.0);
+    const q2 = math.Quaternion.fromAxisAngle(&axis, std.math.pi / 2.0);
+
+    // Combine them (should be equivalent to 180 degree rotation)
+    const q_combined = math.Quaternion.multiply(q1, q2);
+
+    // Rotate a vector with the combined quaternion
+    const v = math.Vec4{ 1.0, 0.0, 0.0, 0.0 };
+    const rotated = q_combined.rotateVector(v);
+
+    // After 180 degree rotation around Y, (1,0,0) should become (-1,0,0)
+    try expectApproxEqAbs(rotated.x, -1.0, 0.0001);
+    try expectApproxEqAbs(rotated.y, 0.0, 0.0001);
+    try expectApproxEqAbs(rotated.z, 0.0, 0.0001);
+}
 
 // TODO: Re-enable when Quaternion type is properly exported
 // test "quaternion slerp" {

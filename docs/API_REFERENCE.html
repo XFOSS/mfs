@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Api Reference - MFS Engine Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            color: white;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+        }
+        
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+        
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .content {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin-bottom: 2.5rem;
+        }
+        
+        .section h2 {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+        
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .doc-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .doc-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .doc-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .doc-card h3 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            font-size: 1.3rem;
+        }
+        
+        .doc-card p {
+            color: #718096;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+        
+        .doc-card a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .doc-card a:hover {
+            color: #764ba2;
+        }
+        
+        .quick-start {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .quick-start h2 {
+            color: white;
+            border-bottom: 3px solid rgba(255,255,255,0.3);
+        }
+        
+        .code-block {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .feature {
+            background: rgba(255,255,255,0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .feature h4 {
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .feature ul {
+            list-style: none;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .feature li:before {
+            content: "✓ ";
+            color: #4ade80;
+            font-weight: bold;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 2rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+            
+            .doc-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Additional styles for markdown content */
+        h1, h2, h3, h4, h5, h6 {
+            color: #2d3748;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+        
+        h2 {
+            font-size: 2rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.3rem;
+        }
+        
+        h3 {
+            font-size: 1.5rem;
+        }
+        
+        h4 {
+            font-size: 1.3rem;
+        }
+        
+        p {
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+        
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+        }
+        
+        li {
+            margin-bottom: 0.5rem;
+        }
+        
+        code {
+            background: #f7fafc;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            color: #e53e3e;
+        }
+        
+        pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        
+        blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: #4a5568;
+            font-style: italic;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        
+        th {
+            background: #f7fafc;
+            font-weight: 600;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            color: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🎮 MFS Engine</div>
+            <div class="tagline">Multi-Platform Game Engine Documentation</div>
+            <div class="badges">
+                <span class="badge">Production Ready</span>
+                <span class="badge">Zig 0.12.0</span>
+                <span class="badge">Cross-Platform</span>
+                <span class="badge">Ray Tracing</span>
+                <span class="badge">Open Source</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <a href="index.html" class="back-link">← Back to Documentation Index</a>
+            
+            <div class="markdown-content">
+                <h1>MFS Engine API Reference</h1>
+<h2>Table of Contents</h2>
+<p>1. <a href="#core-engine">Core Engine</a> 2. <a href="#graphics-system">Graphics System</a> 3. <a href="#physics-system">Physics System</a> 4. <a href="#audio-system">Audio System</a> 5. <a href="#scene-management">Scene Management</a> 6. <a href="#resource-management">Resource Management</a> 7. <a href="#input-system">Input System</a> 8. <a href="#ui-framework">UI Framework</a> 9. <a href="#math-library">Math Library</a> 10. <a href="#platform-layer">Platform Layer</a> 11. <a href="#asset-processing">Asset Processing</a> 12. <a href="#configuration-system">Configuration System</a> ---</p>
+<h2>Core Engine</h2>
+<h3>Engine Initialization</h3>
+<p><pre><code class="zig">const nyx = @import("nyx_std.zig");
+
+// Basic engine configuration
+const config = nyx.EngineConfig{
+    .enable_gpu = true,
+    .enable_physics = true,
+    .enable_audio = true,
+    .window_width = 1920,
+    .window_height = 1080,
+    .window_title = "My Game",
+    .target_fps = 60,
+    .max_memory_budget_mb = 512,
+};
+
+// Initialize engine
+var engine = try nyx.Engine.init(allocator, config);
+defer engine.deinit();
+
+// Main loop
+while (engine.shouldContinue()) {
+    try engine.update();
+    try engine.render();
+}</code></pre></p>
+<h3>Engine Configuration Options</h3>
+<p>| Field | Type | Default | Description | |-------|------|---------|-------------| | <code>enable_gpu</code> | <code>bool</code> | <code>true</code> | Enable GPU acceleration | | <code>enable_physics</code> | <code>bool</code> | <code>true</code> | Enable physics simulation | | <code>enable_neural</code> | <code>bool</code> | <code>false</code> | Enable neural network support | | <code>enable_xr</code> | <code>bool</code> | <code>false</code> | Enable XR/VR support | | <code>enable_audio</code> | <code>bool</code> | <code>true</code> | Enable audio system | | <code>enable_networking</code> | <code>bool</code> | <code>false</code> | Enable networking | | <code>window_width</code> | <code>u32</code> | <code>1280</code> | Window width in pixels | | <code>window_height</code> | <code>u32</code> | <code>720</code> | Window height in pixels | | <code>target_fps</code> | <code>u32</code> | <code>60</code> | Target frame rate | | <code>max_memory_budget_mb</code> | <code>u64</code> | <code>512</code> | Maximum memory budget in MB | ---</p>
+<h2>Graphics System</h2>
+<h3>Backend Selection</h3>
+<p>The MFS engine supports multiple graphics backends:</p>
+<ul>
+<li><strong>Vulkan</strong> - High-performance, low-level API</li>
+<li><strong>DirectX 11</strong> - Windows compatibility</li>
+<li><strong>DirectX 12</strong> - Modern Windows API</li>
+<li><strong>Metal</strong> - macOS/iOS native API</li>
+<li><strong>OpenGL</strong> - Cross-platform compatibility</li>
+<li><strong>OpenGL ES</strong> - Mobile/embedded devices</li>
+<li><strong>WebGPU</strong> - Web platform support</li>
+<li><strong>Software</strong> - CPU-based fallback</li>
+</ul>
+<p><pre><code class="zig">const gpu = @import("graphics/gpu.zig");
+
+// Initialize graphics with preferred backend
+const gpu_options = gpu.backend_manager.BackendManager.InitOptions{
+    .preferred_backend = .vulkan,
+    .debug_mode = true,
+};
+try gpu.init(allocator, gpu_options);</code></pre></p>
+<h3>Rendering Pipeline</h3>
+<p><pre><code class="zig">// Create render pass
+const render_pass = try gpu.createRenderPass(.{
+    .color_attachments = &[_]gpu.ColorAttachment{
+        .{
+            .format = .rgba8_unorm,
+            .load_op = .clear,
+            .store_op = .store,
+            .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
+        },
+    },
+    .depth_attachment = .{
+        .format = .depth32_float,
+        .load_op = .clear,
+        .store_op = .store,
+        .clear_depth = 1.0,
+    },
+});
+
+// Create graphics pipeline
+const pipeline = try gpu.createGraphicsPipeline(.{
+    .vertex_shader = vertex_shader,
+    .fragment_shader = fragment_shader,
+    .vertex_layout = vertex_layout,
+    .render_pass = render_pass,
+});</code></pre></p>
+<h3>Buffer Management</h3>
+<p><pre><code class="zig">// Create vertex buffer
+const vertex_buffer = try gpu.createBuffer(.{
+    .size = vertices.len * @sizeOf(Vertex),
+    .usage = .{ .vertex = true },
+    .memory_type = .device_local,
+});
+
+// Upload data
+try gpu.updateBuffer(vertex_buffer, 0, std.mem.sliceAsBytes(vertices));
+
+// Bind and draw
+const cmd = try gpu.beginCommandBuffer();
+try cmd.bindVertexBuffer(vertex_buffer, 0);
+try cmd.draw(vertices.len, 1, 0, 0);
+try gpu.submitCommandBuffer(cmd);</code></pre></p>
+<h3>Texture Operations</h3>
+<p><pre><code class="zig">// Load texture from file
+const texture = try gpu.createTextureFromFile("assets/textures/diffuse.png");
+
+// Create texture sampler
+const sampler = try gpu.createSampler(.{
+    .min_filter = .linear,
+    .mag_filter = .linear,
+    .wrap_u = .repeat,
+    .wrap_v = .repeat,
+});
+
+// Bind for rendering
+try cmd.bindTexture(texture, 0);
+try cmd.bindSampler(sampler, 0);</code></pre> ---</p>
+<h2>Physics System</h2>
+<h3>Rigid Body Dynamics</h3>
+<p><pre><code class="zig">const physics = @import("physics/physics_engine.zig");
+
+// Initialize physics world
+var physics_world = try physics.PhysicsEngine.init(allocator, .{
+    .gravity = .{ .x = 0, .y = -9.81, .z = 0 },
+    .time_step = 1.0 / 60.0,
+});
+defer physics_world.deinit();
+
+// Create rigid body
+const body = try physics_world.createRigidBody(.{
+    .position = .{ .x = 0, .y = 10, .z = 0 },
+    .mass = 1.0,
+    .shape = .{ .box = .{ .width = 1, .height = 1, .depth = 1 } },
+    .material = .{
+        .restitution = 0.6,
+        .friction = 0.4,
+        .density = 1.0,
+    },
+});
+
+// Step simulation
+try physics_world.step();</code></pre></p>
+<h3>Collision Detection</h3>
+<p><pre><code class="zig">// Set up collision callback
+physics_world.setCollisionCallback(onCollision);
+
+fn onCollision(contact: physics.ContactInfo) void {
+    std.log.info("Collision between {} and {}", .{ contact.body_a, contact.body_b });
+    // Handle collision response
+}
+
+// Query world for objects
+const query_result = try physics_world.queryAABB(.{
+    .min = .{ .x = -5, .y = -5, .z = -5 },
+    .max = .{ .x = 5, .y = 5, .z = 5 },
+});</code></pre></p>
+<h3>Constraints and Joints</h3>
+<p><pre><code class="zig">// Create distance constraint
+const constraint = try physics_world.createConstraint(.{
+    .type = .distance,
+    .body_a = body1,
+    .body_b = body2,
+    .anchor_a = .{ .x = 0, .y = 0, .z = 0 },
+    .anchor_b = .{ .x = 0, .y = 0, .z = 0 },
+    .distance = 2.0,
+});</code></pre> ---</p>
+<h2>Audio System</h2>
+<h3>Audio Playback</h3>
+<p><pre><code class="zig">const audio = @import("audio/audio.zig");
+
+// Initialize audio system
+var audio_system = try audio.AudioSystem.init(allocator);
+defer audio_system.deinit();
+
+// Load and play sound
+const sound = try audio_system.loadSound("assets/audio/explosion.wav");
+const source = try audio_system.createSource();
+try source.setBuffer(sound);
+try source.play();
+
+// 3D positioned audio
+try source.setPosition(.{ .x = 10, .y = 0, .z = 5 });
+try source.setVelocity(.{ .x = 0, .y = 0, .z = -2 });</code></pre></p>
+<h3>Audio Effects</h3>
+<p><pre><code class="zig">// Apply reverb effect
+const reverb = try audio_system.createEffect(.reverb);
+try reverb.setParameter(.room_size, 0.8);
+try reverb.setParameter(.damping, 0.5);
+try source.addEffect(reverb);
+
+// Volume and pitch control
+try source.setVolume(0.7);
+try source.setPitch(1.2);</code></pre> ---</p>
+<h2>Scene Management</h2>
+<h3>Entity-Component System</h3>
+<p><pre><code class="zig">const scene = @import("scene/scene.zig");
+
+// Create scene
+var game_scene = try scene.Scene.init(allocator);
+defer game_scene.deinit();
+
+// Create entity
+const entity = try game_scene.createEntity();
+
+// Add components
+try game_scene.addComponent(entity, scene.Transform{
+    .position = .{ .x = 0, .y = 0, .z = 0 },
+    .rotation = .{ .x = 0, .y = 0, .z = 0, .w = 1 },
+    .scale = .{ .x = 1, .y = 1, .z = 1 },
+});
+
+try game_scene.addComponent(entity, scene.RenderComponent{
+    .mesh = mesh_handle,
+    .material = material_handle,
+    .visible = true,
+});
+
+try game_scene.addComponent(entity, scene.PhysicsComponent{
+    .body = physics_body,
+    .collision_group = 1,
+});</code></pre></p>
+<h3>Systems</h3>
+<p><pre><code class="zig">// Register systems
+try game_scene.registerSystem(scene.TransformSystem);
+try game_scene.registerSystem(scene.RenderSystem);
+try game_scene.registerSystem(scene.PhysicsSystem);
+
+// Update all systems
+try game_scene.update(delta_time);</code></pre></p>
+<h3>Scene Serialization</h3>
+<p><pre><code class="zig">// Save scene to file
+try game_scene.saveToFile("levels/level1.scene");
+
+// Load scene from file
+var loaded_scene = try scene.Scene.loadFromFile(allocator, "levels/level1.scene");</code></pre> ---</p>
+<h2>Resource Management</h2>
+<h3>Asset Loading</h3>
+<p><pre><code class="zig">const resources = @import("nyx_std.zig");
+
+// Initialize resource manager
+var resource_manager = try resources.ResourceManager.init(allocator);
+defer resource_manager.deinit();
+
+// Load assets
+const texture_handle = try resource_manager.loadAsset("textures/player.png");
+const model_handle = try resource_manager.loadAsset("models/character.obj");
+const audio_handle = try resource_manager.loadAsset("audio/footsteps.wav");
+
+// Get loaded asset
+if (resource_manager.getAsset(texture_handle)) |texture| {
+    // Use texture
+}</code></pre></p>
+<h3>Hot Reloading</h3>
+<p><pre><code class="zig">// Enable hot reloading for development
+resource_manager.enableHotReload();
+
+// Assets will automatically reload when files change
+// Callback for reload events
+resource_manager.setReloadCallback(onAssetReloaded);
+
+fn onAssetReloaded(asset_path: []const u8) void {
+    std.log.info("Asset reloaded: {s}", .{asset_path});
+}</code></pre> ---</p>
+<h2>Input System</h2>
+<h3>Input Handling</h3>
+<p><pre><code class="zig">const input = @import("input/input.zig");
+
+// Initialize input system
+var input_system = try input.InputManager.init(allocator);
+defer input_system.deinit();
+
+// Poll input events
+input_system.update();
+
+// Check input states
+if (input_system.isKeyPressed(.space)) {
+    // Handle jump
+}
+
+if (input_system.isMouseButtonDown(.left)) {
+    const mouse_pos = input_system.getMousePosition();
+    // Handle mouse interaction
+}
+
+// Gamepad support
+if (input_system.isGamepadConnected(0)) {
+    const left_stick = input_system.getGamepadStick(0, .left);
+    // Handle movement
+}</code></pre></p>
+<h3>Input Mapping</h3>
+<p><pre><code class="zig">// Create input map
+var input_map = input.InputMap.init(allocator);
+try input_map.bind("jump", .{ .key = .space });
+try input_map.bind("fire", .{ .mouse = .left });
+try input_map.bind("move", .{ .gamepad_stick = .left });
+
+// Use mapped inputs
+if (input_map.isActionPressed("jump")) {
+    // Handle jump action
+}</code></pre> ---</p>
+<h2>UI Framework</h2>
+<h3>UI Creation</h3>
+<p><pre><code class="zig">const ui = @import("ui/ui.zig");
+
+// Initialize UI system
+var ui_system = try ui.UISystem.init(allocator, .{
+    .backend_type = .vulkan,
+    .enable_threading = true,
+});
+defer ui_system.deinit();
+
+// Create UI elements
+const button = try ui_system.createButton(.{
+    .text = "Start Game",
+    .position = .{ .x = 100, .y = 50 },
+    .size = .{ .width = 200, .height = 40 },
+    .on_click = onStartButtonClick,
+});
+
+const text_field = try ui_system.createTextField(.{
+    .placeholder = "Enter name...",
+    .position = .{ .x = 100, .y = 100 },
+    .size = .{ .width = 300, .height = 30 },
+});</code></pre></p>
+<h3>UI Styling</h3>
+<p><pre><code class="zig">// Apply styling
+const style = ui.Style{
+    .background_color = .{ .r = 0.2, .g = 0.3, .b = 0.8, .a = 1.0 },
+    .border_color = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 },
+    .border_width = 2.0,
+    .corner_radius = 5.0,
+    .font_size = 16,
+    .font_color = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 },
+};
+
+try ui_system.setStyle(button, style);</code></pre> ---</p>
+<h2>Math Library</h2>
+<h3>Vector Operations</h3>
+<p><pre><code class="zig">const math = @import("math/math.zig");
+
+// Vector creation and operations
+const v1 = math.Vec3.init(1.0, 2.0, 3.0);
+const v2 = math.Vec3.init(4.0, 5.0, 6.0);
+
+const sum = v1.add(v2);
+const dot_product = v1.dot(v2);
+const cross_product = v1.cross(v2);
+const normalized = v1.normalize();
+const length = v1.length();</code></pre></p>
+<h3>Matrix Operations</h3>
+<p><pre><code class="zig">// Matrix creation and transformations
+const identity = math.Mat4.identity();
+const translation = math.Mat4.translation(1.0, 2.0, 3.0);
+const rotation = math.Mat4.rotationY(math.toRadians(45.0));
+const scale = math.Mat4.scaling(2.0, 2.0, 2.0);
+
+// Combine transformations
+const transform = translation.multiply(rotation).multiply(scale);
+
+// Camera matrices
+const view = math.Mat4.lookAt(
+    .{ .x = 0, .y = 0, .z = 5 }, // eye
+    .{ .x = 0, .y = 0, .z = 0 }, // target
+    .{ .x = 0, .y = 1, .z = 0 }, // up
+);
+
+const projection = math.Mat4.perspective(
+    math.toRadians(60.0), // fov
+    16.0 / 9.0,          // aspect ratio
+    0.1,                 // near
+    100.0                // far
+);</code></pre> ---</p>
+<h2>Platform Layer</h2>
+<h3>Window Management</h3>
+<p><pre><code class="zig">const window = @import("window/window.zig");
+
+// Create window
+const window_config = window.WindowConfig{
+    .width = 1920,
+    .height = 1080,
+    .title = "My Game",
+    .fullscreen = false,
+    .resizable = true,
+    .vsync = true,
+};
+
+var game_window = try window.Window.init(allocator, window_config);
+defer game_window.deinit();
+
+// Window events
+while (!game_window.shouldClose()) {
+    game_window.pollEvents();
+    
+    // Handle resize
+    if (game_window.wasResized()) {
+        const new_size = game_window.getSize();
+        // Update viewport
+    }
+}</code></pre></p>
+<h3>Platform Capabilities</h3>
+<p><pre><code class="zig">const platform = @import("platform/platform.zig");
+
+// Query platform capabilities
+const caps = platform.getCapabilities();
+
+if (caps.supports_vulkan) {
+    // Use Vulkan backend
+}
+
+if (caps.supports_compute_shaders) {
+    // Enable compute shader features
+}
+
+const memory_info = platform.getMemoryInfo();
+std.log.info("Available memory: {} MB", .{memory_info.available_mb});</code></pre> ---</p>
+<h2>Asset Processing</h2>
+<h3>Command Line Usage</h3>
+<p><pre><code class="bash"># Process all assets
+./asset_processor input_assets/ output_assets/
+
+# Process specific asset types
+./asset_processor input_assets/ output_assets/ --type texture --type model
+
+# Enable verbose output and force reprocessing
+./asset_processor input_assets/ output_assets/ --verbose --force
+
+# Set compression level and disable mipmaps
+./asset_processor input_assets/ output_assets/ --compression 5 --no-mipmaps</code></pre></p>
+<h3>Programmatic Usage</h3>
+<p><pre><code class="zig">const asset_processor = @import("tools/asset_processor/asset_processor.zig");
+
+// Configure processor
+const config = asset_processor.ProcessorConfig{
+    .input_dir = "raw_assets/",
+    .output_dir = "processed_assets/",
+    .asset_types = &[_]asset_processor.AssetType{ .texture, .model },
+    .compression_level = 9,
+    .generate_mipmaps = true,
+    .verbose = true,
+};
+
+// Run processing
+var processor = try asset_processor.AssetProcessor.init(allocator, config);
+defer processor.deinit();
+
+try processor.processAllAssets();</code></pre> ---</p>
+<h2>Configuration System</h2>
+<h3>Engine Configuration</h3>
+<p><pre><code class="zig">const config = @import("system/config.zig");
+
+// Load configuration from file
+var engine_config = try config.Config.loadFromFile("config/engine.json");
+
+// Access configuration values
+const renderer_backend = engine_config.renderer_backend;
+const window_width = engine_config.window_width;
+const enable_debug = engine_config.debug_mode;
+
+// Save configuration
+try engine_config.saveToFile("config/engine.json");</code></pre></p>
+<h3>Runtime Configuration</h3>
+<p><pre><code class="zig">// Create configuration with defaults
+var runtime_config = config.Config{
+    .renderer_backend = .vulkan,
+    .window_width = 1920,
+    .window_height = 1080,
+    .fullscreen = false,
+    .vsync = true,
+    .debug_mode = false,
+};
+
+// Validate configuration
+try runtime_config.validate();</code></pre> ---</p>
+<h2>Error Handling</h2>
+<h3>Error Types</h3>
+<p>The MFS engine defines comprehensive error types for different subsystems: <pre><code class="zig">// Engine errors
+const EngineError = error{
+    InitializationFailed,
+    InvalidConfiguration,
+    ResourceLoadError,
+    OutOfMemory,
+    GraphicsAPIError,
+    AudioSystemError,
+    NetworkError,
+    FileSystemError,
+    ThreadingError,
+    ValidationError,
+};
+
+// Graphics errors
+const GraphicsError = error{
+    BackendNotSupported,
+    ShaderCompilationFailed,
+    BufferCreationFailed,
+    TextureLoadFailed,
+    PipelineCreationFailed,
+};</code></pre></p>
+<h3>Error Recovery</h3>
+<p><pre><code class="zig">// Graceful error handling with fallbacks
+const backend = gpu.initWithFallback(&[_]gpu.BackendType{
+    .vulkan,
+    .d3d11,
+    .opengl,
+    .software,
+}) catch |err| {
+    std.log.err("Failed to initialize any graphics backend: {}", .{err});
+    return err;
+};</code></pre> ---</p>
+<h2>Performance Monitoring</h2>
+<h3>Built-in Profiling</h3>
+<p><pre><code class="zig">const profiler = @import("system/profiling/profiler.zig");
+
+// Enable profiling
+profiler.enable();
+
+// Profile a section
+{
+    const profile_scope = profiler.beginScope("render_frame");
+    defer profile_scope.end();
+    
+    // Rendering code here
+}
+
+// Get profiling results
+const results = profiler.getResults();
+for (results.scopes) |scope| {
+    std.log.info("{s}: {d}ms", .{ scope.name, scope.duration_ms });
+}</code></pre></p>
+<h3>Memory Tracking</h3>
+<p><pre><code class="zig">const memory_profiler = @import("system/profiling/memory_profiler.zig");
+
+// Track memory allocations
+memory_profiler.trackAllocator(allocator);
+
+// Get memory statistics
+const stats = memory_profiler.getStats();
+std.log.info("Memory usage: {d} MB", .{stats.current_usage_mb});
+std.log.info("Peak memory: {d} MB", .{stats.peak_usage_mb});</code></pre> ---</p>
+<h2>Threading and Concurrency</h2>
+<h3>Task System</h3>
+<p><pre><code class="zig">const task_system = @import("system/task_system.zig");
+
+// Initialize task system
+var tasks = try task_system.TaskSystem.init(allocator, 4); // 4 worker threads
+defer tasks.deinit();
+
+// Submit tasks
+const task = try tasks.submit(myTaskFunction, task_data);
+
+// Wait for completion
+try task.wait();
+
+// Parallel for loop
+try tasks.parallelFor(0, 1000, processItem);</code></pre> --- This API reference provides comprehensive coverage of the MFS engine's capabilities. For more detailed examples and advanced usage patterns, refer to the individual module documentation and example projects.</p>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2024 MFS Engine - Built with ❤️ and Zig</p>
+            <p>Production-ready, cross-platform game engine for next-generation applications</p>
+        </footer>
+    </div>
+</body>
+</html>
