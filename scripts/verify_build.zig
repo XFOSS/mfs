@@ -82,7 +82,7 @@ pub fn main() !void {
 }
 
 fn runBuildTest(test_case: BuildTest) !bool {
-    var cmd_args = std.ArrayList([]const u8).init(allocator);
+    var cmd_args = std.array_list.Managed([]const u8).init(allocator);
     defer cmd_args.deinit();
 
     try cmd_args.append("zig");

@@ -65,7 +65,7 @@ pub const RingBuffer = struct {
     allocator: Allocator,
     buffer: *Buffer,
     head: usize = 0,
-    frame_allocations: std.AutoHashMap(u64, std.ArrayList(BufferRegion)),
+    frame_allocations: std.AutoHashMap(u64, std.array_list.Managed(BufferRegion)),
     current_frame: u64 = 0,
 
     const Self = @This();
@@ -81,7 +81,7 @@ pub const RingBuffer = struct {
         self.* = Self{
             .allocator = allocator,
             .buffer = buffer,
-            .frame_allocations = std.AutoHashMap(u64, std.ArrayList(BufferRegion)).init(allocator),
+            .frame_allocations = std.AutoHashMap(u64, std.array_list.Managed(BufferRegion)).init(allocator),
         };
 
         return self;

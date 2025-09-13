@@ -374,7 +374,7 @@ pub const FileBackend = struct {
 /// Main logger class
 pub const Logger = struct {
     allocator: std.mem.Allocator,
-    backends: std.ArrayList(LogBackend),
+    backends: std.array_list.Managed(LogBackend),
     min_level: Level,
     category: []const u8,
     mutex: ?*std.Thread.Mutex,
@@ -399,7 +399,7 @@ pub const Logger = struct {
 
         return .{
             .allocator = allocator,
-            .backends = std.ArrayList(LogBackend).init(allocator),
+            .backends = std.array_list.Managed(LogBackend).init(allocator),
             .min_level = min_level,
             .category = try allocator.dupe(u8, category),
             .mutex = mutex,

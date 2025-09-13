@@ -149,17 +149,19 @@ pub const PerformanceProfiler = struct {
     };
 
     allocator: std.mem.Allocator,
-    frame_history: std.RingBuffer(FrameData),
+    frame_history: std.array_list.Managed(FrameData),
+    history_capacity: usize,
     current_frame: FrameData,
     timer: std.time.Timer,
     frame_count: u64,
 
     pub fn init(allocator: std.mem.Allocator) !PerformanceProfiler {
-        const ring_buffer = try std.RingBuffer(FrameData).init(allocator, 120); // 2 seconds at 60fps
+        const ring_buffer = std.array_list.Managed(FrameData).init(allocator);
 
         return PerformanceProfiler{
             .allocator = allocator,
             .frame_history = ring_buffer,
+            .history_capacity = 120,
             .current_frame = std.mem.zeroes(FrameData),
             .timer = try std.time.Timer.start(),
             .frame_count = 0,
@@ -179,7 +181,11 @@ pub const PerformanceProfiler = struct {
         const frame_time = self.timer.read() - self.current_frame.timestamp;
         self.current_frame.cpu_time_ms = @as(f64, @floatFromInt(frame_time)) / 1_000_000.0;
 
-        self.frame_history.writeItem(self.current_frame) catch {};
+        self.frame_history.append(self.current_frame) catch {};
+        // Remove oldest entries if we exceed capacity
+        while (self.frame_history.items.len > self.history_capacity) {
+            _ = self.frame_history.swapRemove(0);
+        }
         self.frame_count += 1;
     }
 
@@ -198,11 +204,9 @@ pub const PerformanceProfiler = struct {
         var total: f64 = 0.0;
         var count: u32 = 0;
 
-        for (0..self.frame_history.len()) |i| {
-            if (self.frame_history.readItem(i)) |frame| {
-                total += frame.cpu_time_ms;
-                count += 1;
-            }
+        for (self.frame_history.items) |frame| {
+            total += frame.cpu_time_ms;
+            count += 1;
         }
 
         return if (count > 0) total / @as(f64, @floatFromInt(count)) else 0.0;

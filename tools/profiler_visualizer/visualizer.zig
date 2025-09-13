@@ -59,17 +59,17 @@ const ViewState = struct {
 };
 
 const ProfileData = struct {
-    entries: std.ArrayList(ProfileEntry),
-    counters: std.ArrayList(CounterEntry),
-    allocations: std.ArrayList(MemoryAllocation),
+    entries: std.array_list.Managed(ProfileEntry),
+    counters: std.array_list.Managed(CounterEntry),
+    allocations: std.array_list.Managed(MemoryAllocation),
     min_time: u64 = std.math.maxInt(u64),
     max_time: u64 = 0,
 
     pub fn init(allocator: std.mem.Allocator) ProfileData {
         return ProfileData{
-            .entries = std.ArrayList(ProfileEntry).init(allocator),
-            .counters = std.ArrayList(CounterEntry).init(allocator),
-            .allocations = std.ArrayList(MemoryAllocation).init(allocator),
+            .entries = std.array_list.Managed(ProfileEntry).init(allocator),
+            .counters = std.array_list.Managed(CounterEntry).init(allocator),
+            .allocations = std.array_list.Managed(MemoryAllocation).init(allocator),
         };
     }
 
@@ -624,7 +624,7 @@ fn drawCounters(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: Pr
     }
 
     // Find all unique counter names
-    var counter_names = std.ArrayList([]const u8).init(std.heap.page_allocator);
+    var counter_names = std.array_list.Managed([]const u8).init(std.heap.page_allocator);
     defer counter_names.deinit();
 
     for (profile_data.counters.items) |counter| {
@@ -727,7 +727,7 @@ fn drawCounters(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: Pr
         }
 
         // Draw counter graph
-        var points = std.ArrayList(c.SDL_Point).init(std.heap.page_allocator);
+        var points = std.array_list.Managed(c.SDL_Point).init(std.heap.page_allocator);
         defer points.deinit();
 
         const graph_height = 80;
@@ -965,17 +965,17 @@ fn drawMemoryView(renderer: ?*c.SDL_Renderer, font: ?*c.TTF_Font, profile_data: 
     }
 
     // Find live allocations (not freed) that might be leaks
-    var potential_leaks = std.ArrayList(*const MemoryAllocation).init(std.heap.page_allocator);
+    var potential_leaks = std.array_list.Managed(*const MemoryAllocation).init(std.heap.page_allocator);
     defer potential_leaks.deinit();
 
     // Calculate total allocated memory at each timestamp in the view
     var total_memory: usize = 0;
     var peak_memory: usize = 0;
-    var memory_points = std.ArrayList(struct { timestamp: u64, total: usize }).init(std.heap.page_allocator);
+    var memory_points = std.array_list.Managed(struct { timestamp: u64, total: usize }).init(std.heap.page_allocator);
     defer memory_points.deinit();
 
     // Process allocations in timestamp order
-    var sorted_allocs = std.ArrayList(MemoryAllocation).init(std.heap.page_allocator);
+    var sorted_allocs = std.array_list.Managed(MemoryAllocation).init(std.heap.page_allocator);
     defer sorted_allocs.deinit();
 
     for (profile_data.allocations.items) |alloc| {
