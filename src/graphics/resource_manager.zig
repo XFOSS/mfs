@@ -346,7 +346,7 @@ pub const ResourceStats = struct {
 /// @symbol Internal resource cleanup system
 pub const ResourceGarbageCollector = struct {
     allocator: Allocator,
-    garbage_queue: std.fifo.LinearFifo(GarbageItem, .Dynamic),
+    garbage_queue: std.array_list.Managed(GarbageItem),
     deletion_frame_lag: u64 = 3, // Wait this many frames before deletion
 
     const GarbageType = enum {
@@ -371,7 +371,7 @@ pub const ResourceGarbageCollector = struct {
     pub fn init(allocator: Allocator) ResourceGarbageCollector {
         return ResourceGarbageCollector{
             .allocator = allocator,
-            .garbage_queue = std.fifo.LinearFifo(GarbageItem, .Dynamic).init(allocator),
+            .garbage_queue = std.array_list.Managed(GarbageItem).init(allocator),
         };
     }
 
@@ -407,7 +407,7 @@ pub const ResourceGarbageCollector = struct {
             .frame_number = frame_number,
         };
 
-        self.garbage_queue.writeItem(garbage_item) catch {
+        self.garbage_queue.append(garbage_item) catch {
             // If we can't queue, delete immediately
             self.deleteResource(garbage_item);
         };
@@ -418,16 +418,17 @@ pub const ResourceGarbageCollector = struct {
     /// @symbol Internal garbage collection implementation
     pub fn collectGarbage(self: *ResourceGarbageCollector, current_frame: u64) void {
         // Process all items in the queue
-        while (self.garbage_queue.readableLength() > 0) {
-            const item = self.garbage_queue.peekItem().?;
+        var i: usize = 0;
+        while (i < self.garbage_queue.items.len) {
+            const item = self.garbage_queue.items[i];
 
             // Check if it's time to delete this resource
             if (item.frame_number + self.deletion_frame_lag <= current_frame) {
-                _ = self.garbage_queue.readItem();
                 self.deleteResource(item);
+                _ = self.garbage_queue.swapRemove(i);
+                // Don't increment i since we removed an item
             } else {
-                // Items are in order, so we can stop checking
-                break;
+                i += 1;
             }
         }
     }

@@ -21,8 +21,8 @@ pub const World = struct {
     next_entity_id: EntityId,
     alive_entities: std.bit_set.IntegerBitSet(MAX_ENTITIES),
     component_masks: [MAX_ENTITIES]std.bit_set.IntegerBitSet(MAX_COMPONENT_TYPES),
-    component_pools: std.ArrayList(?*anyopaque),
-    systems: std.ArrayList(*System),
+    component_pools: std.array_list.Managed(?*anyopaque),
+    systems: std.array_list.Managed(*System),
 
     const Self = @This();
 
@@ -32,8 +32,8 @@ pub const World = struct {
             .next_entity_id = 0,
             .alive_entities = std.bit_set.IntegerBitSet(MAX_ENTITIES).initEmpty(),
             .component_masks = [_]std.bit_set.IntegerBitSet(MAX_COMPONENT_TYPES){std.bit_set.IntegerBitSet(MAX_COMPONENT_TYPES).initEmpty()} ** MAX_ENTITIES,
-            .component_pools = std.ArrayList(?*anyopaque).init(allocator),
-            .systems = std.ArrayList(*System).init(allocator),
+            .component_pools = std.array_list.Managed(?*anyopaque).init(allocator),
+            .systems = std.array_list.Managed(*System).init(allocator),
         };
     }
 

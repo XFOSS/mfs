@@ -18,7 +18,7 @@ pub fn ObjectPool(comptime T: type) type {
 
         allocator: std.mem.Allocator,
         free_list: ?*PoolNode,
-        all_nodes: std.ArrayList(*PoolNode),
+        all_nodes: std.array_list.Managed(*PoolNode),
         mutex: std.Thread.Mutex,
         capacity: usize,
         current_free: std.atomic.Value(usize),
@@ -30,7 +30,7 @@ pub fn ObjectPool(comptime T: type) type {
             var pool = Self{
                 .allocator = allocator,
                 .free_list = null,
-                .all_nodes = std.ArrayList(*PoolNode).init(allocator),
+                .all_nodes = std.array_list.Managed(*PoolNode).init(allocator),
                 .mutex = std.Thread.Mutex{},
                 .capacity = initial_capacity,
                 .current_free = std.atomic.Value(usize).init(0),
