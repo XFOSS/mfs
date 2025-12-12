@@ -1,6 +1,6 @@
 const std = @import("std");
 const physics_engine = @import("physics_engine.zig");
-const math = @import("math");
+const math = @import("../math/mod.zig");
 const Vector = math.Vector;
 const Quaternion = math.Quaternion;
 const Vec3f = physics_engine.Vec3f;

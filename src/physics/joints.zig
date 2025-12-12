@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const math = @import("math");
+const math = @import("../math/mod.zig");
 const Vec4 = math.Vec4;
 const Vector = math.Vector;
 const Quaternion = math.Quaternion;

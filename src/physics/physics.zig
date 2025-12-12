@@ -2,7 +2,7 @@
 //! This module provides fundamental physics constants and utility functions
 
 const std = @import("std");
-const math = @import("../libs/math/mod.zig");
+const math = @import("../math/mod.zig");
 
 pub const Vec3f = math.Vec3f;
 pub const Quatf = math.Quatf;
