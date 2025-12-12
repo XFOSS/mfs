@@ -16,135 +16,130 @@ The enhanced physics system provides several significant improvements:
 
 ### 1. Import the Enhanced Physics Module
 
-Replace your physics import with the improved version:
+Use the main physics module:
 
 ```zig
-// Old import
-const physics = @import("physics/physics.zig");
-
-// New import
-const physics = @import("physics/physics_improved.zig");
+const physics = @import("physics/mod.zig");
 ```
 
-### 2. Update World Initialization
+### 2. Update Engine Initialization
 
-The world initialization remains similar, but you can take advantage of additional configuration options:
+Initialize the physics engine with configuration:
 
 ```zig
 // Create physics config with enhanced options
-var config = physics.PhysicsConfig{
-    .gravity = physics.Vec3f{ 0, -9.81, 0, 0 },
+var config = physics.Config{
+    .gravity = [_]f32{ 0.0, -9.81, 0.0 },
     .enable_sleeping = true,        // Enable object sleeping
-    .collision_iterations = 3,      // More iterations for better stability
-    .constraint_iterations = 6,     // More constraint iterations
-    .spatial_cell_size = 2.0,       // Cell size for spatial partitioning
+    .solver_iterations = 8,         // Solver iterations for stability
+    .enable_ccd = true,             // Enable continuous collision detection
 };
 
-// Initialize physics world
-var world = try physics.World.init(allocator, config);
-defer world.deinit();
+// Initialize physics engine
+var engine = try physics.init(allocator, config);
+defer physics.deinit(engine);
 ```
 
 ### 3. Work with Rigid Bodies
 
-Use the dedicated rigid body creation functions:
+Use the `createRigidBody` function with configuration:
 
 ```zig
 // Create a box rigid body
-const box_idx = try world.createRigidBodyBox(
-    physics.Vec3f{ 0, 5, 0, 0 },                // position
-    physics.Vec3f{ 1.0, 1.0, 1.0, 0.0 },        // size
-    2.0                                          // mass
-);
+const box_idx = try engine.createRigidBody(physics.PhysicsEngine.RigidBodyConfig{
+    .position = .{ .x = 0, .y = 5, .z = 0 },
+    .mass = 2.0,
+    .shape = .{ .box = .{ .width = 1.0, .height = 1.0, .depth = 1.0 } },
+    .object_type = .dynamic,
+});
 
 // Create a sphere rigid body
-const sphere_idx = try world.createRigidBodySphere(
-    physics.Vec3f{ 2, 5, 0, 0 },                // position
-    1.0,                                         // radius
-    1.5                                          // mass
-);
+const sphere_idx = try engine.createRigidBody(physics.PhysicsEngine.RigidBodyConfig{
+    .position = .{ .x = 2, .y = 5, .z = 0 },
+    .mass = 1.5,
+    .shape = .{ .sphere = .{ .radius = 1.0 } },
+    .object_type = .dynamic,
+});
 ```
 
 ### 4. Use Advanced Constraints
 
-The enhanced system provides a constraint manager with multiple constraint types:
+The enhanced system provides constraint support through the engine:
 
 ```zig
-// Access the constraint manager (it's an optional, so use if check)
-if (world.constraint_manager) |*cm| {
-    // Create a distance constraint
-    const distance_constraint = try cm.addDistance(.{
-        .object_index_a = object_a_idx,
-        .object_index_b = object_b_idx,
-        .distance = 2.0,
-        .compliance = 0.0001,
-    });
-    
-    // Create a position constraint
-    const position_constraint = try cm.addPosition(.{
-        .object_index = object_idx,
-        .target_position = physics.Vec3f{ 0, 10, 0, 0 },
-        .stiffness = 0.5,
-    });
-    
-    // Create an angle constraint
-    const angle_constraint = try cm.addAngle(.{
-        .object_index_a = object_a_idx,
-        .object_index_b = object_b_idx,
-        .target_angle = 0.5,
-        .stiffness = 0.2,
-    });
-}
+// Create a spring constraint
+_ = try engine.addConstraint(
+    object_a_idx,
+    object_b_idx,
+    .spring,
+    .{ .x = 0, .y = 0, .z = 0 }, // anchor_a
+    .{ .x = 0, .y = 0, .z = 0 }, // anchor_b
+    .{
+        .spring = .{
+            .rest_length = 2.0,
+            .stiffness = 10.0,
+            .damping = 0.5,
+        },
+    },
+);
+
+// Create a hinge joint
+_ = try engine.addConstraint(
+    object_a_idx,
+    object_b_idx,
+    .hinge,
+    .{ .x = 0, .y = 0, .z = 0 }, // anchor_a
+    .{ .x = 0, .y = 0, .z = 0 }, // anchor_b
+    .{
+        .hinge = .{
+            .axis = .{ .x = 0, .y = 0, .z = 1 },
+            .lower_limit = -std.math.pi,
+            .upper_limit = std.math.pi,
+        },
+    },
+);
 ```
 
 ### 5. Apply Forces to Rigid Bodies
 
-For advanced force application to rigid bodies:
+Apply impulses directly to rigid bodies:
 
 ```zig
-// Get access to the rigid body manager
-if (world.rigid_body_manager) |*rbm| {
-    // Get a rigid body by object index
-    if (rbm.getRigidBody(object_idx)) |rb| {
-        // Apply force at a specific point
-        rb.applyForceAtPoint(
-            physics.Vec3f{ 10, 0, 0, 0 },        // force direction & magnitude
-            physics.Vec3f{ 0, 1, 0, 0 },         // point of application (relative to center)
-            &world.objects[object_idx]           // reference to the physical object
-        );
-    }
-}
+// Apply an impulse to a rigid body
+engine.applyImpulse(object_idx, .{ .x = 10, .y = 0, .z = 0 });
 ```
 
 ### 6. Collision Filtering
 
-The enhanced system supports collision filtering with groups and masks:
+Collision filtering is configured through the `RigidBodyConfig`:
 
 ```zig
-// Set collision group and mask (bitfields)
-world.objects[object_idx].collision_group = 0x01;  // Group 1
-world.objects[object_idx].collision_mask = 0x02;   // Can collide with group 2
-
-// Another object that can collide with the above
-world.objects[other_idx].collision_group = 0x02;   // Group 2
-world.objects[other_idx].collision_mask = 0x01;    // Can collide with group 1
+const object_idx = try engine.createRigidBody(physics.PhysicsEngine.RigidBodyConfig{
+    .position = .{ .x = 0, .y = 0, .z = 0 },
+    .mass = 1.0,
+    .shape = .{ .sphere = .{ .radius = 1.0 } },
+    .object_type = .dynamic,
+    // Collision filtering can be added to RigidBodyConfig if supported
+});
 ```
 
 ### 7. Update and Simulation Loop
 
-The update function remains the same:
+Update the physics engine each frame:
 
 ```zig
 // Main game loop
 while (running) {
     // Calculate delta time
-    const dt = timer.lap();
+    const dt: f32 = timer.lap();
     
     // Update physics
-    world.update(dt);
+    engine.update(dt);
     
-    // Get physics stats for monitoring
-    const stats = world.getPerformanceStats();
+    // Access objects directly
+    const object = &engine.objects.items[object_idx];
+    std.debug.print("Position: {d:.2}, {d:.2}, {d:.2}\n", 
+        .{ object.position.x, object.position.y, object.position.z });
 }
 ```
 
@@ -156,42 +151,38 @@ Objects automatically sleep when they come to rest, saving CPU time. To manually
 
 ```zig
 // Wake up a sleeping object
-world.objects[object_idx].wake();
-
-// Force an object to sleep
-world.objects[object_idx].sleep();
+engine.objects.items[object_idx].wake();
 ```
 
 ### Performance Monitoring
 
-The enhanced system includes performance statistics:
+Access performance statistics through the engine:
 
 ```zig
-const stats = world.getPerformanceStats();
-std.debug.print("Active objects: {d}, Update time: {d}ns\n", 
-    .{stats.active_objects, stats.update_time_ns});
-std.debug.print("Collision time: {d}ns, Constraint time: {d}ns\n",
-    .{stats.collision_time_ns, stats.constraint_time_ns});
+// Access performance stats if available
+const stats = engine.performance_stats;
+std.debug.print("Active bodies: {}\n", .{stats.active_bodies});
 ```
 
 ### Enhanced Spring Constraints
 
-The improved system supports more advanced spring options:
+Spring constraints are created using the `addConstraint` method:
 
 ```zig
-if (world.constraint_manager) |*cm| {
-    const spring = try cm.addSpring(.{
-        .object_index_a = object_a_idx,
-        .object_index_b = object_b_idx,
-        .rest_length = 2.0,
-        .stiffness = 10.0,
-        .damping = 0.3,
-        .min_length = 1.0,       // Spring can't compress beyond this
-        .max_length = 3.0,       // Spring can't stretch beyond this
-        .bidirectional = false,  // Only applies force when stretched (not compressed)
-        .break_threshold = 4.0,  // Spring breaks if stretched too far
-    });
-}
+_ = try engine.addConstraint(
+    object_a_idx,
+    object_b_idx,
+    .spring,
+    .{ .x = 0, .y = 0, .z = 0 },
+    .{ .x = 0, .y = 0, .z = 0 },
+    .{
+        .spring = .{
+            .rest_length = 2.0,
+            .stiffness = 10.0,
+            .damping = 0.3,
+        },
+    },
+);
 ```
 
 ## Example Implementation
