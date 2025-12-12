@@ -9,11 +9,13 @@
 
 const std = @import("std");
 
-// Try to import Vulkan, use mock types if not available
-const vk = @import("vulkan") catch struct {
+// Mock Vulkan types when real Vulkan is not available
+pub const vk = struct {
     pub const DeviceMemory = enum(u32) { null_handle = 0, _ };
     pub const DeviceSize = u64;
     pub const MemoryPropertyFlags = u32;
+    pub const Device = enum(u32) { null_handle = 0, _ };
+    pub const PhysicalDevice = enum(u32) { _ };
 };
 const assert = std.debug.assert;
 

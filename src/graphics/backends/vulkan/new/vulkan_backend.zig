@@ -9,8 +9,8 @@
 
 const std = @import("std");
 
-// Try to import Vulkan, fallback to mock types for testing
-const vk = @import("vulkan") catch struct {
+// Mock Vulkan types for when real Vulkan package is not available
+pub const vk = struct {
     pub const Instance = enum(u32) { null_handle = 0, _ };
     pub const PhysicalDevice = enum(u32) { _ };
     pub const Device = enum(u32) { null_handle = 0, _ };
@@ -38,6 +38,17 @@ const vk = @import("vulkan") catch struct {
     pub const SubpassContents = enum(u32) { @"inline" = 0, _ };
     pub const IndexType = enum(u32) { uint16 = 0, _ };
     pub const PrimitiveTopology = enum(u32) { triangle_list = 3, _ };
+    pub const PFN_vkDebugUtilsMessengerCallbackEXT = ?*const fn () void;
+    pub const DebugUtilsMessengerEXT = enum(u32) { null_handle = 0, _ };
+    pub const ApplicationInfo = struct {
+        sType: u32 = 0,
+        pNext: ?*anyopaque = null,
+        pApplicationName: ?[*:0]const u8 = null,
+        applicationVersion: u32 = 0,
+        pEngineName: ?[*:0]const u8 = null,
+        engineVersion: u32 = 0,
+        apiVersion: u32 = 0,
+    };
 };
 
 // Define MemoryManager locally to avoid import issues
