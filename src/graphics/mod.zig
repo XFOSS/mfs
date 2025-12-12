@@ -128,14 +128,16 @@ pub const GraphicsSystem = struct {
     const Self = @This();
 
     const BufferManager = struct {
-        buffers: std.ArrayList(*Buffer),
+        buffers: std.array_list.Managed(*Buffer),
         allocator: std.mem.Allocator,
 
         pub fn init(allocator: std.mem.Allocator) !BufferManager {
-            return BufferManager{
+            var manager = BufferManager{
                 .allocator = allocator,
-                .buffers = try std.ArrayList(*Buffer).initCapacity(allocator, 16),
+                .buffers = std.array_list.Managed(*Buffer).init(allocator),
             };
+            try manager.buffers.ensureTotalCapacity(16);
+            return manager;
         }
 
         pub fn deinit(self: *BufferManager) void {
@@ -154,14 +156,16 @@ pub const GraphicsSystem = struct {
     };
 
     const TextureManager = struct {
-        textures: std.ArrayList(*Texture),
+        textures: std.array_list.Managed(*Texture),
         allocator: std.mem.Allocator,
 
         pub fn init(allocator: std.mem.Allocator) !TextureManager {
-            return TextureManager{
+            var manager = TextureManager{
                 .allocator = allocator,
-                .textures = try std.ArrayList(*Texture).initCapacity(allocator, 16),
+                .textures = std.array_list.Managed(*Texture).init(allocator),
             };
+            try manager.textures.ensureTotalCapacity(16);
+            return manager;
         }
 
         pub fn deinit(self: *TextureManager) void {
@@ -180,14 +184,16 @@ pub const GraphicsSystem = struct {
     };
 
     const ShaderManager = struct {
-        shaders: std.ArrayList(*Shader),
+        shaders: std.array_list.Managed(*Shader),
         allocator: std.mem.Allocator,
 
         pub fn init(allocator: std.mem.Allocator) !ShaderManager {
-            return ShaderManager{
+            var manager = ShaderManager{
                 .allocator = allocator,
-                .shaders = try std.ArrayList(*Shader).initCapacity(allocator, 8),
+                .shaders = std.array_list.Managed(*Shader).init(allocator),
             };
+            try manager.shaders.ensureTotalCapacity(8);
+            return manager;
         }
 
         pub fn deinit(self: *ShaderManager) void {
@@ -206,14 +212,16 @@ pub const GraphicsSystem = struct {
     };
 
     const PipelineManager = struct {
-        pipelines: std.ArrayList(*Pipeline),
+        pipelines: std.array_list.Managed(*Pipeline),
         allocator: std.mem.Allocator,
 
         pub fn init(allocator: std.mem.Allocator) !PipelineManager {
-            return PipelineManager{
+            var manager = PipelineManager{
                 .allocator = allocator,
-                .pipelines = try std.ArrayList(*Pipeline).initCapacity(allocator, 8),
+                .pipelines = std.array_list.Managed(*Pipeline).init(allocator),
             };
+            try manager.pipelines.ensureTotalCapacity(8);
+            return manager;
         }
 
         pub fn deinit(self: *PipelineManager) void {
