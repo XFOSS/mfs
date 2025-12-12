@@ -159,7 +159,7 @@ pub const GPU = struct {
     }
 
     // Forward interface methods
-    pub usingnamespace interface.forwardBackendInterface(GPU);
+    // pub usingnamespace interface.forwardBackendInterface(GPU);
 };
 
 /// Common interface for all graphics backends

@@ -6,7 +6,7 @@ const build_options = @import("build_options");
 const math = @import("math");
 const graphics = @import("../graphics/graphics.zig");
 const platform = @import("../platform/platform.zig");
-const physics = @import("../physics/physics.zig");
+const physics = @import("../physics/mod.zig");
 
 const tracy = if (@hasDecl(build_options, "enable_tracy") and build_options.enable_tracy)
     @import("tracy")

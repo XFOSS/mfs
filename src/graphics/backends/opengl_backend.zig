@@ -29,8 +29,6 @@ const c = if (has_headers) @cImport({
 }) else @compileError("OpenGL backend disabled due to missing headers");
 
 // If headers are not available, provide stub implementations
-pub const OpenGLBackend = if (has_headers) struct {
-
 pub const OpenGLError = error{
     InitializationFailed,
     ShaderCompilationFailed,
