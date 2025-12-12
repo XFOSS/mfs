@@ -166,13 +166,13 @@ pub const VulkanBackend = struct {
             },
         };
 
-        // Create the Vulkan backend implementation
-        var backend = try allocator.create(Self);
-        errdefer allocator.destroy(backend);
-
         // Initialize with window handle if provided
-        backend = try Self.init(allocator, vulkan_config, config.window_handle orelse return error.WindowHandleRequired);
-        errdefer backend.deinit();
+        // Note: Self.init allocates the backend, so we don't need to allocate here
+        const backend = try Self.init(allocator, vulkan_config, config.window_handle orelse return error.WindowHandleRequired);
+        errdefer {
+            backend.deinit();
+            allocator.destroy(backend);
+        }
 
         // Create the GraphicsBackend wrapper
         const graphics_backend = try allocator.create(@import("../../interface.zig").GraphicsBackend);

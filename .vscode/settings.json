@@ -6,5 +6,5 @@
     ],
     "cursor.composer.textSizeScale": 1,
     "cursor.cpp.enablePartialAccepts": true,
-    "cursor.inlineDiff.mode": "unified"
+    "cursor.inlineDiff.mode": "diffs"
 }
