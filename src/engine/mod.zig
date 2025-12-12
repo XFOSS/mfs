@@ -9,19 +9,9 @@ const physics = @import("../physics/mod.zig");
 const scene = @import("../scene/mod.zig");
 const window = @import("../window/mod.zig");
 const input = @import("../input/mod.zig");
+const ai = @import("../ai/mod.zig");
+const networking = @import("../networking/mod.zig");
 const build_options = @import("../build_options.zig");
-
-// =============================================================================
-// Stub Systems (temporary implementations)
-// =============================================================================
-
-/// Temporary input system stub until full input integration
-const InputSystemStub = struct {
-    pub fn update(self: *InputSystemStub) !void {
-        _ = self;
-        // TODO: Implement input update
-    }
-};
 
 // =============================================================================
 // Configuration and Statistics
@@ -52,6 +42,14 @@ pub const Config = struct {
     // Physics configuration
     enable_physics: bool = build_options.Features.enable_physics,
 
+    // AI configuration
+    enable_ai: bool = build_options.Features.enable_ai,
+    ai_update_rate: f32 = 60.0, // Updates per second
+
+    // Networking configuration
+    enable_networking: bool = false, // Disabled by default (optional)
+    network_mode: networking.NetworkMode = .client,
+
     // Performance configuration
     target_fps: u32 = build_options.Performance.target_frame_rate,
     enable_frame_limiting: bool = true,
@@ -75,12 +73,26 @@ pub const Config = struct {
     }
 };
 
+// Engine errors
+pub const EngineError = error{
+    GraphicsRequiresWindow,
+    InputRequiresWindow,
+    SystemInitializationFailed,
+    InvalidWindowSize,
+    InvalidTargetFPS,
+    InvalidAudioSampleRate,
+};
+
 /// Application statistics
 pub const Stats = struct {
     frame_count: u64,
     fps: f64,
     elapsed_time: f64,
     memory_stats: core.memory.MemoryStats,
+    physics_objects: u32 = 0,
+    audio_sources: u32 = 0,
+    ai_entities: u32 = 0,
+    network_connections: u32 = 0,
 };
 
 // =============================================================================
@@ -103,7 +115,9 @@ pub const Application = struct {
     audio_system: ?*audio.AudioSystem = null,
     physics_system: ?*physics.PhysicsEngine = null,
     scene_system: ?*scene.Scene = null,
-    input_system: ?*InputSystemStub = null,
+    input_system: ?*input.InputSystem = null,
+    ai_system: ?*ai.AISystem = null,
+    network_manager: ?*networking.NetworkManager = null,
 
     // State
     is_running: bool = false,
@@ -112,6 +126,17 @@ pub const Application = struct {
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator, config: Config) !*Self {
+        // Validate configuration
+        try config.validate();
+
+        // Validate dependencies
+        if (config.enable_graphics and !config.enable_window) {
+            return error.GraphicsRequiresWindow;
+        }
+        if (config.enable_input and !config.enable_window) {
+            return error.InputRequiresWindow;
+        }
+
         const app = try allocator.create(Self);
         errdefer allocator.destroy(app);
 
@@ -134,7 +159,20 @@ pub const Application = struct {
         self.is_running = false;
 
         // Deinitialize subsystems in reverse order
+        if (self.network_manager) |sys| {
+            sys.deinit();
+            self.allocator.destroy(sys);
+            self.network_manager = null;
+        }
+
+        if (self.ai_system) |sys| {
+            sys.deinit();
+            self.allocator.destroy(sys);
+            self.ai_system = null;
+        }
+
         if (self.input_system) |sys| {
+            input.deinit(sys);
             self.allocator.destroy(sys);
             self.input_system = null;
         }
@@ -215,7 +253,7 @@ pub const Application = struct {
         }
 
         if (self.input_system) |sys| {
-            try sys.update();
+            sys.update();
         }
 
         // Update game systems
@@ -229,6 +267,16 @@ pub const Application = struct {
 
         if (self.scene_system) |sys| {
             sys.update(@floatCast(delta_time));
+        }
+
+        // Update AI system
+        if (self.ai_system) |sys| {
+            try sys.update(@floatCast(delta_time));
+        }
+
+        // Update networking system
+        if (self.network_manager) |net| {
+            try net.update(@floatCast(delta_time));
         }
 
         self.frame_count += 1;
@@ -250,12 +298,42 @@ pub const Application = struct {
 
     /// Get application statistics
     pub fn getStats(self: *const Self) Stats {
-        return Stats{
+        var stats = Stats{
             .frame_count = self.frame_count,
             .fps = self.time_system.getFPS(),
             .elapsed_time = self.time_system.getElapsedTime(),
             .memory_stats = self.memory_manager.getStats(),
+            .physics_objects = 0,
+            .audio_sources = 0,
+            .ai_entities = 0,
+            .network_connections = 0,
         };
+
+        // Get physics object count
+        if (self.physics_system) |phys| {
+            stats.physics_objects = @intCast(phys.objects.items.len);
+        }
+
+        // Get audio source count (if available)
+        if (self.audio_system) |_| {
+            // Note: AudioSystem may not have a direct count method
+            // This is a placeholder - actual implementation depends on AudioSystem API
+            stats.audio_sources = 0;
+        }
+
+        // Get AI entity count
+        if (self.ai_system) |ai_sys| {
+            const metrics = ai_sys.getMetrics();
+            stats.ai_entities = metrics.active_entities;
+        }
+
+        // Get network connection count
+        if (self.network_manager) |net_mgr| {
+            const net_stats = net_mgr.getStats();
+            stats.network_connections = net_stats.connections_active;
+        }
+
+        return stats;
     }
 
     /// Request application shutdown
@@ -275,18 +353,26 @@ pub const Application = struct {
             };
 
             self.window_system = try window.WindowSystem.init(self.allocator, window_config);
+            std.log.info("Window system initialized", .{});
         }
 
         // Initialize graphics system
         if (self.config.enable_graphics and self.window_system != null) {
+            std.log.info("Initializing graphics system...", .{});
             const graphics_config = graphics.Config{
                 .backend_type = self.config.graphics_backend,
                 .enable_validation = self.config.enable_validation,
                 .vsync = self.config.enable_vsync,
             };
 
+            const gfx_sys = graphics.GraphicsSystem.init(self.allocator, graphics_config) catch |err| {
+                std.log.warn("Failed to initialize graphics system: {}, continuing without graphics", .{err});
+                self.graphics_system = null;
+                return;
+            };
             self.graphics_system = try self.allocator.create(graphics.GraphicsSystem);
-            self.graphics_system.?.* = try graphics.GraphicsSystem.init(self.allocator, graphics_config);
+            self.graphics_system.?.* = gfx_sys;
+            std.log.info("Graphics system initialized successfully", .{});
         }
 
         // Initialize audio system
@@ -298,20 +384,109 @@ pub const Application = struct {
             };
 
             self.audio_system = try audio.init(self.allocator, audio_config);
+            std.log.info("Audio system initialized", .{});
         }
 
-        // Initialize physics system (stub for now)
+        // Initialize scene system (always initialized)
+        self.scene_system = try scene.init(self.allocator, .{});
+        std.log.info("Scene system initialized", .{});
+
+        // Initialize physics system
         if (self.config.enable_physics) {
             const physics_config = physics.Config{}; // Default config
             self.physics_system = try physics.init(self.allocator, physics_config);
+            std.log.info("Physics system initialized", .{});
         }
 
-        // Initialize scene system (stub for now)
-        self.scene_system = try scene.init(self.allocator, .{});
+        // Initialize input system
+        if (self.config.enable_input) {
+            std.log.info("Initializing input system...", .{});
+            const input_config = self.config.input_config;
+            const input_result = input.init(self.allocator, input_config);
+            if (input_result) |in_sys| {
+                self.input_system = in_sys;
+                std.log.info("Input system initialized successfully", .{});
+            } else |err| {
+                std.log.warn("Failed to initialize input system: {}, continuing without input", .{err});
+                self.input_system = null;
+            }
+        }
 
-        // Initialize input system (stub for now)
-        self.input_system = try self.allocator.create(InputSystemStub);
-        self.input_system.?.* = InputSystemStub{};
+        // Initialize AI system
+        if (self.config.enable_ai) {
+            std.log.info("Initializing AI system...", .{});
+            const ai_sys_result = ai.AISystem.init(self.allocator);
+            if (ai_sys_result) |ai_sys_val| {
+                self.ai_system = self.allocator.create(ai.AISystem) catch |err| {
+                    std.log.warn("Failed to allocate AI system: {}", .{err});
+                    self.ai_system = null;
+                } else |ai_ptr| {
+                    ai_ptr.* = ai_sys_val;
+                    self.ai_system = ai_ptr;
+                    std.log.info("AI system initialized successfully", .{});
+                };
+            } else |err| {
+                std.log.warn("Failed to initialize AI system: {}, continuing without AI", .{err});
+                self.ai_system = null;
+            }
+        }
+
+        // Initialize networking system (optional)
+        if (self.config.enable_networking) {
+            std.log.info("Initializing networking system...", .{});
+            const network_result = networking.NetworkManager.init(self.allocator, self.config.network_mode);
+            if (network_result) |net_mgr| {
+                self.network_manager = self.allocator.create(networking.NetworkManager) catch |err| {
+                    std.log.warn("Failed to allocate networking system: {}", .{err});
+                    self.network_manager = null;
+                } else |net_ptr| {
+                    net_ptr.* = net_mgr;
+                    self.network_manager = net_ptr;
+
+                    // Start networking if configured
+                    self.network_manager.?.start(self.config.network_config) catch |err| {
+                        std.log.warn("Failed to start networking: {}, continuing without networking", .{err});
+                        self.allocator.destroy(self.network_manager.?);
+                        self.network_manager = null;
+                    } else {
+                        std.log.info("Networking system initialized and started in {} mode", .{self.config.network_mode});
+                    };
+                };
+            } else |err| {
+                std.log.warn("Failed to initialize networking system: {}, continuing without networking", .{err});
+                self.network_manager = null;
+            }
+        }
+    }
+
+    /// Convert window event to input event
+    fn convertWindowEventToInputEvent(win_event: window.WindowEvent) ?input.InputEvent {
+        return switch (win_event) {
+            .key_press => |data| {
+                // Convert key code to input KeyCode
+                const key_code = @as(input.KeyCode, @enumFromInt(data.key));
+                return input.InputEvent{ .key_pressed = key_code };
+            },
+            .key_release => |data| {
+                const key_code = @as(input.KeyCode, @enumFromInt(data.key));
+                return input.InputEvent{ .key_released = key_code };
+            },
+            .mouse_move => |data| {
+                return input.InputEvent{ .mouse_moved = .{ .x = @floatCast(data.x), .y = @floatCast(data.y) } };
+            },
+            .mouse_button => |data| {
+                const button = @as(input.MouseButton, @enumFromInt(data.button));
+                if (data.action == 1) { // Press
+                    return input.InputEvent{ .mouse_pressed = button };
+                } else { // Release
+                    return input.InputEvent{ .mouse_released = button };
+                }
+            },
+            .mouse_scroll => |data| {
+                return input.InputEvent{ .mouse_wheel = .{ .delta_x = @floatCast(data.x), .delta_y = @floatCast(data.y) } };
+            },
+            else => null, // Ignore other events
+        };
     }
 };
 
