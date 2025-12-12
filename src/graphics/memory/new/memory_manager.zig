@@ -8,7 +8,13 @@
 //! - Thread-safe operations
 
 const std = @import("std");
-const vk = @import("vulkan");
+
+// Try to import Vulkan, use mock types if not available
+const vk = @import("vulkan") catch struct {
+    pub const DeviceMemory = enum(u32) { null_handle = 0, _ };
+    pub const DeviceSize = u64;
+    pub const MemoryPropertyFlags = u32;
+};
 const assert = std.debug.assert;
 
 /// Memory allocation statistics for monitoring and debugging
