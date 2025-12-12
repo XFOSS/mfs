@@ -19,14 +19,14 @@ pub const CollisionData = struct {
 pub const CollisionResolver = struct {
     /// Check for collision between two objects
     pub fn detectCollision(obj_a: *PhysicalObject, obj_b: *PhysicalObject) ?CollisionData {
-        // Skip if both objects are pinned or sleeping
+        // Skip if both objects are pinned or inactive
         if ((obj_a.pinned and obj_b.pinned) or
-            (obj_a.sleeping and obj_b.sleeping)) return null;
+            (!obj_a.active and !obj_b.active)) return null;
 
         // Calculate collision data
         const pos_a = obj_a.position;
         const pos_b = obj_b.position;
-        const radius_sum = obj_a.collision_radius + obj_b.collision_radius;
+        const radius_sum = obj_a.radius + obj_b.radius;
 
         // Check distance between objects
         const delta = pos_b - pos_a;
@@ -42,13 +42,16 @@ pub const CollisionResolver = struct {
         else
             Vector.new(1.0, 0.0, 0.0, 0.0);
 
+        // Use default restitution coefficient (PhysicalObject doesn't have restitution property)
+        const default_restitution = 0.5;
+
         return CollisionData{
             .object_a = obj_a,
             .object_b = obj_b,
             .normal = normal,
             .penetration = radius_sum - dist,
-            .point = pos_a + normal * Vector.splat(obj_a.collision_radius),
-            .restitution = @min(obj_a.restitution, obj_b.restitution),
+            .point = pos_a + normal * Vector.splat(obj_a.radius),
+            .restitution = default_restitution,
         };
     }
 
@@ -77,14 +80,14 @@ pub const CollisionResolver = struct {
             obj_b.velocity += impulse * Vector.splat(obj_b.inverse_mass);
         }
 
-        // Apply friction
+        // Apply friction (use default friction coefficient since PhysicalObject doesn't have friction property)
         const tangent = rel_vel - collision.normal * Vector.splat(vel_along_normal);
         const tangent_length = Vector.length3(tangent);
 
         if (tangent_length > PhysicsConstants.SAFE_DIVISOR) {
-            const friction = @min(obj_a.friction, obj_b.friction);
+            const default_friction = 0.5;
             const normalized_tangent = tangent * Vector.splat(1.0 / tangent_length);
-            const friction_impulse = normalized_tangent * Vector.splat(-friction * impulse_scalar);
+            const friction_impulse = normalized_tangent * Vector.splat(-default_friction * impulse_scalar);
 
             if (!obj_a.pinned) {
                 obj_a.velocity -= friction_impulse * Vector.splat(obj_a.inverse_mass);

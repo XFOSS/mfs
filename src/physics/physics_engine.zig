@@ -339,7 +339,7 @@ pub const PhysicsEngine = struct {
             const dy = obj_a.position.y - obj_b.position.y;
             const dz = obj_a.position.z - obj_b.position.z;
             const distance = @sqrt(dx * dx + dy * dy + dz * dz);
-            const combined_radius = 1.0 + 1.0; // TODO: Add radius to PhysicalObject
+            const combined_radius = obj_a.radius + obj_b.radius;
 
             if (distance < combined_radius) {
                 // Create contact manifold
@@ -361,9 +361,9 @@ pub const PhysicsEngine = struct {
 
                 // Create contact point
                 const contact_point = Vec3f{
-                    .x = obj_a.position.x + manifold.normal.x * 1.0,
-                    .y = obj_a.position.y + manifold.normal.y * 1.0,
-                    .z = obj_a.position.z + manifold.normal.z * 1.0,
+                    .x = obj_a.position.x + manifold.normal.x * obj_a.radius,
+                    .y = obj_a.position.y + manifold.normal.y * obj_a.radius,
+                    .z = obj_a.position.z + manifold.normal.z * obj_a.radius,
                 };
                 manifold.contacts[0] = .{
                     .position = Vec3f{ .x = contact_point.x, .y = contact_point.y, .z = contact_point.z },
@@ -755,4 +755,7 @@ pub const PhysicsEngine = struct {
         time_step: f32 = 1.0 / 60.0,
         enable_ccd: bool = false,
     };
+
+    /// Type alias for backward compatibility
+    pub const PhysicsWorld = PhysicsEngine;
 };
