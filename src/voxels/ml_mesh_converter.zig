@@ -557,7 +557,7 @@ pub const NeuralNetwork = struct {
 
     pub fn deinit(self: *NeuralNetwork) void {
         for (self.layers.items) |*layer| {
-            layer.deinit(self.allocator);
+            layer.deinit();
         }
         self.layers.deinit();
         self.allocator.destroy(self);

@@ -264,9 +264,9 @@ pub const TemporalTechniques = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.current_buffer.deinit(self.allocator);
-        self.history_buffer.deinit(self.allocator);
-        self.motion_buffer.deinit(self.allocator);
+        self.current_buffer.deinit();
+        self.history_buffer.deinit();
+        self.motion_buffer.deinit();
 
         if (self.neural_upscaler) |upscaler| {
             upscaler.deinit();

@@ -93,7 +93,7 @@ pub const WindowSystemImpl = struct {
             win.deinit();
             self.allocator.destroy(win);
         }
-        self.events.deinit(self.allocator);
+        self.events.deinit();
         // Note: Don't destroy self here - that's the responsibility of the caller
     }
 
@@ -105,7 +105,7 @@ pub const WindowSystemImpl = struct {
             // This is a simplified implementation
             if (win.shouldClose()) {
                 self.should_close = true;
-                try self.events.append(self.allocator, .close);
+                try self.events.append(.close);
             }
         }
     }

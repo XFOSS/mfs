@@ -55,7 +55,7 @@ pub const Entity = struct {
     pub fn deinit(self: *Entity, allocator: Allocator) void {
         allocator.free(self.name);
         allocator.free(self.tag);
-        self.children.deinit(allocator);
+        self.children.deinit();
 
         var comp_iter = self.components.iterator();
         while (comp_iter.next()) |entry| {

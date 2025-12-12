@@ -44,10 +44,10 @@ pub const PhysicsSystem = struct {
     }
 
     pub fn deinit(self: *PhysicsSystem) void {
-        self.collision_pairs.deinit(self.allocator);
-        self.broad_phase_pairs.deinit(self.allocator);
-        self.dynamic_bodies.deinit(self.allocator);
-        self.static_bodies.deinit(self.allocator);
+        self.collision_pairs.deinit();
+        self.broad_phase_pairs.deinit();
+        self.dynamic_bodies.deinit();
+        self.static_bodies.deinit();
     }
 
     pub fn setGravity(self: *PhysicsSystem, gravity: Vec3) void {

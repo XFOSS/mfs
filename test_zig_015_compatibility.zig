@@ -13,7 +13,7 @@ pub fn main() !void {
 
     // Test 1: Engine Core
     std.log.info("Testing engine core...", .{});
-    const core = @import("src/engine/core.zig");
+    _ = @import("src/engine/core.zig");
 
     // Test ArrayList usage
     var test_list = std.array_list.Managed(u32).init(allocator);
@@ -42,8 +42,8 @@ pub fn main() !void {
     var pool = try memory.Pool(u32).init(allocator, 10);
     defer pool.deinit();
 
-    const item = try pool.allocate();
-    pool.deallocate(item);
+    const item = try pool.acquire();
+    pool.release(item);
 
     std.log.info("Memory pool test passed", .{});
 

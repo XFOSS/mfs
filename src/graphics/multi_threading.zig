@@ -623,8 +623,8 @@ pub const MultiThreadedGraphics = struct {
 
         // Clean up other resources
         self.work_queue.deinit();
-        self.load_balancer.deinit(self.allocator);
-        self.stats.deinit(self.allocator);
+        self.load_balancer.deinit();
+        self.stats.deinit();
 
         destroyFrameFence(self.graphics_backend, self.frame_fence);
 

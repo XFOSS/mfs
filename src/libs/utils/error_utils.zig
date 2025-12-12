@@ -166,7 +166,7 @@ pub const ErrorHandler = struct {
         defer self.mutex.unlock();
 
         for (self.error_log.items) |*ctx| {
-            ctx.deinit(self.allocator);
+            ctx.deinit();
         }
         self.error_log.deinit();
         self.recovery_strategies.deinit();
@@ -261,7 +261,7 @@ pub const ErrorHandler = struct {
         defer self.mutex.unlock();
 
         for (self.error_log.items) |*ctx| {
-            ctx.deinit(self.allocator);
+            ctx.deinit();
         }
         self.error_log.clearRetainingCapacity();
     }
@@ -542,7 +542,7 @@ test "error context creation and formatting" {
         @src(),
         allocator,
     );
-    defer context.deinit(allocator);
+    defer context.deinit();
 
     try testing.expect(context.error_code == error.TestError);
     try testing.expectEqualStrings("Test error message", context.message);

@@ -133,7 +133,7 @@ pub fn Pool(comptime T: type) type {
 
         pub fn acquire(self: *Self) !*T {
             if (self.available.items.len > 0) {
-                return self.available.pop();
+                return self.available.pop() orelse unreachable;
             }
 
             // Create new object if pool is empty

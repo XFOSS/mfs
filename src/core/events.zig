@@ -214,12 +214,12 @@ pub const EventSystem = struct {
 
         // Clean up queued events
         for (self.event_queue.items) |event| {
-            event.deinit(self.allocator);
+            event.deinit();
         }
         self.event_queue.deinit();
 
         for (self.immediate_queue.items) |event| {
-            event.deinit(self.allocator);
+            event.deinit();
         }
         self.immediate_queue.deinit();
 
@@ -422,13 +422,13 @@ pub const EventSystem = struct {
         // Process immediate events
         for (immediate_events) |queued_event| {
             try self.processQueuedEvent(queued_event);
-            queued_event.deinit(self.allocator);
+            queued_event.deinit();
         }
 
         // Process regular events
         for (events) |queued_event| {
             try self.processQueuedEvent(queued_event);
-            queued_event.deinit(self.allocator);
+            queued_event.deinit();
         }
 
         // Update queue size
@@ -501,12 +501,12 @@ pub const EventSystem = struct {
         }
 
         for (self.event_queue.items) |event| {
-            event.deinit(self.allocator);
+            event.deinit();
         }
         self.event_queue.clearRetainingCapacity();
 
         for (self.immediate_queue.items) |event| {
-            event.deinit(self.allocator);
+            event.deinit();
         }
         self.immediate_queue.clearRetainingCapacity();
 

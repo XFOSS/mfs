@@ -19,7 +19,7 @@ pub const GridCell = struct {
     }
 
     pub fn deinit(self: *GridCell) void {
-        self.objects.deinit(self.allocator);
+        self.objects.deinit();
     }
 };
 
@@ -66,7 +66,7 @@ pub const SpatialGrid = struct {
             cell.deinit();
         }
         self.allocator.free(self.cells);
-        self.collision_pairs.deinit(self.allocator);
+        self.collision_pairs.deinit();
     }
 
     /// Clear all cells (should be called each frame before insertion)
@@ -154,7 +154,7 @@ pub const SpatialGrid = struct {
                     if (self.isPairAlreadyAdded(obj_idx_a, obj_idx_b)) continue;
 
                     // Add as potential collision pair
-                    try self.collision_pairs.append(self.allocator, [2]usize{ obj_idx_a, obj_idx_b });
+                    try self.collision_pairs.append([2]usize{ obj_idx_a, obj_idx_b });
                 }
             }
         }

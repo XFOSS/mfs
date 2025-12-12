@@ -840,37 +840,37 @@ pub const XRSystem = struct {
     pub fn deinit(self: *Self) void {
         // Clean up spatial anchors
         for (self.spatial_anchors.items) |anchor| {
-            anchor.deinit(self.allocator);
+            anchor.deinit();
         }
         self.spatial_anchors.deinit();
 
         // Clean up optional systems
         if (self.spatial_mapping) |mapping| {
-            mapping.deinit(self.allocator);
+            mapping.deinit();
         }
         if (self.hand_tracking) |hand_tracking| {
-            hand_tracking.deinit(self.allocator);
+            hand_tracking.deinit();
         }
         if (self.guardian_system) |guardian| {
-            guardian.deinit(self.allocator);
+            guardian.deinit();
         }
 
         // Clean up eye textures
         for (self.eye_textures) |eye_texture| {
-            eye_texture.deinit(self.allocator);
+            eye_texture.deinit();
         }
 
         // Clean up core systems
-        self.renderer.deinit(self.allocator);
-        self.input_system.deinit(self.allocator);
-        self.tracking_system.deinit(self.allocator);
-        self.hmd.deinit(self.allocator);
+        self.renderer.deinit();
+        self.input_system.deinit();
+        self.tracking_system.deinit();
+        self.hmd.deinit();
 
         if (self.session) |session| {
-            session.deinit(self.allocator);
+            session.deinit();
         }
 
-        self.runtime.deinit(self.allocator);
+        self.runtime.deinit();
 
         self.allocator.destroy(self);
     }

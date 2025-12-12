@@ -740,7 +740,7 @@ pub const Node = struct {
         var prop_iterator = self.properties.iterator();
         while (prop_iterator.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
-            entry.value_ptr.deinit(self.allocator);
+            entry.value_ptr.deinit();
         }
         self.properties.deinit();
     }

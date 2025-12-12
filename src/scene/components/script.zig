@@ -28,7 +28,7 @@ pub const ScriptComponent = struct {
 
     pub fn deinit(self: *ScriptComponent) void {
         self.allocator.free(self.script_name);
-        self.functions.deinit(self.allocator);
+        self.functions.deinit();
 
         if (self.deinit_fn) |deinit_fn| {
             deinit_fn(self);
