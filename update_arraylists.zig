@@ -66,7 +66,7 @@ fn discoverFiles(dir_path: []const u8, files: *std.array_list.Managed([]const u8
 
                 const file = std.fs.cwd().openFile(full_path, .{}) catch continue;
                 defer file.close();
-                
+
                 const stat = file.stat() catch continue;
                 const content = file.reader().readAllAlloc(allocator, stat.size + 1) catch continue;
                 defer allocator.free(content);
@@ -89,7 +89,7 @@ fn updateFile(file_path: []const u8, allocator: std.mem.Allocator) !bool {
     defer file.close();
 
     const stat = try file.stat();
-    const content = try file.readToEndAlloc(allocator, stat.size + 1);
+    const content = try file.reader().readAllAlloc(allocator, stat.size + 1);
     defer allocator.free(content);
 
     // Check if file actually contains std.ArrayList (not just in comments)
