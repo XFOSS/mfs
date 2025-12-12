@@ -98,6 +98,31 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Create main executable
+    const exe = b.addExecutable(.{
+        .name = "mfs-engine",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/bin/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
+    exe.root_module.addImport("mfs", lib);
+    exe.root_module.addOptions("build_options", options);
+    addPlatformDependencies(exe, target.result.os.tag);
+    b.installArtifact(exe);
+
+    // Create run step for main executable
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+    if (b.args) |args| {
+        run_cmd.addArgs(args);
+    }
+
+    const run_step = b.step("run", "Run the main executable");
+    run_step.dependOn(&run_cmd.step);
+
     // Add memory manager tests
     const memory_manager_tests = b.addTest(.{
         .name = "memory-manager-tests",
@@ -107,6 +132,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+
     memory_manager_tests.root_module.addImport("mfs", lib);
     memory_manager_tests.root_module.addOptions("build_options", options);
     addPlatformDependencies(memory_manager_tests, target.result.os.tag);
@@ -130,36 +156,10 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&memory_manager_tests.step);
     test_step.dependOn(&vulkan_backend_tests.step);
 
-    // const examples = [_][]const u8{
-    //     "vulkan_spinning_cube_simple",
-    //     "vulkan_spinning_cube_real",
-    //     "vulkan_rt_spinning_cube",
-    // };
-
-    // for (examples) |example| {
-    //     const exe = b.addExecutable(.{
-    //         .name = example,
-    //         .root_module = b.createModule(.{
-    //             .root_source_file = b.path(b.fmt("examples/{s}/main.zig", .{example})),
-    //             .target = target,
-    //             .optimize = optimize,
-    //         }),
-    //     });
-
-    //     // Optionally link Vulkan system library for examples
-    //     addOptionalLibrary(exe, "vulkan-1");
-
-    //     // Link with main library
-    //     exe.linkLibrary(lib);
-
-    //     b.installArtifact(exe);
-
-    //     const run_cmd = b.addRunArtifact(exe);
-    //     run_cmd.step.dependOn(b.getInstallStep());
-
-    //     const run_step = b.step(b.fmt("run-{s}", .{example}), b.fmt("Run the {s} example", .{example}));
-    //     run_step.dependOn(&run_cmd.step);
-    // }
+    // Build tests, tools, and web target
+    buildTests(b, target, optimize, lib, options);
+    buildTools(b, target, optimize, lib, options);
+    buildWebTarget(b, target, optimize, lib, options);
 }
 
 fn addBuildOptions(options: *std.Build.Step.Options, target: std.Target) void {
