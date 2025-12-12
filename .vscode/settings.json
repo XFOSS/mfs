@@ -3,5 +3,8 @@
         "build",
         "test",
         "-Dtest-filter=${filter}"
-    ]
+    ],
+    "cursor.composer.textSizeScale": 1.3,
+    "cursor.cpp.enablePartialAccepts": true,
+    "cursor.inlineDiff.mode": "unified"
 }
