@@ -172,8 +172,26 @@ pub const Application = struct {
         }
 
         if (self.input_system) |sys| {
+            // #region agent log
+            const log_path = ".cursor/debug.log";
+            if (std.fs.cwd().openFile(log_path, .{ .mode = .read_write })) |log_file| {
+                defer log_file.close();
+                log_file.seekTo(log_file.getEndPos() catch 0) catch {};
+                const log_writer = log_file.writer();
+                log_writer.print("{{\"id\":\"deinit_input_1\",\"timestamp\":{},\"location\":\"engine/mod.zig:174\",\"message\":\"InputSystem deinit start\",\"data\":{{\"sys_ptr\":{}}},\"sessionId\":\"debug-session\",\"runId\":\"post-fix\",\"hypothesisId\":\"A\"}}\n", .{ std.time.milliTimestamp(), @intFromPtr(sys) }) catch {};
+            } else |_| {}
+            // #endregion
+            // input.deinit(sys) calls sys.deinit() which destroys the object itself
+            // DO NOT call self.allocator.destroy(sys) after this - it would be a double-free
             input.deinit(sys);
-            self.allocator.destroy(sys);
+            // #region agent log
+            if (std.fs.cwd().openFile(log_path, .{ .mode = .read_write })) |log_file| {
+                defer log_file.close();
+                log_file.seekTo(log_file.getEndPos() catch 0) catch {};
+                const log_writer = log_file.writer();
+                log_writer.print("{{\"id\":\"deinit_input_2\",\"timestamp\":{},\"location\":\"engine/mod.zig:177\",\"message\":\"After input.deinit (object destroyed)\",\"data\":{{}},\"sessionId\":\"debug-session\",\"runId\":\"post-fix\",\"hypothesisId\":\"A\"}}\n", .{std.time.milliTimestamp()}) catch {};
+            } else |_| {}
+            // #endregion
             self.input_system = null;
         }
 
@@ -417,14 +435,14 @@ pub const Application = struct {
             std.log.info("Initializing AI system...", .{});
             const ai_sys_result = ai.AISystem.init(self.allocator);
             if (ai_sys_result) |ai_sys_val| {
-                self.ai_system = self.allocator.create(ai.AISystem) catch |err| {
+                const ai_ptr = self.allocator.create(ai.AISystem) catch |err| {
                     std.log.warn("Failed to allocate AI system: {}", .{err});
                     self.ai_system = null;
-                } else |ai_ptr| {
-                    ai_ptr.* = ai_sys_val;
-                    self.ai_system = ai_ptr;
-                    std.log.info("AI system initialized successfully", .{});
+                    return;
                 };
+                ai_ptr.* = ai_sys_val;
+                self.ai_system = ai_ptr;
+                std.log.info("AI system initialized successfully", .{});
             } else |err| {
                 std.log.warn("Failed to initialize AI system: {}, continuing without AI", .{err});
                 self.ai_system = null;
@@ -436,22 +454,22 @@ pub const Application = struct {
             std.log.info("Initializing networking system...", .{});
             const network_result = networking.NetworkManager.init(self.allocator, self.config.network_mode);
             if (network_result) |net_mgr| {
-                self.network_manager = self.allocator.create(networking.NetworkManager) catch |err| {
+                const net_ptr = self.allocator.create(networking.NetworkManager) catch |err| {
                     std.log.warn("Failed to allocate networking system: {}", .{err});
                     self.network_manager = null;
-                } else |net_ptr| {
-                    net_ptr.* = net_mgr;
-                    self.network_manager = net_ptr;
-
-                    // Start networking if configured
-                    self.network_manager.?.start(self.config.network_config) catch |err| {
-                        std.log.warn("Failed to start networking: {}, continuing without networking", .{err});
-                        self.allocator.destroy(self.network_manager.?);
-                        self.network_manager = null;
-                    } else {
-                        std.log.info("Networking system initialized and started in {} mode", .{self.config.network_mode});
-                    };
+                    return;
                 };
+                net_ptr.* = net_mgr;
+                self.network_manager = net_ptr;
+
+                // Start networking if configured
+                self.network_manager.?.start(self.config.network_config) catch |err| {
+                    std.log.warn("Failed to start networking: {}, continuing without networking", .{err});
+                    self.allocator.destroy(self.network_manager.?);
+                    self.network_manager = null;
+                    return;
+                };
+                std.log.info("Networking system initialized and started in {} mode", .{self.config.network_mode});
             } else |err| {
                 std.log.warn("Failed to initialize networking system: {}, continuing without networking", .{err});
                 self.network_manager = null;
