@@ -4,5 +4,3 @@
 comptime {
     _ = @import("backends/vulkan/new/vulkan_backend_test.zig");
 }
-
-

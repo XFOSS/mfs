@@ -429,7 +429,7 @@ fn convertInlineMarkdown(allocator: std.mem.Allocator, text: []const u8) ![]cons
 
     var i: usize = 0;
     while (i < text.len) {
-        if (std.mem.startsWith(u8, text[i..], "**") and std.mem.indexOf(u8, text[i + 2..], "**")) |end| {
+        if (std.mem.startsWith(u8, text[i..], "**") and std.mem.indexOf(u8, text[i + 2 ..], "**")) |end| {
             // Bold
             const content_start = i + 2;
             const content_end = i + 2 + end;
@@ -439,7 +439,7 @@ fn convertInlineMarkdown(allocator: std.mem.Allocator, text: []const u8) ![]cons
             try result.appendSlice(escaped);
             try result.appendSlice("</strong>");
             i = content_end + 2;
-        } else if (std.mem.startsWith(u8, text[i..], "*") and std.mem.indexOf(u8, text[i + 1..], "*")) |end| {
+        } else if (std.mem.startsWith(u8, text[i..], "*") and std.mem.indexOf(u8, text[i + 1 ..], "*")) |end| {
             // Italic
             const content_start = i + 1;
             const content_end = i + 1 + end;
@@ -449,7 +449,7 @@ fn convertInlineMarkdown(allocator: std.mem.Allocator, text: []const u8) ![]cons
             try result.appendSlice(escaped);
             try result.appendSlice("</em>");
             i = content_end + 1;
-        } else if (std.mem.startsWith(u8, text[i..], "`") and std.mem.indexOf(u8, text[i + 1..], "`")) |end| {
+        } else if (std.mem.startsWith(u8, text[i..], "`") and std.mem.indexOf(u8, text[i + 1 ..], "`")) |end| {
             // Inline code
             const content_start = i + 1;
             const content_end = i + 1 + end;
@@ -461,10 +461,10 @@ fn convertInlineMarkdown(allocator: std.mem.Allocator, text: []const u8) ![]cons
             i = content_end + 1;
         } else if (std.mem.startsWith(u8, text[i..], "[") and std.mem.indexOf(u8, text[i..], "](")) |link_text_end| {
             // Link
-            const link_text = text[i + 1..i + link_text_end];
+            const link_text = text[i + 1 .. i + link_text_end];
             const link_start = i + link_text_end + 2;
             if (std.mem.indexOf(u8, text[link_start..], ")")) |link_end| {
-                const link_url = text[link_start..link_start + link_end];
+                const link_url = text[link_start .. link_start + link_end];
                 try result.appendSlice("<a href=\"");
                 try result.appendSlice(link_url);
                 try result.appendSlice("\">");
