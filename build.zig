@@ -102,7 +102,7 @@ pub fn build(b: *std.Build) void {
     const memory_manager_tests = b.addTest(.{
         .name = "memory-manager-tests",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/graphics/memory/new/memory_manager_test.zig"),
+            .root_source_file = b.path("src/graphics/test_memory_manager.zig"),
             .target = target,
             .optimize = optimize,
         }),
@@ -116,7 +116,7 @@ pub fn build(b: *std.Build) void {
     const vulkan_backend_tests = b.addTest(.{
         .name = "vulkan-backend-tests",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/graphics/backends/vulkan/new/vulkan_backend_test.zig"),
+            .root_source_file = b.path("src/graphics/test_vulkan_backend_new.zig"),
             .target = target,
             .optimize = optimize,
         }),
