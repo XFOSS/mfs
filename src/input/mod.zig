@@ -157,7 +157,7 @@ pub const GamepadAxis = enum(u8) {
 pub const InputSystemConfig = input.InputSystem.InputSystemConfig;
 
 // Initialize input system
-pub fn init(allocator: std.mem.Alocator, config: InputSystemConfig) !*InputSystem {
+pub fn init(allocator: std.mem.Allocator, config: InputSystemConfig) !*InputSystem {
     try config.validate();
     return try InputSystem.init(allocator, config);
 }

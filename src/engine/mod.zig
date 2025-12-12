@@ -256,14 +256,17 @@ pub const Application = struct {
             try sys.update(delta_time);
         }
 
+        // Update scene system (provides entity data to AI and Networking)
         if (self.scene_system) |sys| {
             sys.update(@floatCast(delta_time));
         }
 
+        // Update AI system (can query scene entities via getScene())
         if (self.ai_system) |sys| {
             try sys.update(@floatCast(delta_time));
         }
 
+        // Update networking system (can sync scene state via getScene())
         if (self.network_manager) |sys| {
             try sys.update(@floatCast(delta_time));
         }
@@ -327,6 +330,26 @@ pub const Application = struct {
     /// Request application shutdown
     pub fn quit(self: *Self) void {
         self.is_running = false;
+    }
+
+    /// Get scene system (for AI and Networking integration)
+    pub fn getScene(self: *Self) ?*scene.Scene {
+        return self.scene_system;
+    }
+
+    /// Get input system (for scene and other systems)
+    pub fn getInput(self: *Self) ?*input.InputSystem {
+        return self.input_system;
+    }
+
+    /// Get AI system (for scene integration)
+    pub fn getAI(self: *Self) ?*ai.AISystem {
+        return self.ai_system;
+    }
+
+    /// Get networking system (for scene synchronization)
+    pub fn getNetworking(self: *Self) ?*networking.NetworkManager {
+        return self.network_manager;
     }
 
     fn initializeSubsystems(self: *Self) !void {

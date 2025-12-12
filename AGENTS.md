@@ -87,9 +87,11 @@ When integrating a new subsystem:
 ### System Dependencies
 
 - **Graphics** requires **Window** (checks `window_system != null`)
-- **Input** receives events from **Window** via `routeWindowEventsToInput()`
+- **Input** receives events from **Window** via `convertWindowEventToInputEvent()` and `pushEvent()`
 - **Scene** coordinates with **Graphics**, **Physics**, and **Audio** for rendering/simulation
-- **AI** and **Networking** operate on **Scene** entities
+- **AI** operates on **Scene** entities (access via `Application.getScene()`)
+- **Networking** syncs **Scene** state (access via `Application.getScene()`)
+- **Input** accessible to **Scene** and other systems (via `Application.getInput()`)
 
 ### Common Pitfalls
 
@@ -120,12 +122,9 @@ When integrating a new subsystem:
 - ✅ Scene System (ECS-based)
 - ✅ Physics System
 - ✅ Audio System (3D spatial audio)
-
-### Integration Work Needed
-
-- ⚠️ Input System: Currently using stub, needs full integration
-- ⚠️ AI System: Available but not integrated into Application
-- ⚠️ Networking System: Available but not integrated into Application
+- ✅ Input System (fully integrated with window event routing)
+- ✅ AI System (fully integrated with scene entity access)
+- ✅ Networking System (fully integrated with scene synchronization)
 
 ### Configuration Example
 
