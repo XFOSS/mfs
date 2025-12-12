@@ -550,11 +550,14 @@ fn writeCsvReport(results: []const TestResult) !void {
     const file = try std.fs.cwd().createFile("backend_report.csv", .{ .truncate = true });
     defer file.close();
 
+    var buffer: [4096]u8 = undefined;
+    const writer = file.writer(&buffer);
+
     // Header
-    try file.writer().print("backend,success,avg_fps,min_fps,max_fps,frame_count,memory_mb,error\n", .{});
+    try writer.print("backend,success,avg_fps,min_fps,max_fps,frame_count,memory_mb,error\n", .{});
 
     for (results) |r| {
-        try file.writer().print(
+        try writer.print(
             "{s},{s},{d:.2},{d:.2},{d:.2},{},{}\n",
             .{
                 @tagName(r.backend),

@@ -21,8 +21,10 @@ pub fn main() !void {
     // Read markdown file
     const file = try std.fs.cwd().openFile(input_path, .{});
     defer file.close();
-    const markdown_content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const file_size = try file.getEndPos();
+    const markdown_content = try allocator.alloc(u8, file_size);
     defer allocator.free(markdown_content);
+    _ = try file.readAll(markdown_content);
 
     // Convert markdown to HTML
     const html_content = try markdownToHtml(allocator, markdown_content, title);

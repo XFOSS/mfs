@@ -42,7 +42,10 @@ pub fn main() !void {
     // Prepare CSV report
     const csv_file = try fs.cwd().createFile("build_report.csv", .{ .truncate = true });
     defer csv_file.close();
-    try csv_file.writer().print("test,success\n", .{});
+    
+    var buffer: [4096]u8 = undefined;
+    const writer = csv_file.writer(&buffer);
+    try writer.print("test,success\n", .{});
 
     for (build_tests) |test_case| {
         std.log.info("Testing: {s}", .{test_case.name});
@@ -64,7 +67,7 @@ pub fn main() !void {
         }
 
         // Write CSV row
-        try csv_file.writer().print("{s},{s}\n", .{ test_case.name, if (success) "true" else "false" });
+        try writer.print("{s},{s}\n", .{ test_case.name, if (success) "true" else "false" });
     }
 
     std.log.info("", .{});

@@ -8,28 +8,31 @@ pub fn build(b: *std.Build) void {
         .default_target = .{
             .cpu_arch = .wasm32,
             .os_tag = .freestanding,
-            .cpu_model = .{ .explicit = &std.Target.wasm.cpu.baseline },
             .abi = .musl,
         },
     });
 
     const optimize = b.standardOptimizeOption(.{});
-    const wasm_allocator = b.option(bool, "wasm-allocator", "Use WASM allocator") orelse true;
+    _ = b.option(bool, "wasm-allocator", "Use WASM allocator") orelse true;
 
     // Create the WASM module
-    const wasm_module = b.addSharedLibrary(.{
+    const wasm_module = b.addExecutable(.{
         .name = "mfs-cube-demo",
-        .root_source_file = .{ .path = "src/web_cube_demo.zig" },
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/web_cube_demo.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
+    wasm_module.linkage = .dynamic;
 
     // Set WASM-specific options
-    wasm_module.rdynamic = true;
-    wasm_module.import_memory = true;
-    wasm_module.initial_memory = 65536;
-    wasm_module.max_memory = 65536;
-    wasm_module.stack_pointer_offsets = .{ .stack_pointer = 1024 };
+    // Note: Some WASM-specific options may not be available in Zig 0.16
+    // wasm_module.rdynamic = true;
+    // wasm_module.import_memory = true;
+    // wasm_module.initial_memory = 65536;
+    // wasm_module.max_memory = 65536;
+    // wasm_module.stack_pointer_offsets = .{ .stack_pointer = 1024 };
 
     // Add WASM-specific defines
     wasm_module.addCSourceFile(.{
