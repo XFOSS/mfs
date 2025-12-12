@@ -584,7 +584,7 @@ pub const VulkanBackend = struct {
         const platform = @import("builtin").target.os.tag;
         switch (platform) {
             .windows => {
-                const win32 = @import("../../../../../windows/api.zig");
+                const win32 = @import("../../../../windows/api.zig");
                 const hwnd = @as(win32.HWND, @ptrCast(window_handle));
                 const hinstance = win32.GetModuleHandleW(null) orelse return error.FailedToGetModuleHandle;
 

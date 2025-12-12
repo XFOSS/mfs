@@ -4,7 +4,7 @@
 //! @symbol PublicInputAPI
 
 const std = @import("std");
-const math = @import("math");
+const math = @import("../libs/math/mod.zig");
 
 // Input device types
 pub const InputDevice = enum {

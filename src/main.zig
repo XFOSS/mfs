@@ -39,7 +39,7 @@ pub fn main() !void {
 
     std.log.info("Starting {s}", .{mfs.getVersion()});
     std.log.info("Application initialized successfully", .{});
-    
+
     // Log system status
     std.log.info("=== MFS Engine Systems Status ===", .{});
     std.log.info("Graphics: {}", .{if (app.graphics_system != null) "Enabled" else "Disabled"});

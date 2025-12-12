@@ -6,15 +6,13 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-
-// Core input components
-pub const input = @import("input.zig");
+const input = @import("input.zig");
 
 // Re-export main input types
-pub const InputSystem = input.InputSystem;
-pub const InputConfig = input.InputConfig;
 pub const InputEvent = input.InputEvent;
 pub const InputState = input.InputState;
+pub const InputManager = input.InputManager;
+pub const InputConfig = InputSystemConfig;
 
 // Input device types
 pub const InputDevice = enum {
@@ -159,7 +157,7 @@ pub const GamepadAxis = enum(u8) {
 pub const InputSystemConfig = input.InputSystem.InputSystemConfig;
 
 // Initialize input system
-pub fn init(allocator: std.mem.Allocator, config: InputSystemConfig) !*InputSystem {
+pub fn init(allocator: std.mem.Alocator, config: InputSystemConfig) !*InputSystem {
     try config.validate();
     return try InputSystem.init(allocator, config);
 }
