@@ -254,12 +254,14 @@ fn buildTools(
     for (tools) |tool| {
         const exe = b.addExecutable(.{
             .name = tool.name,
-            .root_source_file = b.path(tool.path),
-            .target = target,
-            .optimize = optimize,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(tool.path),
+                .target = target,
+                .optimize = optimize,
+            }),
         });
         exe.root_module.addImport("mfs", mfs);
-        exe.addOptions("build_options", options);
+        exe.root_module.addOptions("build_options", options);
         addPlatformDependencies(exe, target.result.os.tag);
         b.installArtifact(exe);
     }
@@ -287,9 +289,11 @@ fn buildWebTarget(
 
     const web_exe = b.addExecutable(.{
         .name = "mfs-web",
-        .root_source_file = b.path("src/main.zig"),
-        .target = web_target,
-        .optimize = .ReleaseSmall,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = web_target,
+            .optimize = .ReleaseSmall,
+        }),
     });
 
     web_exe.root_module.addImport("mfs", mfs);

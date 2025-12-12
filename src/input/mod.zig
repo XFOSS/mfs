@@ -12,6 +12,7 @@ const input = @import("input.zig");
 pub const InputEvent = input.InputEvent;
 pub const InputState = input.InputState;
 pub const InputManager = input.InputManager;
+pub const InputSystem = input.InputSystem;
 pub const InputConfig = InputSystemConfig;
 
 // Input device types

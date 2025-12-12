@@ -33,6 +33,7 @@ pub const Features = struct {
     pub const enable_compute_shaders = true;
     pub const enable_3d_audio = true;
     pub const enable_physics = true;
+    pub const enable_ai = true;
     pub const enable_neural = true;
     pub const enable_voxels = true;
     pub const enable_mesh_shaders = true;

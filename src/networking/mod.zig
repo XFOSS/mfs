@@ -20,7 +20,7 @@ pub const NetworkManager = struct {
     mode: NetworkMode,
 
     // Network components
-    server: ?server.NetworkServer = null,
+    server: ?server.GameServer = null,
     client: ?client.GameClient = null,
     p2p_node: ?p2p.P2PNode = null,
     sync_manager: sync.SynchronizationManager,
