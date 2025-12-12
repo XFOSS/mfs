@@ -48,16 +48,10 @@ const MockDevice = struct {
                     },
                 } ++ [_]VkMemoryType{.{ .propertyFlags = 0, .heapIndex = 0 }} ** 30,
                 .memoryHeapCount = 2,
-                .memoryHeaps = [_]extern struct {
-                    size: u64,
-                    flags: u32,
-                }{
+                .memoryHeaps = [_]VkMemoryHeap{
                     .{ .size = 1024 * 1024 * 1024, .flags = 0x00000001 }, // VK_MEMORY_HEAP_DEVICE_LOCAL_BIT
                     .{ .size = 512 * 1024 * 1024, .flags = 0 },
-                } ++ [_]extern struct {
-                    size: u64,
-                    flags: u32,
-                }{.{ .size = 0, .flags = 0 }} ** 14,
+                } ++ [_]VkMemoryHeap{.{ .size = 0, .flags = 0 }} ** 14,
             },
             .allocated_memory = std.array_list.Managed(VkDeviceMemory).init(allocator),
             .mapped_memory = std.AutoHashMap(VkDeviceMemory, *anyopaque).init(allocator),
