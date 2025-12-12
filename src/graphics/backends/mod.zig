@@ -29,19 +29,31 @@ pub const BackendConfig = interface.BackendConfig;
 
 // Vulkan backend (cross-platform, modern)
 pub const vulkan = if (build_options.Graphics.vulkan_available)
-    @import("vulkan/old/mod.zig")
+    @import("vulkan/new/mod.zig")
 else
     struct {};
 
 // DirectX backends (Windows only) - temporarily disabled due to C import issues
-pub const d3d11 = struct {};
-pub const d3d12 = struct {};
+pub const d3d11 = struct {
+    pub fn create(_: std.mem.Allocator, _: anytype) !*interface.GraphicsBackend {
+        return error.BackendNotAvailable;
+    }
+};
+pub const d3d12 = struct {
+    pub fn create(_: std.mem.Allocator, _: anytype) !*interface.GraphicsBackend {
+        return error.BackendNotAvailable;
+    }
+};
 
 // Metal backend (macOS/iOS only)
 pub const metal = if (build_options.Graphics.metal_available)
     @import("metal_backend.zig")
 else
-    struct {};
+    struct {
+        pub fn create(_: std.mem.Allocator, _: anytype) !*interface.GraphicsBackend {
+            return error.BackendNotAvailable;
+        }
+    };
 
 // OpenGL backends - disabled due to missing headers
 pub const opengl = struct {
@@ -53,13 +65,21 @@ pub const opengl = struct {
 pub const opengles = if (build_options.Graphics.opengles_available)
     @import("opengles_backend.zig")
 else
-    struct {};
+    struct {
+        pub fn create(_: std.mem.Allocator, _: anytype) !*interface.GraphicsBackend {
+            return error.BackendNotAvailable;
+        }
+    };
 
 // WebGPU backend (Web only)
 pub const webgpu = if (build_options.Graphics.webgpu_available)
     @import("webgpu/mod.zig")
 else
-    struct {};
+    struct {
+        pub fn create(_: std.mem.Allocator, _: anytype) !*interface.GraphicsBackend {
+            return error.BackendNotAvailable;
+        }
+    };
 
 // Software backend (always available as fallback)
 pub const software = @import("software/mod.zig");
