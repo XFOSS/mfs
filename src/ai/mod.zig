@@ -258,7 +258,7 @@ pub const AIEntity = struct {
 
         // Target distance
         if (self.target_position) |target| {
-            const distance = self.position.distance(target);
+            const distance = self.position.distanceTo(target);
             inputs[4] = distance;
         } else {
             inputs[4] = 0.0;
@@ -301,7 +301,7 @@ pub const AIEntity = struct {
     fn followPath(self: *Self, path: []Vec3, delta_time: f32) !void {
         if (path.len > 0) {
             const target = path[0];
-            const direction = target.subtract(self.position).normalize();
+            const direction = target.sub(self.position).normalize();
             const speed = 5.0; // units per second
 
             self.position = self.position.add(direction.scale(speed * delta_time));
