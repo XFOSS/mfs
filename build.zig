@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const build_helpers = @import("build_helpers.zig");
+const build_helpers = @import("build/build_helpers.zig");
 
 /// Build configuration for the MFS Engine
 const BuildConfig = struct {

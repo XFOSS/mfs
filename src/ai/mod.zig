@@ -8,7 +8,8 @@ const Vec3 = math.Vec3;
 const Mat4 = math.Mat4;
 
 // Re-export AI modules
-pub const neural = @import("neural_networks.zig");
+pub const neural_networks = @import("neural_networks.zig");
+pub const neural = @import("neural/mod.zig");
 pub const behavior = @import("behavior_trees.zig");
 pub const pathfinding = @import("pathfinding.zig");
 pub const ml_features = @import("ml_features.zig");
@@ -17,7 +18,7 @@ pub const decision_making = @import("decision_making.zig");
 /// AI System Manager - coordinates all AI subsystems
 pub const AISystem = struct {
     allocator: std.mem.Allocator,
-    neural_engine: neural.NeuralEngine,
+    neural_engine: neural_networks.NeuralEngine,
     behavior_manager: behavior.BehaviorManager,
     pathfinding_system: pathfinding.PathfindingSystem,
     ml_processor: ml_features.MLProcessor,
@@ -34,7 +35,7 @@ pub const AISystem = struct {
 
         return Self{
             .allocator = allocator,
-            .neural_engine = try neural.NeuralEngine.init(allocator),
+            .neural_engine = try neural_networks.NeuralEngine.init(allocator),
             .behavior_manager = try behavior.BehaviorManager.init(allocator),
             .pathfinding_system = try pathfinding.PathfindingSystem.init(allocator),
             .ml_processor = try ml_features.MLProcessor.init(allocator),
@@ -112,7 +113,7 @@ pub const AIEntity = struct {
     config: AIEntityConfig,
 
     // AI components
-    neural_network: ?*neural.NeuralNetwork = null,
+    neural_network: ?*neural_networks.NeuralNetwork = null,
     behavior_tree: ?*behavior.BehaviorTree = null,
     pathfinder: ?*pathfinding.Pathfinder = null,
     decision_maker: ?*decision_making.DecisionMaker = null,
@@ -135,8 +136,8 @@ pub const AIEntity = struct {
 
         // Initialize AI components based on config
         if (config.use_neural_network) {
-            entity.neural_network = try allocator.create(neural.NeuralNetwork);
-            entity.neural_network.?.* = try neural.NeuralNetwork.init(allocator, config.neural_config);
+            entity.neural_network = try allocator.create(neural_networks.NeuralNetwork);
+            entity.neural_network.?.* = try neural_networks.NeuralNetwork.init(allocator, config.neural_config);
         }
 
         if (config.use_behavior_tree) {
@@ -334,7 +335,7 @@ pub const AIEntityConfig = struct {
     use_behavior_tree: bool = true,
     use_pathfinding: bool = true,
     use_decision_making: bool = true,
-    neural_config: neural.NetworkConfig = .{},
+    neural_config: neural_networks.NetworkConfig = .{},
     behavior_config: behavior.TreeConfig = .{},
 };
 

@@ -8,7 +8,7 @@
 const std = @import("std");
 const math = @import("../math/mod.zig");
 const types = @import("types.zig");
-const neural = @import("../neural/mod.zig");
+const neural = @import("../ai/neural/mod.zig");
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
