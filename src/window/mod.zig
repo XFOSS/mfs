@@ -63,7 +63,11 @@ pub const WindowSystemImpl = struct {
             .config = config,
             .window = null,
             .should_close = false,
-            .events = try std.array_list.Managed(WindowEvent).initCapacity(allocator, 16),
+            .events = blk: {
+                var list = std.array_list.Managed(WindowEvent).init(allocator);
+                try list.ensureTotalCapacity(16);
+                break :blk list;
+            },
         };
 
         // Create the actual window

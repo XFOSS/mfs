@@ -43,11 +43,31 @@ pub const PerformanceMonitor = struct {
 
         monitor.* = PerformanceMonitor{
             .allocator = allocator,
-            .frame_times = try std.array_list.Managed(f64).initCapacity(allocator, SAMPLE_COUNT),
-            .memory_usage = try std.array_list.Managed(u64).initCapacity(allocator, SAMPLE_COUNT),
-            .cpu_usage = try std.array_list.Managed(f32).initCapacity(allocator, SAMPLE_COUNT),
-            .gpu_usage = try std.array_list.Managed(f32).initCapacity(allocator, SAMPLE_COUNT),
-            .draw_calls = try std.array_list.Managed(u32).initCapacity(allocator, SAMPLE_COUNT),
+            .frame_times = blk: {
+                var list = std.array_list.Managed(f64).init(allocator);
+                try list.ensureTotalCapacity(SAMPLE_COUNT);
+                break :blk list;
+            },
+            .memory_usage = blk: {
+                var list = std.array_list.Managed(u64).init(allocator);
+                try list.ensureTotalCapacity(SAMPLE_COUNT);
+                break :blk list;
+            },
+            .cpu_usage = blk: {
+                var list = std.array_list.Managed(f32).init(allocator);
+                try list.ensureTotalCapacity(SAMPLE_COUNT);
+                break :blk list;
+            },
+            .gpu_usage = blk: {
+                var list = std.array_list.Managed(f32).init(allocator);
+                try list.ensureTotalCapacity(SAMPLE_COUNT);
+                break :blk list;
+            },
+            .draw_calls = blk: {
+                var list = std.array_list.Managed(u32).init(allocator);
+                try list.ensureTotalCapacity(SAMPLE_COUNT);
+                break :blk list;
+            },
             .start_time = time.timestamp(),
             .last_update = time.timestamp(),
             .sample_interval_ns = time.ns_per_s / 10, // Sample every 100ms by default

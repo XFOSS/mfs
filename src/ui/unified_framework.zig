@@ -647,7 +647,8 @@ pub const UISystem = struct {
     pub fn endFrame(self: *Self) !void {
         // If using standard backend, convert and submit render commands
         if (self.backend) |*b| {
-            var draw_commands = try ArrayList(DrawCommand).initCapacity(self.allocator, self.render_commands.items.len);
+            var draw_commands = std.array_list.Managed(DrawCommand).init(self.allocator);
+            try draw_commands.ensureTotalCapacity(self.render_commands.items.len);
             defer draw_commands.deinit();
 
             for (self.render_commands.items) |cmd| {

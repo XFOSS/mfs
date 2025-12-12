@@ -98,8 +98,16 @@ pub const VulkanBackend = struct {
         pub fn init(allocator: std.mem.Allocator) SwapchainData {
             return SwapchainData{
                 .handle = undefined,
-                .images = std.array_list.Managed(vkmod.Image).initCapacity(allocator, 4) catch unreachable,
-                .image_views = std.array_list.Managed(vkmod.ImageView).initCapacity(allocator, 4) catch unreachable,
+                .images = blk: {
+                    var list = std.array_list.Managed(vkmod.Image).init(allocator);
+                    list.ensureTotalCapacity(4) catch unreachable;
+                    break :blk list;
+                },
+                .image_views = blk: {
+                    var list = std.array_list.Managed(vkmod.ImageView).init(allocator);
+                    list.ensureTotalCapacity(4) catch unreachable;
+                    break :blk list;
+                },
                 .format = .VK_FORMAT_UNDEFINED,
                 .extent = .{ .width = 0, .height = 0 },
                 .present_mode = .VK_PRESENT_MODE_FIFO_KHR,
@@ -119,9 +127,21 @@ pub const VulkanBackend = struct {
 
         pub fn init(allocator: std.mem.Allocator) SyncObjects {
             return SyncObjects{
-                .image_available = std.array_list.Managed(vkmod.Semaphore).initCapacity(allocator, 4) catch unreachable,
-                .render_finished = std.array_list.Managed(vkmod.Semaphore).initCapacity(allocator, 4) catch unreachable,
-                .in_flight_fences = std.array_list.Managed(vkmod.Fence).initCapacity(allocator, 4) catch unreachable,
+                .image_available = blk: {
+                    var list = std.array_list.Managed(vkmod.Semaphore).init(allocator);
+                    list.ensureTotalCapacity(4) catch unreachable;
+                    break :blk list;
+                },
+                .render_finished = blk: {
+                    var list = std.array_list.Managed(vkmod.Semaphore).init(allocator);
+                    list.ensureTotalCapacity(4) catch unreachable;
+                    break :blk list;
+                },
+                .in_flight_fences = blk: {
+                    var list = std.array_list.Managed(vkmod.Fence).init(allocator);
+                    list.ensureTotalCapacity(4) catch unreachable;
+                    break :blk list;
+                },
             };
         }
 
@@ -2260,7 +2280,11 @@ pub const VulkanBackend = struct {
             .swapchain = SwapchainData.init(allocator),
             .sync_objects = SyncObjects.init(allocator),
             .command_pool = undefined,
-            .command_buffers = std.array_list.Managed(vkmod.CommandBuffer).initCapacity(allocator, 4) catch unreachable,
+            .command_buffers = blk: {
+                var list = std.array_list.Managed(vkmod.CommandBuffer).init(allocator);
+                list.ensureTotalCapacity(4) catch unreachable;
+                break :blk list;
+            },
             .current_frame = 0,
             .current_image_index = 0,
             .frame_count = 0,

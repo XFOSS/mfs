@@ -159,16 +159,17 @@ fn runTestSuite(allocator: std.mem.Allocator, suite: TestSuite, verbose: bool, m
     };
 
     // Build test command
-    var cmd_args = try std.array_list.Managed([]const u8).initCapacity(allocator, 4);
-    defer cmd_args.deinit(allocator);
+    var cmd_args = std.array_list.Managed([]const u8).init(allocator);
+    try cmd_args.ensureTotalCapacity(4);
+    defer cmd_args.deinit();
 
-    try cmd_args.append(allocator, "zig");
-    try cmd_args.append(allocator, "test");
-    try cmd_args.append(allocator, suite.path);
+    try cmd_args.append("zig");
+    try cmd_args.append("test");
+    try cmd_args.append(suite.path);
 
     if (memory_check) {
-        try cmd_args.append(allocator, "--test-filter");
-        try cmd_args.append(allocator, "memory");
+        try cmd_args.append("--test-filter");
+        try cmd_args.append("memory");
     }
 
     // Run the test

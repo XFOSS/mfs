@@ -705,13 +705,17 @@ pub const AudioEngine = struct {
     /// Audio effects chain processor
     pub const EffectChain = struct {
         allocator: std.mem.Allocator,
-        effects: std.ArrayList(*AudioEffect),
+        effects: std.array_list.Managed(*AudioEffect),
 
         pub fn init(allocator: std.mem.Allocator) !*EffectChain {
             const chain = try allocator.create(EffectChain);
             chain.* = EffectChain{
                 .allocator = allocator,
-                .effects = try std.ArrayList(*AudioEffect).initCapacity(allocator, 4),
+                .effects = blk: {
+                    var list = std.array_list.Managed(*AudioEffect).init(allocator);
+                    try list.ensureTotalCapacity(4);
+                    break :blk list;
+                },
             };
             return chain;
         }
@@ -791,14 +795,18 @@ pub const AudioEngine = struct {
     /// Audio synthesizer for procedural sound generation
     pub const AudioSynthesizer = struct {
         allocator: std.mem.Allocator,
-        oscillators: std.ArrayList(*Oscillator),
+        oscillators: std.array_list.Managed(*Oscillator),
         sample_rate: u32,
 
         pub fn init(allocator: std.mem.Allocator, sample_rate: u32) !*AudioSynthesizer {
             const synth = try allocator.create(AudioSynthesizer);
             synth.* = AudioSynthesizer{
                 .allocator = allocator,
-                .oscillators = try std.ArrayList(*Oscillator).initCapacity(allocator, 8),
+                .oscillators = blk: {
+                    var list = std.array_list.Managed(*Oscillator).init(allocator);
+                    try list.ensureTotalCapacity(8);
+                    break :blk list;
+                },
                 .sample_rate = sample_rate,
             };
             return synth;
@@ -1035,11 +1043,27 @@ pub const AudioEngine = struct {
             .allocator = allocator,
             .audio_device = try AudioDevice.init(allocator, settings),
             .audio_context = try AudioContext.init(allocator),
-            .sources = try std.ArrayList(*AudioSource).initCapacity(allocator, 32),
-            .buffers = try std.ArrayList(*AudioBuffer).initCapacity(allocator, 16),
-            .streaming_sources = try std.ArrayList(*StreamingSource).initCapacity(allocator, 8),
+            .sources = blk: {
+                var list = std.array_list.Managed(*AudioSource).init(allocator);
+                try list.ensureTotalCapacity(32);
+                break :blk list;
+            },
+            .buffers = blk: {
+                var list = std.array_list.Managed(*AudioBuffer).init(allocator);
+                try list.ensureTotalCapacity(16);
+                break :blk list;
+            },
+            .streaming_sources = blk: {
+                var list = std.array_list.Managed(*StreamingSource).init(allocator);
+                try list.ensureTotalCapacity(8);
+                break :blk list;
+            },
             .listener = AudioListener{},
-            .reverb_zones = try std.ArrayList(*ReverbZone).initCapacity(allocator, 4),
+            .reverb_zones = blk: {
+                var list = std.array_list.Managed(*ReverbZone).init(allocator);
+                try list.ensureTotalCapacity(4);
+                break :blk list;
+            },
             .effect_chain = try EffectChain.init(allocator),
             .synthesizer = try AudioSynthesizer.init(allocator, settings.sample_rate),
             .audio_queue = try LockFreeQueue(AudioCommand).init(allocator, 1024),

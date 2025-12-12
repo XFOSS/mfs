@@ -51,7 +51,7 @@ const continuous_collision = @import("continuous_collision.zig");
 /// Provides comprehensive physics simulation including constraints, collision detection, and advanced features
 pub const PhysicsEngine = struct {
     allocator: std.mem.Allocator,
-    objects: std.ArrayList(PhysicalObject),
+    objects: std.array_list.Managed(PhysicalObject),
     rigid_body_manager: rigid_body.RigidBodyManager,
     constraint_manager: ConstraintManager,
     collision_detector: CollisionDetector,
@@ -82,7 +82,7 @@ pub const PhysicsEngine = struct {
     /// Constraint system for connecting rigid bodies
     const ConstraintManager = struct {
         allocator: std.mem.Allocator,
-        constraints: std.ArrayList(Constraint),
+        constraints: std.array_list.Managed(Constraint),
 
         const Constraint = struct {
             constraint_type: ConstraintType,
@@ -273,8 +273,8 @@ pub const PhysicsEngine = struct {
     /// Advanced collision detection system
     const CollisionDetector = struct {
         allocator: std.mem.Allocator,
-        collision_pairs: std.ArrayList(CollisionPair),
-        contact_manifolds: std.ArrayList(ContactManifold),
+        collision_pairs: std.array_list.Managed(CollisionPair),
+        contact_manifolds: std.array_list.Managed(ContactManifold),
 
         const CollisionPair = struct {
             body_a: usize,
