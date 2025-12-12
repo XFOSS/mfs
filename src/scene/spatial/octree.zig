@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const math = @import("math");
 const Vec3 = math.Vec3;
 const Mat4 = math.Mat4;
@@ -23,7 +23,7 @@ pub const Octree = struct {
         octree.* = Octree{
             .allocator = allocator,
             .bounds = bounds,
-            .entities = ArrayList(EntityId).init(allocator),
+            .entities = try ArrayList(EntityId).initCapacity(allocator, 16),
             .children = [_]?*Octree{null} ** 8,
             .max_entities = max_entities,
             .max_depth = max_depth,
@@ -33,7 +33,7 @@ pub const Octree = struct {
     }
 
     pub fn deinit(self: *Octree) void {
-        self.entities.deinit();
+        self.entities.deinit(self.allocator);
         for (self.children) |child| {
             if (child) |c| {
                 c.deinit();

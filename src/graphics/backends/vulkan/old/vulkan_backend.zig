@@ -41,7 +41,7 @@ pub const VulkanBackend = struct {
 
     // Command management
     command_pool: vkmod.CommandPool,
-    command_buffers: std.ArrayList(vkmod.CommandBuffer),
+    command_buffers: std.array_list.Managed(vkmod.CommandBuffer),
 
     // Synchronization
     sync_objects: SyncObjects,
@@ -89,8 +89,8 @@ pub const VulkanBackend = struct {
 
     const SwapchainData = struct {
         handle: vkmod.SwapchainKHR,
-        images: std.ArrayList(vkmod.Image),
-        image_views: std.ArrayList(vkmod.ImageView),
+        images: std.array_list.Managed(vkmod.Image),
+        image_views: std.array_list.Managed(vkmod.ImageView),
         format: vkmod.Format,
         extent: vkmod.Extent2D,
         present_mode: vkmod.PresentModeKHR,
@@ -98,8 +98,8 @@ pub const VulkanBackend = struct {
         pub fn init(allocator: std.mem.Allocator) SwapchainData {
             return SwapchainData{
                 .handle = undefined,
-                .images = std.ArrayList(vkmod.Image).init(allocator),
-                .image_views = std.ArrayList(vkmod.ImageView).init(allocator),
+                .images = std.array_list.Managed(vkmod.Image).initCapacity(allocator, 4) catch unreachable,
+                .image_views = std.array_list.Managed(vkmod.ImageView).initCapacity(allocator, 4) catch unreachable,
                 .format = .VK_FORMAT_UNDEFINED,
                 .extent = .{ .width = 0, .height = 0 },
                 .present_mode = .VK_PRESENT_MODE_FIFO_KHR,
@@ -113,15 +113,15 @@ pub const VulkanBackend = struct {
     };
 
     const SyncObjects = struct {
-        image_available: std.ArrayList(vkmod.Semaphore),
-        render_finished: std.ArrayList(vkmod.Semaphore),
-        in_flight_fences: std.ArrayList(vkmod.Fence),
+        image_available: std.array_list.Managed(vkmod.Semaphore),
+        render_finished: std.array_list.Managed(vkmod.Semaphore),
+        in_flight_fences: std.array_list.Managed(vkmod.Fence),
 
         pub fn init(allocator: std.mem.Allocator) SyncObjects {
             return SyncObjects{
-                .image_available = std.ArrayList(vkmod.Semaphore).init(allocator),
-                .render_finished = std.ArrayList(vkmod.Semaphore).init(allocator),
-                .in_flight_fences = std.ArrayList(vkmod.Fence).init(allocator),
+                .image_available = std.array_list.Managed(vkmod.Semaphore).initCapacity(allocator, 4) catch unreachable,
+                .render_finished = std.array_list.Managed(vkmod.Semaphore).initCapacity(allocator, 4) catch unreachable,
+                .in_flight_fences = std.array_list.Managed(vkmod.Fence).initCapacity(allocator, 4) catch unreachable,
             };
         }
 
@@ -152,7 +152,7 @@ pub const VulkanBackend = struct {
             memory: vkmod.DeviceMemory,
             size: u64,
             used: u64,
-            blocks: std.ArrayList(MemoryBlock),
+            blocks: std.array_list.Managed(MemoryBlock),
             flags: vkmod.MemoryPropertyFlags,
 
             const MemoryBlock = struct {
@@ -173,7 +173,7 @@ pub const VulkanBackend = struct {
                 const memory = try vkmod.vkAllocateMemory(device, &alloc_info, null);
                 errdefer vkmod.vkFreeMemory(device, memory, null);
 
-                var blocks = std.ArrayList(MemoryBlock).init(allocator);
+                var blocks = std.array_list.Managed(MemoryBlock).initCapacity(allocator, 4) catch unreachable;
                 try blocks.append(.{
                     .offset = 0,
                     .size = POOL_SIZE,
@@ -269,7 +269,7 @@ pub const VulkanBackend = struct {
                 _ = device; // Device parameter is required for potential memory operations
                 if (self.blocks.items.len <= 1) return;
 
-                var new_blocks = std.ArrayList(MemoryBlock).init(self.blocks.allocator);
+                var new_blocks = std.array_list.Managed(MemoryBlock).init(self.blocks.allocator);
                 errdefer new_blocks.deinit();
 
                 var current_offset: u64 = 0;
@@ -741,7 +741,7 @@ pub const VulkanBackend = struct {
             try vkmod.vkEnumerateInstanceExtensionProperties(null, &extension_count, available_extensions.ptr);
 
             // Required extensions
-            var required_extensions = std.ArrayList([*:0]const u8).init(self.allocator);
+            var required_extensions = std.array_list.Managed([*:0]const u8).init(self.allocator);
             defer required_extensions.deinit();
 
             // Platform-specific surface extension
@@ -1050,7 +1050,7 @@ pub const VulkanBackend = struct {
             self.queue_families = try self.findQueueFamilies(self.physical_device);
 
             // Create device queue create infos
-            var queue_create_infos = std.ArrayList(vkmod.DeviceQueueCreateInfo).init(self.allocator);
+            var queue_create_infos = std.array_list.Managed(vkmod.DeviceQueueCreateInfo).init(self.allocator);
             defer queue_create_infos.deinit();
 
             // Add unique queue families
@@ -2260,7 +2260,7 @@ pub const VulkanBackend = struct {
             .swapchain = SwapchainData.init(allocator),
             .sync_objects = SyncObjects.init(allocator),
             .command_pool = undefined,
-            .command_buffers = std.ArrayList(vkmod.CommandBuffer).init(allocator),
+            .command_buffers = std.array_list.Managed(vkmod.CommandBuffer).initCapacity(allocator, 4) catch unreachable,
             .current_frame = 0,
             .current_image_index = 0,
             .frame_count = 0,

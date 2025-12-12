@@ -79,9 +79,9 @@ pub fn main() !void {
 
     // Parse image format from file extension
     const input_ext = std.fs.path.extension(input_file);
-    const output_ext = if (output_format) |fmt| 
+    const output_ext = if (output_format) |fmt|
         std.fmt.allocPrint(allocator, ".{s}", .{fmt}) catch ".png"
-    else 
+    else
         std.fs.path.extension(output_file);
 
     std.log.info("Processing texture...", .{});
@@ -116,7 +116,7 @@ pub fn main() !void {
 
     const output_size = try std.fs.cwd().getFileSize(output_file);
     const compression_ratio = @as(f32, @floatFromInt(output_size)) / @as(f32, @floatFromInt(input_data.len));
-    
+
     std.log.info("Texture conversion completed successfully", .{});
     std.log.info("Input size: {} bytes", .{input_data.len});
     std.log.info("Output size: {} bytes", .{output_size});

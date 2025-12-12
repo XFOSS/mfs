@@ -1,4 +1,5 @@
 const std = @import("std");
+
 const build_helpers = @import("build_helpers.zig");
 
 /// Build configuration for the MFS Engine
@@ -55,7 +56,7 @@ fn createExecutable(b: *std.Build, config: ExecutableConfig) !*std.Build.Step.Co
     // Add common dependencies
     try build_helpers.addSourceModules(b, exe);
     if (config.opts) |opts| {
-        exe.root_module.addOptions("build_options", opts);
+        exe.addOptions("build_options", opts);
     }
 
     // Add platform-specific dependencies
@@ -91,8 +92,7 @@ pub fn build(b: *std.Build) void {
     addBuildOptions(options, target.result);
 
     // Create main library
-    const lib = b.addStaticLibrary(.{
-        .name = "mfs",
+    const lib = b.addModule("mfs", .{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
@@ -101,62 +101,62 @@ pub fn build(b: *std.Build) void {
     // Add memory manager tests
     const memory_manager_tests = b.addTest(.{
         .name = "memory-manager-tests",
-        .root_source_file = b.path("src/graphics/memory/new/memory_manager_test.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/graphics/memory/new/memory_manager_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
-    memory_manager_tests.root_module.addImport("mfs", lib.root_module);
+    memory_manager_tests.root_module.addImport("mfs", lib);
     memory_manager_tests.root_module.addOptions("build_options", options);
     addPlatformDependencies(memory_manager_tests, target.result.os.tag);
     // Add Vulkan system library to tests (include path handled by Vulkan SDK environment)
     addOptionalLibrary(memory_manager_tests, "vulkan-1");
 
-    // const vulkan_backend_tests = b.addTest(.{
-    //     .name = "vulkan-backend-tests",
-    //     .root_source_file = b.path("src/graphics/backends/vulkan/new/vulkan_backend_test.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-    // vulkan_backend_tests.root_module.addImport("mfs", lib.root_module);
-    // vulkan_backend_tests.root_module.addOptions("build_options", options);
-    // addPlatformDependencies(vulkan_backend_tests, target.result.os.tag);
-    // addOptionalLibrary(vulkan_backend_tests, "vulkan-1");
+    const vulkan_backend_tests = b.addTest(.{
+        .name = "vulkan-backend-tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/graphics/backends/vulkan/new/vulkan_backend_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    vulkan_backend_tests.root_module.addImport("mfs", lib);
+    vulkan_backend_tests.root_module.addOptions("build_options", options);
+    addPlatformDependencies(vulkan_backend_tests, target.result.os.tag);
+    addOptionalLibrary(vulkan_backend_tests, "vulkan-1");
 
     const test_step = b.step("test-graphics", "Run graphics backend tests");
     test_step.dependOn(&memory_manager_tests.step);
-    // test_step.dependOn(&vulkan_backend_tests.step);
+    test_step.dependOn(&vulkan_backend_tests.step);
 
-    // Optionally link Vulkan system library for the core library
-    addOptionalLibrary(lib, "vulkan-1");
-
-    b.installArtifact(lib);
-
-    // Add examples - temporarily disabled since examples directory doesn't exist
     // const examples = [_][]const u8{
     //     "vulkan_spinning_cube_simple",
     //     "vulkan_spinning_cube_real",
     //     "vulkan_rt_spinning_cube",
     // };
-    //
+
     // for (examples) |example| {
     //     const exe = b.addExecutable(.{
     //         .name = example,
-    //         .root_source_file = b.path(b.fmt("examples/{s}/main.zig", .{example})),
-    //         .target = target,
-    //         .optimize = optimize,
+    //         .root_module = b.createModule(.{
+    //             .root_source_file = b.path(b.fmt("examples/{s}/main.zig", .{example})),
+    //             .target = target,
+    //             .optimize = optimize,
+    //         }),
     //     });
-    //
+
     //     // Optionally link Vulkan system library for examples
     //     addOptionalLibrary(exe, "vulkan-1");
-    //
+
     //     // Link with main library
     //     exe.linkLibrary(lib);
-    //
+
     //     b.installArtifact(exe);
-    //
+
     //     const run_cmd = b.addRunArtifact(exe);
     //     run_cmd.step.dependOn(b.getInstallStep());
-    //
+
     //     const run_step = b.step(b.fmt("run-{s}", .{example}), b.fmt("Run the {s} example", .{example}));
     //     run_step.dependOn(&run_cmd.step);
     // }
@@ -175,7 +175,7 @@ fn addBuildOptions(options: *std.Build.Step.Options, target: std.Target) void {
     options.addOption(bool, "d3d11_available", target.os.tag == .windows);
     options.addOption(bool, "d3d12_available", target.os.tag == .windows);
     options.addOption(bool, "metal_available", target.os.tag == .macos);
-    options.addOption(bool, "opengl_available", target.os.tag != .emscripten and target.os.tag != .wasi);
+    options.addOption(bool, "opengl_available", false); // Disabled due to missing GL headers
     options.addOption(bool, "webgpu_available", target.os.tag == .emscripten or target.os.tag == .wasi);
 
     // Feature flags
@@ -194,9 +194,11 @@ fn buildTests(
     // Main test runner that includes all modules
     const test_exe = b.addTest(.{
         .name = "mfs-tests",
-        .root_source_file = b.path("src/test.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     test_exe.root_module.addImport("mfs", mfs);
     test_exe.root_module.addOptions("build_options", options);
@@ -217,9 +219,11 @@ fn buildTests(
     for (test_files) |test_file| {
         const individual_test = b.addTest(.{
             .name = test_file.name,
-            .root_source_file = b.path(test_file.path),
-            .target = target,
-            .optimize = optimize,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(test_file.path),
+                .target = target,
+                .optimize = optimize,
+            }),
         });
         individual_test.root_module.addImport("mfs", mfs);
         individual_test.root_module.addOptions("build_options", options);
@@ -255,7 +259,7 @@ fn buildTools(
             .optimize = optimize,
         });
         exe.root_module.addImport("mfs", mfs);
-        exe.root_module.addOptions("build_options", options);
+        exe.addOptions("build_options", options);
         addPlatformDependencies(exe, target.result.os.tag);
         b.installArtifact(exe);
     }

@@ -144,8 +144,8 @@ pub const World = struct {
     }
 
     /// Get all entities with a specific component mask
-    pub fn getEntitiesWithComponents(self: *const Self, required_mask: std.bit_set.IntegerBitSet(MAX_COMPONENT_TYPES)) std.ArrayList(EntityId) {
-        var entities = std.ArrayList(EntityId).init(self.allocator);
+    pub fn getEntitiesWithComponents(self: *const Self, required_mask: std.bit_set.IntegerBitSet(MAX_COMPONENT_TYPES)) std.array_list.Managed(EntityId) {
+        var entities = std.array_list.Managed(EntityId).init(self.allocator);
 
         var entity_id: EntityId = 0;
         while (entity_id < self.next_entity_id) : (entity_id += 1) {

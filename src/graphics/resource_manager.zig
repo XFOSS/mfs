@@ -31,7 +31,7 @@ pub const ResourceManager = struct {
     mutex: std.Thread.Mutex,
 
     // Asset paths
-    search_paths: std.ArrayList([]const u8),
+    search_paths: std.array_list.Managed([]const u8),
 
     const Self = @This();
 
@@ -59,7 +59,7 @@ pub const ResourceManager = struct {
             .stats = ResourceStats{},
             .garbage_collector = garbage_collector,
             .mutex = .{},
-            .search_paths = std.ArrayList([]const u8).init(allocator),
+            .search_paths = std.array_list.Managed([]const u8).init(allocator),
         };
 
         // Initialize shader cache

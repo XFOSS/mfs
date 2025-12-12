@@ -1,2 +1,2 @@
 //! Legacy stub: forward to core platform module
-pub usingnamespace @import("../../platform/platform.zig");
+pub const platform = @import("../../platform/platform.zig");

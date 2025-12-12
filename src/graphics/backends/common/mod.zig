@@ -5,7 +5,7 @@
 //! @performance Optimized for backend-agnostic operations
 
 // Re-export the main common module
-pub usingnamespace @import("common.zig");
+pub const common = @import("common.zig");
 
 // Additional exports for convenience
 pub const BackendError = @import("errors.zig").GraphicsError;

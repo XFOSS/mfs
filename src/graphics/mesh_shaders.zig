@@ -165,8 +165,8 @@ pub const MeshShaderSystem = struct {
     allocator: std.mem.Allocator,
 
     // Mesh data storage
-    meshlets: std.ArrayList(Meshlet),
-    mesh_instances: std.ArrayList(MeshInstance),
+    meshlets: std.array_list.Managed(Meshlet),
+    mesh_instances: std.array_list.Managed(MeshInstance),
 
     // GPU resources
     meshlet_buffer: ?*types.Buffer = null,
@@ -209,8 +209,8 @@ pub const MeshShaderSystem = struct {
         const system = try allocator.create(Self);
         system.* = Self{
             .allocator = allocator,
-            .meshlets = std.ArrayList(Meshlet).init(allocator),
-            .mesh_instances = std.ArrayList(MeshInstance).init(allocator),
+            .meshlets = std.array_list.Managed(Meshlet).init(allocator),
+            .mesh_instances = std.array_list.Managed(MeshInstance).init(allocator),
             .config = config,
             .stats = MeshShaderStats{},
         };

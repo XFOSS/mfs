@@ -337,7 +337,7 @@ pub const EventSystem = struct {
 
         // Update timing statistics
         if (start_time > 0) {
-            const end_time = std.time.nanoTimestamp();
+            const end_time = (std.time.Instant.now() catch std.time.Instant{ .timestamp = 0 }).timestamp;
             const process_time = @as(u64, @intCast(end_time - start_time));
             self.stats.average_process_time_ns = (self.stats.average_process_time_ns + process_time) / 2;
         }
@@ -441,7 +441,7 @@ pub const EventSystem = struct {
 
     /// Process a single queued event
     fn processQueuedEvent(self: *Self, queued_event: QueuedEvent) EventError!void {
-        const start_time = std.time.nanoTimestamp();
+        const start_time = (std.time.Instant.now() catch std.time.Instant{ .timestamp = 0 }).timestamp;
 
         if (self.thread_safe) {
             self.mutex.lock();
@@ -469,7 +469,7 @@ pub const EventSystem = struct {
         self.stats.handlers_called += handlers_called;
 
         // Update timing statistics
-        const end_time = std.time.nanoTimestamp();
+        const end_time = (std.time.Instant.now() catch std.time.Instant{ .timestamp = 0 }).timestamp;
         const process_time = @as(u64, @intCast(end_time - start_time));
         self.stats.average_process_time_ns = (self.stats.average_process_time_ns + process_time) / 2;
     }

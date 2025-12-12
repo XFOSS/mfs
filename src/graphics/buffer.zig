@@ -131,7 +131,7 @@ pub const RingBuffer = struct {
         var frame_list = if (self.frame_allocations.get(self.current_frame)) |list|
             list
         else
-            std.ArrayList(BufferRegion).init(self.allocator);
+            std.array_list.Managed(BufferRegion).init(self.allocator);
 
         try frame_list.append(BufferRegion{ .offset = offset, .size = size });
         try self.frame_allocations.put(self.current_frame, frame_list);
@@ -141,8 +141,8 @@ pub const RingBuffer = struct {
 /// A pool of similar-sized buffers for efficient allocation and reuse
 pub const BufferPool = struct {
     allocator: Allocator,
-    buffers: std.ArrayList(*Buffer),
-    free_buffers: std.ArrayList(*Buffer),
+    buffers: std.array_list.Managed(*Buffer),
+    free_buffers: std.array_list.Managed(*Buffer),
     in_use_buffers: std.AutoHashMap(*Buffer, usize),
     buffer_type: BufferType,
     buffer_size: usize,
@@ -155,8 +155,8 @@ pub const BufferPool = struct {
         const self = try allocator.create(Self);
         self.* = Self{
             .allocator = allocator,
-            .buffers = std.ArrayList(*Buffer).init(allocator),
-            .free_buffers = std.ArrayList(*Buffer).init(allocator),
+            .buffers = std.array_list.Managed(*Buffer).init(allocator),
+            .free_buffers = std.array_list.Managed(*Buffer).init(allocator),
             .in_use_buffers = std.AutoHashMap(*Buffer, usize).init(allocator),
             .buffer_type = buffer_type,
             .buffer_size = buffer_size,
@@ -333,7 +333,7 @@ pub const Buffer = struct {
     last_used_frame: u64 = 0,
     // For allocation pools/suballocation
     is_pool: bool = false,
-    free_regions: ?std.ArrayList(BufferRegion) = null,
+    free_regions: ?std.array_list.Managed(BufferRegion) = null,
     allocations: ?std.AutoArrayHashMap(usize, BufferRegion) = null,
     alignment: usize = 4,
 
@@ -363,7 +363,7 @@ pub const Buffer = struct {
         var self = try init(allocator, size, buffer_type, access);
         self.is_pool = true;
         self.alignment = alignment;
-        self.free_regions = std.ArrayList(BufferRegion).init(allocator);
+        self.free_regions = std.array_list.Managed(BufferRegion).init(allocator);
         self.allocations = std.AutoArrayHashMap(usize, BufferRegion).init(allocator);
 
         // Initially the entire buffer is free

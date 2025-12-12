@@ -267,7 +267,7 @@ pub const VariableRateShading = struct {
 
     // VRS image for Tier 2 support
     vrs_image: ?*types.Texture = null,
-    vrs_regions: std.ArrayList(VRSRegion),
+    vrs_regions: std.array_list.Managed(VRSRegion),
 
     // GPU resources
     analysis_pipeline: ?*types.Pipeline = null,
@@ -289,7 +289,7 @@ pub const VariableRateShading = struct {
             .allocator = allocator,
             .config = config,
             .vrs_tier = vrs_tier,
-            .vrs_regions = std.ArrayList(VRSRegion).init(allocator),
+            .vrs_regions = std.array_list.Managed(VRSRegion).init(allocator),
             .eye_tracking_enabled = false,
             .current_gaze_data = EyeTrackingData.init(0.5, 0.5), // Center of screen
             .stats = VRSStats{},

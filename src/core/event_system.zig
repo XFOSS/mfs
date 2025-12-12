@@ -93,9 +93,9 @@ pub const EventHandler = struct {
 /// High-performance event system with priority handling
 pub const EventSystem = struct {
     allocator: std.mem.Allocator,
-    handlers: std.ArrayList(EventHandler),
-    event_queue: std.ArrayList(Event),
-    immediate_events: std.ArrayList(Event),
+    handlers: std.array_list.Managed(EventHandler),
+    event_queue: std.array_list.Managed(Event),
+    immediate_events: std.array_list.Managed(Event),
     mutex: std.Thread.Mutex,
     max_queue_size: u32,
     stats: Stats,
@@ -119,9 +119,9 @@ pub const EventSystem = struct {
     pub fn init(allocator: std.mem.Allocator, max_queue_size: u32) Self {
         return Self{
             .allocator = allocator,
-            .handlers = std.ArrayList(EventHandler).init(allocator),
-            .event_queue = std.ArrayList(Event).init(allocator),
-            .immediate_events = std.ArrayList(Event).init(allocator),
+            .handlers = std.array_list.Managed(EventHandler).init(allocator),
+            .event_queue = std.array_list.Managed(Event).init(allocator),
+            .immediate_events = std.array_list.Managed(Event).init(allocator),
             .mutex = std.Thread.Mutex{},
             .max_queue_size = max_queue_size,
             .stats = Stats{},

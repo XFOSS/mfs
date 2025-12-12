@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const AutoHashMap = std.AutoHashMap;
 // const math = @import("math");
 const Vec3 = struct {
@@ -64,7 +64,7 @@ pub const Scene = struct {
         scene.* = Scene{
             .allocator = allocator,
             .entities = AutoHashMap(EntityId, Entity).init(allocator),
-            .systems = ArrayList(System).init(allocator),
+            .systems = try ArrayList(System).initCapacity(allocator, 8),
             .next_entity_id = 1,
             .next_system_id = 1,
             .main_camera = null,
@@ -76,8 +76,9 @@ pub const Scene = struct {
         };
 
         // Initialize octree
-        const BoundingBox = @import("../components/render.zig").BoundingBox;
-        const world_bounds = BoundingBox.init(Vec3.init(-1000, -1000, -1000), Vec3.init(1000, 1000, 1000));
+        const render = @import("../components/render.zig");
+        const BoundingBox = render.BoundingBox;
+        const world_bounds = BoundingBox.init(.{ .x = -1000, .y = -1000, .z = -1000 }, .{ .x = 1000, .y = 1000, .z = 1000 });
         scene.octree = try Octree.init(allocator, world_bounds, 10, 6);
 
         // Register default systems
@@ -93,7 +94,7 @@ pub const Scene = struct {
         }
         self.entities.deinit();
 
-        self.systems.deinit();
+        self.systems.deinit(self.allocator);
 
         if (self.octree) |octree| {
             octree.deinit();
@@ -101,7 +102,7 @@ pub const Scene = struct {
 
         var event_iter = self.event_handlers.iterator();
         while (event_iter.next()) |entry| {
-            entry.value_ptr.deinit();
+            entry.value_ptr.deinit(self.allocator);
         }
         self.event_handlers.deinit();
 
@@ -155,11 +156,11 @@ pub const Scene = struct {
         return null;
     }
 
-    pub fn findEntitiesByTag(self: *Scene, tag: []const u8, results: *ArrayList(EntityId)) !void {
+    pub fn findEntitiesByTag(self: *Scene, tag: []const u8, results: *ArrayList(EntityId), allocator: Allocator) !void {
         var entity_iter = self.entities.iterator();
         while (entity_iter.next()) |entry| {
             if (std.mem.eql(u8, entry.value_ptr.tag, tag)) {
-                try results.append(entry.key_ptr.*);
+                try results.append(allocator, entry.key_ptr.*);
             }
         }
     }
@@ -169,7 +170,7 @@ pub const Scene = struct {
         self.next_system_id += 1;
 
         const system = System.init(system_id, name, priority, update_fn);
-        try self.systems.append(system);
+        try self.systems.append(self.allocator, system);
 
         // Sort systems by priority
         std.sort.heap(System, self.systems.items, {}, systemCompare);
@@ -208,10 +209,10 @@ pub const Scene = struct {
         const key = try self.allocator.dupe(u8, event_name);
 
         if (self.event_handlers.getPtr(key)) |handlers| {
-            try handlers.append(handler);
+            try handlers.append(self.allocator, handler);
         } else {
-            var handlers = ArrayList(*const fn (*Scene, []const u8, ?*anyopaque) void).init(self.allocator);
-            try handlers.append(handler);
+            var handlers = try ArrayList(*const fn (*Scene, []const u8, ?*anyopaque) void).initCapacity(self.allocator, 4);
+            try handlers.append(self.allocator, handler);
             try self.event_handlers.put(key, handlers);
         }
     }

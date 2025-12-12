@@ -67,7 +67,7 @@ test "memory pool" {
     try pool.free(block2);
 
     // Test pool capacity
-    var blocks = std.ArrayList([]u8).init(testing.allocator);
+    var blocks = std.array_list.Managed([]u8).init(testing.allocator);
     defer blocks.deinit();
 
     // Should be able to allocate capacity blocks

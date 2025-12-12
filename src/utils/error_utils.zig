@@ -1,2 +1,2 @@
 //! Legacy stub: forwarded to new location in libs/utils
-pub usingnamespace @import("../libs/utils/error_utils.zig");
+pub const error_utils = @import("../libs/utils/error_utils.zig");

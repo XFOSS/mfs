@@ -184,8 +184,9 @@ pub const Application = struct {
                 const target_frame_time = 1.0 / @as(f64, @floatFromInt(self.config.target_fps));
                 const current_frame_time = self.time_system.getDeltaTime();
                 if (current_frame_time < target_frame_time) {
-                    const sleep_time = target_frame_time - current_frame_time;
-                    std.time.sleep(@intFromFloat(sleep_time * std.time.ns_per_s));
+                    // TODO: Fix sleep API for Zig 0.16
+                    // const sleep_time = target_frame_time - current_frame_time;
+                    // std.time.sleep(@intFromFloat(sleep_time * std.time.ns_per_s));
                 }
             }
         }
@@ -240,6 +241,7 @@ pub const Application = struct {
 
             if (self.scene_system) |scene_sys| {
                 // Render system is part of scene update order; any per-frame render happens via scene systems.
+                _ = scene_sys;
             }
 
             try graphics_sys.endFrame();

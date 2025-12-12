@@ -2,7 +2,7 @@ const std = @import("std");
 const Thread = std.Thread;
 const Mutex = std.Thread.Mutex;
 const Condition = std.Thread.Condition;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const Allocator = std.mem.Allocator;
 
 pub const WorkerType = enum {

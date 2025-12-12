@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const AutoHashMap = std.AutoHashMap;
 
 pub const EntityId = u64;
@@ -55,7 +55,7 @@ pub const Entity = struct {
     pub fn deinit(self: *Entity, allocator: Allocator) void {
         allocator.free(self.name);
         allocator.free(self.tag);
-        self.children.deinit();
+        self.children.deinit(allocator);
 
         var comp_iter = self.components.iterator();
         while (comp_iter.next()) |entry| {

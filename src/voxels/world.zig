@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const AutoHashMap = std.AutoHashMap;
 const ChunkPosition = @import("chunk.zig").ChunkPosition;
 const VoxelChunk = @import("chunk.zig").VoxelChunk;
@@ -63,11 +63,12 @@ pub const VoxelWorld = struct {
             try self.evictOldestChunk();
         }
 
-        var chunk = try VoxelChunk.init(self.allocator, position, self.chunk_size);
-        try self.generator.generateTerrain(&chunk);
-        try self.chunks.put(hash, &chunk);
-        try self.loaded_chunks.append(&chunk);
-        return &chunk;
+        const chunk = try self.allocator.create(VoxelChunk);
+        chunk.* = try VoxelChunk.init(self.allocator, position, self.chunk_size);
+        try self.generator.generateTerrain(chunk);
+        try self.chunks.put(hash, chunk);
+        try self.loaded_chunks.append(chunk);
+        return chunk;
     }
 
     fn evictOldestChunk(self: *VoxelWorld) !void {

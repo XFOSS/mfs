@@ -141,7 +141,7 @@ pub fn init(allocator: std.mem.Allocator, config: Config) !*PhysicsEngine {
     try config.validate();
 
     // Convert Config to PhysicsConfig
-    const physics_config = physics_engine.PhysicsConfig{
+    const physics_config = physics_engine.PhysicsEngine.PhysicsConfig{
         .gravity = .{ .x = config.gravity[0], .y = config.gravity[1], .z = config.gravity[2] },
         .damping = 0.99,
         .world_size = 1000.0,

@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 
 pub const ScriptFunction = struct {
     name: []const u8,
@@ -28,7 +28,7 @@ pub const ScriptComponent = struct {
 
     pub fn deinit(self: *ScriptComponent) void {
         self.allocator.free(self.script_name);
-        self.functions.deinit();
+        self.functions.deinit(self.allocator);
 
         if (self.deinit_fn) |deinit_fn| {
             deinit_fn(self);

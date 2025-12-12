@@ -220,12 +220,12 @@ pub const BindlessTextureManager = struct {
     allocator: std.mem.Allocator,
 
     // Texture storage
-    texture_entries: std.ArrayList(BindlessTextureEntry),
-    sampler_entries: std.ArrayList(BindlessSamplerEntry),
+    texture_entries: std.array_list.Managed(BindlessTextureEntry),
+    sampler_entries: std.array_list.Managed(BindlessSamplerEntry),
 
     // Free lists for efficient allocation
-    free_texture_handles: std.ArrayList(BindlessTextureHandle),
-    free_sampler_handles: std.ArrayList(BindlessTextureHandle),
+    free_texture_handles: std.array_list.Managed(BindlessTextureHandle),
+    free_sampler_handles: std.array_list.Managed(BindlessTextureHandle),
 
     // Hash maps for fast lookup
     texture_lookup: std.HashMap(*types.Texture, BindlessTextureHandle, TexturePtrContext, std.hash_map.default_max_load_percentage),
@@ -268,10 +268,10 @@ pub const BindlessTextureManager = struct {
         const manager = try allocator.create(Self);
         manager.* = Self{
             .allocator = allocator,
-            .texture_entries = std.ArrayList(BindlessTextureEntry).init(allocator),
-            .sampler_entries = std.ArrayList(BindlessSamplerEntry).init(allocator),
-            .free_texture_handles = std.ArrayList(BindlessTextureHandle).init(allocator),
-            .free_sampler_handles = std.ArrayList(BindlessTextureHandle).init(allocator),
+            .texture_entries = std.array_list.Managed(BindlessTextureEntry).init(allocator),
+            .sampler_entries = std.array_list.Managed(BindlessSamplerEntry).init(allocator),
+            .free_texture_handles = std.array_list.Managed(BindlessTextureHandle).init(allocator),
+            .free_sampler_handles = std.array_list.Managed(BindlessTextureHandle).init(allocator),
             .texture_lookup = std.HashMap(*types.Texture, BindlessTextureHandle, TexturePtrContext, std.hash_map.default_max_load_percentage).init(allocator),
             .sampler_lookup = std.HashMap(u64, BindlessTextureHandle, std.hash_map.HashContext(u64), std.hash_map.default_max_load_percentage).init(allocator),
             .backend_data = @ptrFromInt(0),

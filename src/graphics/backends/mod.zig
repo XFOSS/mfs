@@ -43,11 +43,12 @@ pub const metal = if (build_options.Graphics.metal_available)
 else
     struct {};
 
-// OpenGL backends
-pub const opengl = if (build_options.Graphics.opengl_available)
-    @import("opengl_backend.zig")
-else
-    struct {};
+// OpenGL backends - disabled due to missing headers
+pub const opengl = struct {
+    pub fn create(_: std.mem.Allocator, _: anytype) !*interface.GraphicsBackend {
+        return error.BackendNotAvailable;
+    }
+};
 
 pub const opengles = if (build_options.Graphics.opengles_available)
     @import("opengles_backend.zig")

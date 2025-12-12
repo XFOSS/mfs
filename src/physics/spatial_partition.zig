@@ -1,23 +1,25 @@
 const std = @import("std");
-const math = @import("math");
-const Vec4 = math.Vec4;
-const Vector = math.Vector;
+const physics = @import("physics.zig");
+const Vec3f = physics.Vec3f;
+const Vec4 = Vec3f;
 const physics_engine = @import("physics_engine.zig");
-const PhysicalObject = physics_engine.PhysicalObject;
+const PhysicalObject = physics.PhysicalObject;
 const CollisionResolver = @import("collision_resolver.zig").CollisionResolver;
 
 /// Cell in the spatial grid
 pub const GridCell = struct {
-    objects: std.ArrayList(usize),
+    allocator: std.mem.Allocator,
+    objects: std.array_list.Managed(usize),
 
-    pub fn init(allocator: std.mem.Allocator) GridCell {
+    pub fn init(allocator: std.mem.Allocator) !GridCell {
         return GridCell{
-            .objects = std.ArrayList(usize).init(allocator),
+            .allocator = allocator,
+            .objects = try std.array_list.Managed(usize).initCapacity(allocator, 8),
         };
     }
 
     pub fn deinit(self: *GridCell) void {
-        self.objects.deinit();
+        self.objects.deinit(self.allocator);
     }
 };
 
@@ -29,7 +31,7 @@ pub const SpatialGrid = struct {
     world_size: f32,
     grid_dim: u32,
     cells: []GridCell,
-    collision_pairs: std.ArrayList([2]usize),
+    collision_pairs: std.array_list.Managed([2]usize),
 
     /// Initialize a new spatial grid
     pub fn init(allocator: std.mem.Allocator, world_size: f32, cell_size: f32) !SpatialGrid {
@@ -44,7 +46,7 @@ pub const SpatialGrid = struct {
 
         const cells = try allocator.alloc(GridCell, total_cells_usize);
         for (cells) |*cell| {
-            cell.* = GridCell.init(allocator);
+            cell.* = try GridCell.init(allocator);
         }
 
         return SpatialGrid{
@@ -54,7 +56,7 @@ pub const SpatialGrid = struct {
             .world_size = world_size,
             .grid_dim = @intFromFloat(grid_dim),
             .cells = cells,
-            .collision_pairs = std.ArrayList([2]usize).init(allocator),
+            .collision_pairs = try std.array_list.Managed([2]usize).initCapacity(allocator, 64),
         };
     }
 
@@ -64,7 +66,7 @@ pub const SpatialGrid = struct {
             cell.deinit();
         }
         self.allocator.free(self.cells);
-        self.collision_pairs.deinit();
+        self.collision_pairs.deinit(self.allocator);
     }
 
     /// Clear all cells (should be called each frame before insertion)
@@ -152,7 +154,7 @@ pub const SpatialGrid = struct {
                     if (self.isPairAlreadyAdded(obj_idx_a, obj_idx_b)) continue;
 
                     // Add as potential collision pair
-                    try self.collision_pairs.append([2]usize{ obj_idx_a, obj_idx_b });
+                    try self.collision_pairs.append(self.allocator, [2]usize{ obj_idx_a, obj_idx_b });
                 }
             }
         }
@@ -249,7 +251,7 @@ pub const AABB = struct {
     max: Vec4,
 
     pub fn fromSphere(center: Vec4, radius: f32) AABB {
-        const r = Vector.splat(radius);
+        const r = Vec3f{ .x = radius, .y = radius, .z = radius };
         return AABB{
             .min = center - r,
             .max = center + r,

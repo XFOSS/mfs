@@ -358,7 +358,7 @@ const AssetProcessor = struct {
         // Determine shader type from file extension
         const ext = std.fs.path.extension(relative_path);
         var shader_type: []const u8 = "unknown";
-        
+
         if (std.mem.eql(u8, ext, ".vert")) {
             shader_type = "vertex";
         } else if (std.mem.eql(u8, ext, ".frag")) {

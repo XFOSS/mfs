@@ -440,7 +440,7 @@ pub fn getMemoryStats() *MemoryStats {
 /// Thread pool for parallel task execution
 pub const ThreadPool = struct {
     allocator: Allocator,
-    threads: std.ArrayList(*std.Thread),
+    threads: std.array_list.Managed(*std.Thread),
     task_queue: TaskQueue,
     shutdown: std.atomic.Value(bool),
     active_tasks: std.atomic.Value(u32),
@@ -660,7 +660,7 @@ pub const ThreadPool = struct {
     pub fn init(allocator: Allocator, config: Config) !ThreadPool {
         var pool = ThreadPool{
             .allocator = allocator,
-            .threads = std.ArrayList(*std.Thread).init(allocator),
+            .threads = std.array_list.Managed(*std.Thread).init(allocator),
             .task_queue = try TaskQueue.init(allocator, config.queue_size),
             .shutdown = std.atomic.Value(bool).init(false),
             .active_tasks = std.atomic.Value(u32).init(0),

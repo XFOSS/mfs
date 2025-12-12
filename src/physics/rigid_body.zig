@@ -1,15 +1,13 @@
 const std = @import("std");
 const physics = @import("physics.zig");
-const physics_mod = @import("mod.zig");
-const math = physics_mod.Math;
-const Vector = math.Vector;
-const Quaternion = math.Quaternion;
-const Vec3f = math.Vec3f;
+const Vec3f = physics.Vec3f;
+const Quatf = physics.Quatf;
+const Mat3f = physics.Mat3f;
+const Mat4f = physics.Mat4f;
+const Matrix3 = Mat3f;
 const PhysicsConstants = physics.PhysicsConstants;
 const PhysicalObject = physics.PhysicalObject;
 const ObjectType = physics.ObjectType;
-const Matrix3 = math.Mat3f;
-const Matrix4 = math.Mat4f;
 
 /// Inertia tensor presets for common shapes
 pub const InertiaPresets = struct {
@@ -143,7 +141,7 @@ pub const RigidBody = struct {
         obj.angular_velocity = obj.angular_velocity.add(angular_accel.scale(dt));
 
         // Update orientation using quaternion integration
-        const omega = Quaternion.init(obj.angular_velocity.x, obj.angular_velocity.y, obj.angular_velocity.z, 0);
+        const omega = Quatf.init(obj.angular_velocity.x, obj.angular_velocity.y, obj.angular_velocity.z, 0);
 
         // Compute rate of change: dq/dt = 0.5 * omega * q
         const omega_q = omega.multiply(obj.orientation).scale(0.5);
@@ -160,13 +158,13 @@ pub const RigidBody = struct {
 /// RigidBodyManager for managing a collection of rigid bodies
 pub const RigidBodyManager = struct {
     allocator: std.mem.Allocator,
-    rigid_bodies: std.ArrayList(RigidBody),
+    rigid_bodies: std.array_list.Managed(RigidBody),
     object_to_rigid_body: std.AutoHashMap(usize, usize),
 
-    pub fn init(allocator: std.mem.Allocator) RigidBodyManager {
+    pub fn init(allocator: std.mem.Allocator) !RigidBodyManager {
         return .{
             .allocator = allocator,
-            .rigid_bodies = std.ArrayList(RigidBody).init(allocator),
+            .rigid_bodies = try std.array_list.Managed(RigidBody).initCapacity(allocator, 64),
             .object_to_rigid_body = std.AutoHashMap(usize, usize).init(allocator),
         };
     }

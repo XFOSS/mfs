@@ -156,7 +156,7 @@ pub const PlatformOptimizer = struct {
     settings: PlatformSettings,
 
     // Performance monitoring
-    frame_times: std.ArrayList(f32),
+    frame_times: std.array_list.Managed(f32),
     average_frame_time: f32 = 16.67, // 60 FPS default
     performance_budget: f32,
 
@@ -170,7 +170,7 @@ pub const PlatformOptimizer = struct {
             .allocator = allocator,
             .current_profile = profile,
             .settings = settings,
-            .frame_times = std.ArrayList(f32).init(allocator),
+            .frame_times = std.array_list.Managed(f32).init(allocator),
             .performance_budget = 1000.0 / @as(f32, @floatFromInt(settings.target_fps)),
         };
     }

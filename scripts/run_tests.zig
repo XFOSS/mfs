@@ -58,7 +58,7 @@ pub fn main() !void {
     var failed_tests: usize = 0;
     var skipped_tests: usize = 0;
 
-    const start_time = std.time.nanoTimestamp();
+    const start_time = try std.time.Instant.now();
 
     for (test_suites) |suite| {
         if (test_filter) |filter| {
@@ -102,8 +102,9 @@ pub fn main() !void {
         }
     }
 
-    const end_time = std.time.nanoTimestamp();
-    const total_duration_ms = @as(f64, @floatFromInt(end_time - start_time)) / 1_000_000.0;
+    const end_time = try std.time.Instant.now();
+    const total_duration_ns = end_time.since(start_time);
+    const total_duration_ms = @as(f64, @floatFromInt(total_duration_ns)) / 1_000_000.0;
 
     std.log.info("", .{});
     std.log.info("Test Results:", .{});
@@ -140,7 +141,7 @@ const BenchmarkResult = struct {
 };
 
 fn runTestSuite(allocator: std.mem.Allocator, suite: TestSuite, verbose: bool, memory_check: bool) !TestResult {
-    const start_time = std.time.nanoTimestamp();
+    const start_time = try std.time.Instant.now();
 
     // Check if test file exists
     std.fs.cwd().access(suite.path, .{}) catch |err| {
@@ -158,16 +159,16 @@ fn runTestSuite(allocator: std.mem.Allocator, suite: TestSuite, verbose: bool, m
     };
 
     // Build test command
-    var cmd_args = std.ArrayList([]const u8).init(allocator);
-    defer cmd_args.deinit();
+    var cmd_args = try std.array_list.Managed([]const u8).initCapacity(allocator, 4);
+    defer cmd_args.deinit(allocator);
 
-    try cmd_args.append("zig");
-    try cmd_args.append("test");
-    try cmd_args.append(suite.path);
+    try cmd_args.append(allocator, "zig");
+    try cmd_args.append(allocator, "test");
+    try cmd_args.append(allocator, suite.path);
 
     if (memory_check) {
-        try cmd_args.append("--test-filter");
-        try cmd_args.append("memory");
+        try cmd_args.append(allocator, "--test-filter");
+        try cmd_args.append(allocator, "memory");
     }
 
     // Run the test
@@ -177,34 +178,30 @@ fn runTestSuite(allocator: std.mem.Allocator, suite: TestSuite, verbose: bool, m
 
     try child.spawn();
 
-    const stdout = try child.stdout.?.readToEndAlloc(allocator, 1024 * 1024);
+    const stdout = try child.stdout.?.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(stdout);
 
-    const stderr = try child.stderr.?.readToEndAlloc(allocator, 1024 * 1024);
+    const stderr = try child.stderr.?.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(stderr);
 
     const result = try child.wait();
 
-    const end_time = std.time.nanoTimestamp();
-    const duration_ns = end_time - start_time;
-
-    if (verbose and stdout.len > 0) {
-        std.log.info("Test output for {s}:", .{suite.name});
-        std.log.info("{s}", .{stdout});
-    }
-
-    if (stderr.len > 0) {
-        std.log.err("Test errors for {s}:", .{suite.name});
-        std.log.err("{s}", .{stderr});
-    }
+    const end_time = try std.time.Instant.now();
+    const duration_ns = end_time.since(start_time);
 
     const success = switch (result) {
         .Exited => |code| code == 0,
         else => false,
     };
 
-    // Parse test count from output
-    const test_count = parseTestCount(stdout);
+    const test_count = if (success) parseTestCount(stdout) else 0;
+
+    if (verbose and !success) {
+        std.log.err("Test output:\n{s}", .{stdout});
+        if (stderr.len > 0) {
+            std.log.err("Test stderr:\n{s}", .{stderr});
+        }
+    }
 
     return TestResult{
         .success = success,
@@ -214,11 +211,11 @@ fn runTestSuite(allocator: std.mem.Allocator, suite: TestSuite, verbose: bool, m
 }
 
 fn parseTestCount(output: []const u8) usize {
-    // Look for patterns like "All X tests passed" or "X/Y tests passed"
+    // Look for patterns like "All X tests passed" or "X passed; Y failed; Z skipped"
     var lines = std.mem.splitSequence(u8, output, "\n");
     while (lines.next()) |line| {
+        // Check for "All X tests passed" format
         if (std.mem.indexOf(u8, line, "tests passed")) |_| {
-            // Try to extract number
             var tokens = std.mem.tokenizeScalar(u8, line, ' ');
             while (tokens.next()) |token| {
                 if (std.fmt.parseInt(usize, token, 10)) |count| {
@@ -228,13 +225,28 @@ fn parseTestCount(output: []const u8) usize {
                 }
             }
         }
+
+        // Check for "X passed; Y failed; Z skipped" format
+        if (std.mem.indexOf(u8, line, "passed;")) |_| {
+            var tokens = std.mem.tokenizeAny(u8, line, " ;");
+            while (tokens.next()) |token| {
+                if (std.mem.eql(u8, token, "passed")) {
+                    if (tokens.next()) |num_str| {
+                        if (std.fmt.parseInt(usize, num_str, 10)) |count| {
+                            return count;
+                        } else |_| {
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
     }
     return 0;
 }
 
 fn printUsage() !void {
-    const stdout = std.io.getStdOut().writer();
-    try stdout.writeAll(
+    std.debug.print(
         \\Usage: zig run scripts/run_tests.zig [options]
         \\
         \\Options:
@@ -250,7 +262,7 @@ fn printUsage() !void {
         \\  zig run scripts/run_tests.zig --verbose --benchmark
         \\  zig run scripts/run_tests.zig --memory-check
         \\
-    );
+    , .{});
 }
 
 test "test runner functionality" {

@@ -142,8 +142,8 @@ pub const Profiler = struct {
     var zone_stack_depth: AtomicCounter = if (builtin.single_threaded) .{} else .{ .value = 0 };
 
     /// Collected data.
-    var entries: std.ArrayList(ProfileEntry) = undefined;
-    var counters: std.ArrayList(CounterEntry) = undefined;
+    var entries: std.array_list.Managed(ProfileEntry) = undefined;
+    var counters: std.array_list.Managed(CounterEntry) = undefined;
     var mutexes: struct {
         entries: std.Thread.Mutex = .{},
         counters: std.Thread.Mutex = .{},
@@ -163,8 +163,8 @@ pub const Profiler = struct {
         if (is_initialized) return;
 
         allocator = alloc;
-        entries = std.ArrayList(ProfileEntry).init(alloc);
-        counters = std.ArrayList(CounterEntry).init(alloc);
+        entries = std.array_list.Managed(ProfileEntry).init(alloc);
+        counters = std.array_list.Managed(CounterEntry).init(alloc);
         memory_allocations = std.AutoHashMap(*anyopaque, MemoryAllocation).init(alloc);
         total_allocated = 0;
         global_timer = try Timer.start();
@@ -429,7 +429,7 @@ pub const Profiler = struct {
 
     /// Get all current memory allocations.
     pub fn getMemoryAllocations() []MemoryAllocation {
-        var result = std.ArrayList(MemoryAllocation).init(std.heap.page_allocator);
+        var result = std.array_list.Managed(MemoryAllocation).init(std.heap.page_allocator);
         defer result.deinit();
 
         mutexes.memory.lock();
@@ -599,7 +599,7 @@ pub const TrackedAllocator = struct {
         log2_ptr_align: u8,
         ret_addr: usize,
     ) ?[*]u8 {
-        const self: *TrackedAllocator = @alignCast(@ptrCast(ctx));
+        const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
         const result = self.parent_allocator.vtable.alloc(self.parent_allocator.ptr, len, log2_ptr_align, ret_addr);
 
         if (result != null) {
@@ -616,7 +616,7 @@ pub const TrackedAllocator = struct {
         new_len: usize,
         ret_addr: usize,
     ) bool {
-        const self: *TrackedAllocator = @alignCast(@ptrCast(ctx));
+        const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
 
         if (new_len > buf.len) {
             Profiler.trackDeallocation(buf.ptr);
@@ -638,7 +638,7 @@ pub const TrackedAllocator = struct {
         log2_buf_align: u8,
         ret_addr: usize,
     ) void {
-        const self: *TrackedAllocator = @alignCast(@ptrCast(ctx));
+        const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
         Profiler.trackDeallocation(buf.ptr);
         self.parent_allocator.vtable.free(self.parent_allocator.ptr, buf, log2_buf_align, ret_addr);
     }

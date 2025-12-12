@@ -231,7 +231,7 @@ pub const Window = struct {
         const WNDCLASSEXW = extern struct {
             cbSize: u32,
             style: u32,
-            lpfnWndProc: *const fn (HWND, u32, usize, isize) callconv(.C) isize,
+            lpfnWndProc: *const fn (HWND, u32, usize, isize) callconv(.c) isize,
             cbClsExtra: i32,
             cbWndExtra: i32,
             hInstance: HINSTANCE,
@@ -244,7 +244,7 @@ pub const Window = struct {
         };
 
         const user32 = struct {
-            extern "user32" fn RegisterClassExW(lpWndClass: *const WNDCLASSEXW) callconv(.C) u16;
+            extern "user32" fn RegisterClassExW(lpWndClass: *const WNDCLASSEXW) callconv(.c) u16;
             extern "user32" fn CreateWindowExW(
                 dwExStyle: u32,
                 lpClassName: [*:0]const u16,
@@ -258,11 +258,11 @@ pub const Window = struct {
                 hMenu: ?*anyopaque,
                 hInstance: HINSTANCE,
                 lpParam: ?*anyopaque,
-            ) callconv(.C) ?HWND;
-            extern "user32" fn DefWindowProcW(hWnd: HWND, Msg: u32, wParam: usize, lParam: isize) callconv(.C) isize;
-            extern "user32" fn LoadCursorW(hInstance: ?HINSTANCE, lpCursorName: usize) callconv(.C) ?*anyopaque;
-            extern "kernel32" fn GetModuleHandleW(lpModuleName: ?[*:0]const u16) callconv(.C) HINSTANCE;
-            extern "kernel32" fn GetLastError() callconv(.C) u32;
+            ) callconv(.c) ?HWND;
+            extern "user32" fn DefWindowProcW(hWnd: HWND, Msg: u32, wParam: usize, lParam: isize) callconv(.c) isize;
+            extern "user32" fn LoadCursorW(hInstance: ?HINSTANCE, lpCursorName: usize) callconv(.c) ?*anyopaque;
+            extern "kernel32" fn GetModuleHandleW(lpModuleName: ?[*:0]const u16) callconv(.c) HINSTANCE;
+            extern "kernel32" fn GetLastError() callconv(.c) u32;
         };
 
         // Window style constants
@@ -282,7 +282,7 @@ pub const Window = struct {
 
         // Default window procedure
         const windowProc = struct {
-            fn wndProc(hWnd: HWND, uMsg: u32, wParam: usize, lParam: isize) callconv(.C) isize {
+            fn wndProc(hWnd: HWND, uMsg: u32, wParam: usize, lParam: isize) callconv(.c) isize {
                 return user32.DefWindowProcW(hWnd, uMsg, wParam, lParam);
             }
         }.wndProc;
@@ -350,7 +350,7 @@ pub const Window = struct {
         if (self.handle) |handle| {
             const HWND = *opaque {};
             const user32 = struct {
-                extern "user32" fn DestroyWindow(hWnd: HWND) callconv(.C) i32;
+                extern "user32" fn DestroyWindow(hWnd: HWND) callconv(.c) i32;
             };
 
             _ = user32.DestroyWindow(@ptrCast(handle));

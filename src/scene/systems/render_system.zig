@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const Entity = @import("../core/entity.zig").Entity;
 const Scene = @import("../core/scene.zig").Scene;
 const TransformComponent = @import("../components/transform.zig").Transform;

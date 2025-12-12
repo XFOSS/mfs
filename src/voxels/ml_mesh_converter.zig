@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const HashMap = std.HashMap;
 const AutoHashMap = std.AutoHashMap;
 
@@ -100,7 +100,7 @@ pub const MLMeshConverter = struct {
     }
 
     pub fn convertVoxelsToMesh(self: *MLMeshConverter, voxel_chunk: *VoxelEngine.VoxelChunk, config: ConversionConfig) !ConversionResult {
-        const start_time = std.time.milliTimestamp();
+        const start_time = std.time.nanoTimestamp() / 1_000_000;
 
         // Extract features from voxel data
         const features = try self.feature_extractor.extractFeatures(voxel_chunk);
@@ -136,7 +136,7 @@ pub const MLMeshConverter = struct {
         const error_metrics = try self.calculateErrorMetrics(&result_mesh, voxel_chunk);
         const confidence_score = try self.calculateConfidenceScore(features, mesh_prediction);
 
-        const end_time = std.time.milliTimestamp();
+        const end_time = std.time.nanoTimestamp() / 1_000_000;
 
         return ConversionResult{
             .mesh = result_mesh,
@@ -569,7 +569,7 @@ pub const NeuralNetwork = struct {
     }
 
     pub fn initializeWeights(self: *NeuralNetwork) !void {
-        var prng = std.rand.DefaultPrng.init(@as(u64, @intCast(std.time.milliTimestamp())));
+        var prng = std.rand.DefaultPrng.init(@as(u64, @intCast(std.time.nanoTimestamp())));
         const random = prng.random();
 
         for (self.layers.items) |*layer| {

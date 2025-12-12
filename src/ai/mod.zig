@@ -25,7 +25,7 @@ pub const AISystem = struct {
 
     // Performance tracking
     frame_time_ms: f32 = 0.0,
-    ai_entities: std.ArrayList(AIEntity),
+    ai_entities: std.array_list.Managed(AIEntity),
 
     const Self = @This();
 
@@ -39,7 +39,7 @@ pub const AISystem = struct {
             .pathfinding_system = try pathfinding.PathfindingSystem.init(allocator),
             .ml_processor = try ml_features.MLProcessor.init(allocator),
             .decision_engine = try decision_making.DecisionEngine.init(allocator),
-            .ai_entities = std.ArrayList(AIEntity).init(allocator),
+            .ai_entities = std.array_list.Managed(AIEntity).init(allocator),
         };
     }
 
@@ -360,14 +360,14 @@ pub const AIMetrics = struct {
 /// AI debugging and visualization tools
 pub const AIDebugger = struct {
     allocator: std.mem.Allocator,
-    debug_entities: std.ArrayList(DebugInfo),
+    debug_entities: std.array_list.Managed(DebugInfo),
 
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .allocator = allocator,
-            .debug_entities = std.ArrayList(DebugInfo).init(allocator),
+            .debug_entities = std.array_list.Managed(DebugInfo).init(allocator),
         };
     }
 

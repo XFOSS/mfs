@@ -12,7 +12,7 @@ var last_time: f64 = 0.0;
 var gl_context: ?*anyopaque = null;
 
 // Vertex and fragment shaders
-const vertex_shader_source = 
+const vertex_shader_source =
     \\attribute vec3 position;
     \\attribute vec3 color;
     \\uniform mat4 modelViewMatrix;
@@ -24,7 +24,7 @@ const vertex_shader_source =
     \\}
 ;
 
-const fragment_shader_source = 
+const fragment_shader_source =
     \\precision mediump float;
     \\varying vec3 vColor;
     \\void main() {
@@ -35,36 +35,36 @@ const fragment_shader_source =
 // Cube vertices (position + color)
 const cube_vertices = [_]f32{
     // Front face
-    -1.0, -1.0,  1.0,  1.0, 0.0, 0.0,
-     1.0, -1.0,  1.0,  0.0, 1.0, 0.0,
-     1.0,  1.0,  1.0,  0.0, 0.0, 1.0,
-    -1.0,  1.0,  1.0,  1.0, 1.0, 0.0,
+    -1.0, -1.0, 1.0,  1.0, 0.0, 0.0,
+    1.0,  -1.0, 1.0,  0.0, 1.0, 0.0,
+    1.0,  1.0,  1.0,  0.0, 0.0, 1.0,
+    -1.0, 1.0,  1.0,  1.0, 1.0, 0.0,
     // Back face
-    -1.0, -1.0, -1.0,  1.0, 0.0, 1.0,
-     1.0, -1.0, -1.0,  0.0, 1.0, 1.0,
-     1.0,  1.0, -1.0,  1.0, 1.0, 1.0,
-    -1.0,  1.0, -1.0,  0.0, 0.0, 0.0,
+    -1.0, -1.0, -1.0, 1.0, 0.0, 1.0,
+    1.0,  -1.0, -1.0, 0.0, 1.0, 1.0,
+    1.0,  1.0,  -1.0, 1.0, 1.0, 1.0,
+    -1.0, 1.0,  -1.0, 0.0, 0.0, 0.0,
 };
 
 const cube_indices = [_]u16{
-    0, 1, 2,  0, 2, 3,  // Front
-    1, 5, 6,  1, 6, 2,  // Right
-    5, 4, 7,  5, 7, 6,  // Back
-    4, 0, 3,  4, 3, 7,  // Left
-    3, 2, 6,  3, 6, 7,  // Top
-    4, 5, 1,  4, 1, 0   // Bottom
+    0, 1, 2, 0, 2, 3, // Front
+    1, 5, 6, 1, 6, 2, // Right
+    5, 4, 7, 5, 7, 6, // Back
+    4, 0, 3, 4, 3, 7, // Left
+    3, 2, 6, 3, 6, 7, // Top
+    4, 5, 1, 4, 1, 0, // Bottom
 };
 
 // Matrix utilities
 fn createModelViewMatrix(rot: f32) [16]f32 {
     const cos = @cos(rot);
     const sin = @sin(rot);
-    
+
     return [16]f32{
-        cos,  0.0,  sin,  0.0,
-        0.0,  1.0,  0.0,  0.0,
-        -sin, 0.0,  cos,  0.0,
-        0.0,  0.0,  -5.0, 1.0,
+        cos,  0.0, sin,  0.0,
+        0.0,  1.0, 0.0,  0.0,
+        -sin, 0.0, cos,  0.0,
+        0.0,  0.0, -5.0, 1.0,
     };
 }
 
@@ -73,20 +73,23 @@ fn createProjectionMatrix() [16]f32 {
     const fov = std.math.pi / 4.0;
     const near: f32 = 0.1;
     const far: f32 = 100.0;
-    
+
     const f = 1.0 / @tan(fov / 2.0);
-    
+
     return [16]f32{
-        f / aspect, 0.0, 0.0, 0.0,
-        0.0, f, 0.0, 0.0,
-        0.0, 0.0, (far + near) / (near - far), -1.0,
-        0.0, 0.0, (2.0 * far * near) / (near - far), 0.0,
+        f / aspect, 0.0, 0.0,                               0.0,
+        0.0,        f,   0.0,                               0.0,
+        0.0,        0.0, (far + near) / (near - far),       -1.0,
+        0.0,        0.0, (2.0 * far * near) / (near - far), 0.0,
     };
 }
 
 // WebGL simulation functions (for WASM)
 fn webglClearColor(r: f32, g: f32, b: f32, a: f32) void {
-    _ = r; _ = g; _ = b; _ = a;
+    _ = r;
+    _ = g;
+    _ = b;
+    _ = a;
     // In real WASM, this would call the actual WebGL function
 }
 
@@ -101,17 +104,25 @@ fn webglUseProgram(program: u32) void {
 }
 
 fn webglUniformMatrix4fv(location: i32, transpose: bool, value: [16]f32) void {
-    _ = location; _ = transpose; _ = value;
+    _ = location;
+    _ = transpose;
+    _ = value;
     // In real WASM, this would call the actual WebGL function
 }
 
 fn webglDrawElements(mode: u32, count: i32, type: u32, offset: usize) void {
-    _ = mode; _ = count; _ = type; _ = offset;
+    _ = mode;
+    _ = count;
+    _ = type;
+    _ = offset;
     // In real WASM, this would call the actual WebGL function
 }
 
 fn webglViewport(x: i32, y: i32, width: i32, height: i32) void {
-    _ = x; _ = y; _ = width; _ = height;
+    _ = x;
+    _ = y;
+    _ = width;
+    _ = height;
     // In real WASM, this would call the actual WebGL function
 }
 
@@ -121,7 +132,7 @@ fn webglEnable(cap: u32) void {
 }
 
 // Animation frame callback
-fn requestAnimationFrame(callback: fn() void) void {
+fn requestAnimationFrame(callback: fn () void) void {
     _ = callback;
     // In real WASM, this would call the browser's requestAnimationFrame
 }
@@ -161,16 +172,16 @@ fn render(current_time: f64) void {
 // Exported functions for JavaScript
 export fn initialize_spinning_cube_demo() i32 {
     allocator = std.heap.page_allocator;
-    
+
     // Set up viewport
     webglViewport(0, 0, @as(i32, @intCast(canvas_width)), @as(i32, @intCast(canvas_height)));
     webglEnable(0x0B71); // DEPTH_TEST
-    
+
     // Initialize time
     last_time = 0.0;
     rotation = 0.0;
     is_running = false;
-    
+
     return 0; // Success
 }
 

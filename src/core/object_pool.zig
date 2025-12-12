@@ -155,7 +155,7 @@ pub fn ObjectPool(comptime T: type) type {
 
 /// Specialized object pool for common types
 pub const StringPool = ObjectPool([]u8);
-pub const BufferPool = ObjectPool(std.ArrayList(u8));
+pub const BufferPool = ObjectPool(std.array_list.Managed(u8));
 
 test "object pool" {
     const testing = std.testing;

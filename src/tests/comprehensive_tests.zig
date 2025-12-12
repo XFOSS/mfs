@@ -66,13 +66,13 @@ const TestResult = struct {
 
 const TestSuite = struct {
     name: []const u8,
-    tests: std.ArrayList(TestResult),
+    tests: std.array_list.Managed(TestResult),
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) TestSuite {
         return TestSuite{
             .name = name,
-            .tests = std.ArrayList(TestResult).init(allocator),
+            .tests = std.array_list.Managed(TestResult).init(allocator),
             .allocator = allocator,
         };
     }

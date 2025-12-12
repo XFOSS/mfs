@@ -1,0 +1,4 @@
+{
+  "allow_rewrap": "in_comments",
+  "soft_wrap": "bounded"
+}

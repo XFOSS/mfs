@@ -1,6 +1,7 @@
 const std = @import("std");
 const testing = std.testing;
-const vk = @import("../../backends/vulkan/new/vulkan_backend.zig");
+const backend = @import("../../backends/vulkan/new/vulkan_backend.zig");
+const vk = backend.vk;
 const memory_manager = @import("memory_manager.zig");
 const MemoryManager = memory_manager.MemoryManager;
 const MemoryBlock = memory_manager.MemoryBlock;
@@ -9,7 +10,7 @@ const MemoryBlock = memory_manager.MemoryBlock;
 const MockDevice = struct {
     allocator: std.mem.Allocator,
     memory_properties: vk.PhysicalDeviceMemoryProperties,
-    allocated_memory: std.ArrayList(vk.DeviceMemory),
+    allocated_memory: std.array_list.Managed(vk.DeviceMemory),
     mapped_memory: std.AutoHashMap(vk.DeviceMemory, *anyopaque),
 
     pub fn init(allocator: std.mem.Allocator) !*MockDevice {
@@ -37,7 +38,7 @@ const MockDevice = struct {
                     .{ .size = 512 * 1024 * 1024, .flags = .{} },
                 },
             },
-            .allocated_memory = std.ArrayList(vk.DeviceMemory).init(allocator),
+            .allocated_memory = std.array_list.Managed(vk.DeviceMemory).init(allocator),
             .mapped_memory = std.AutoHashMap(vk.DeviceMemory, *anyopaque).init(allocator),
         };
         return self;
@@ -260,7 +261,7 @@ test "MemoryManager thread safety" {
         allocator: std.mem.Allocator,
 
         fn run(self: @This()) !void {
-            var blocks = std.ArrayList(MemoryBlock).init(self.allocator);
+            var blocks = std.array_list.Managed(MemoryBlock).init(self.allocator);
             defer blocks.deinit();
 
             // Perform multiple allocations

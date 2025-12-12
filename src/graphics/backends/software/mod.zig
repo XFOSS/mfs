@@ -11,8 +11,6 @@ pub const SoftwareBackend = struct {
     allocator: std.mem.Allocator,
     config: interface.BackendConfig,
 
-    const Self = @This();
-
     // Simple ID counters to give each resource a unique handle in the CPU
     next_buffer_id: usize = 1,
     next_texture_id: usize = 1,
@@ -24,19 +22,17 @@ pub const SoftwareBackend = struct {
     shaders: std.AutoHashMap(usize, types.Shader),
     pipelines: std.AutoHashMap(usize, *interface.Pipeline),
 
-    fn initInternal(self: *Self) void {
-        self.buffers = std.AutoHashMap(usize, []u8).init(self.allocator);
-        self.shaders = std.AutoHashMap(usize, types.Shader).init(self.allocator);
-        self.pipelines = std.AutoHashMap(usize, *interface.Pipeline).init(self.allocator);
-    }
+    const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator, config: interface.BackendConfig) !*Self {
         const backend = try allocator.create(Self);
         backend.* = Self{
             .allocator = allocator,
             .config = config,
+            .buffers = std.AutoHashMap(usize, []u8).init(allocator),
+            .shaders = std.AutoHashMap(usize, types.Shader).init(allocator),
+            .pipelines = std.AutoHashMap(usize, *interface.Pipeline).init(allocator),
         };
-        backend.initInternal();
         return backend;
     }
 
@@ -91,10 +87,10 @@ pub const SoftwareBackend = struct {
         // Allocate CPU memory for the buffer
         var mem = try self.allocator.alloc(u8, buffer.size);
         if (data) |d| {
-            std.mem.copy(u8, mem, d);
+            @memcpy(mem, d);
         } else {
             // Zero init
-            std.mem.set(u8, mem, 0);
+            @memset(mem, 0);
         }
 
         const id = self.next_buffer_id;
@@ -118,6 +114,7 @@ pub const SoftwareBackend = struct {
     }
 
     fn createPipelineWrapper(impl_data: *anyopaque, desc: *const interface.PipelineDesc) interface.GraphicsBackendError!*interface.Pipeline {
+        _ = desc; // Suppress unused parameter warning
         const self = @as(*Self, @ptrCast(@alignCast(impl_data)));
         const pipe = try self.allocator.create(interface.Pipeline);
         pipe.* = interface.Pipeline{
@@ -144,7 +141,7 @@ pub const SoftwareBackend = struct {
             if (offset + data.len > slice.len) {
                 return interface.GraphicsBackendError.OutOfMemory;
             }
-            std.mem.copy(u8, slice[offset..][0..data.len], data);
+            @memcpy(slice[offset..][0..data.len], data);
         }
     }
 

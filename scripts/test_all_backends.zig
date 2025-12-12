@@ -51,7 +51,7 @@ pub fn main() !void {
     std.log.info("Architecture: {s}", .{@tagName(builtin.cpu.arch)});
     std.log.info("", .{});
 
-    var test_results = std.ArrayList(TestResult).init(allocator);
+    var test_results = std.array_list.Managed(TestResult).init(allocator);
     defer test_results.deinit();
 
     // Test all available backends
@@ -91,7 +91,7 @@ pub fn main() !void {
 fn getAvailableBackends() ![]const capabilities.GraphicsBackend {
     const build_options = @import("../src/build_options");
 
-    var backends = std.ArrayList(capabilities.GraphicsBackend).init(allocator);
+    var backends = std.array_list.Managed(capabilities.GraphicsBackend).init(allocator);
     errdefer backends.deinit();
 
     // Add backends based on build configuration and platform
@@ -253,7 +253,7 @@ fn testResourceCreation(backend: *graphics.GraphicsBackend) !void {
 
 fn runPerformanceTest(backend: *graphics.GraphicsBackend, config: TestConfig) !PerformanceStats {
     var stats = PerformanceStats{};
-    var frame_times = std.ArrayList(f64).init(allocator);
+    var frame_times = std.array_list.Managed(f64).init(allocator);
     defer frame_times.deinit();
 
     const start_time = std.time.milliTimestamp();
@@ -339,7 +339,7 @@ fn renderTestFrame(backend: *graphics.GraphicsBackend) !void {
 
 fn runMemoryStressTest(backend: *graphics.GraphicsBackend) !void {
     // Create and destroy many resources to test for leaks
-    var buffers = std.ArrayList(graphics.Buffer).init(allocator);
+    var buffers = std.array_list.Managed(graphics.Buffer).init(allocator);
     defer {
         // Clean up any remaining buffers
         for (buffers.items) |buffer| {
@@ -535,7 +535,7 @@ fn printTestReport(results: []const TestResult, config: TestConfig) !void {
 
 /// Write test results into backend_report.json (simple array of objects)
 fn writeJsonReport(results: []const TestResult) !void {
-    var buf = std.ArrayList(u8).init(allocator);
+    var buf = std.array_list.Managed(u8).init(allocator);
     defer buf.deinit();
 
     try json.stringify(results, .{ .whitespace = .indent_2 }, buf.writer());

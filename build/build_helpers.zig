@@ -166,13 +166,13 @@ pub const Development = struct {
     pub fn createHotReloadWatcher(b: *std.Build, watch_paths: []const []const u8) !void {
         // Create a custom step for hot reload
         const hot_reload_step = b.step("hot-reload", "Watch for file changes and rebuild");
-        
+
         // For each watch path, create a file watcher
         for (watch_paths) |path| {
             const watch_step = b.addSystemCommand(&.{ "inotifywait", "-m", "-r", "-e", "modify,create,delete", path });
             hot_reload_step.dependOn(&watch_step.step);
         }
-        
+
         // TODO: Implement more sophisticated hot reload with:
         // - File change detection
         // - Incremental compilation
@@ -186,12 +186,12 @@ pub const Development = struct {
             // Add Tracy profiler integration
             exe.addCSourceFile(.{
                 .file = .{ .path = "third_party/tracy/TracyC.h" },
-                .flags = &.{ "-DTRACY_ENABLE" },
+                .flags = &.{"-DTRACY_ENABLE"},
             });
-            
+
             exe.linkSystemLibrary("tracy");
             exe.addIncludeDir(.{ .path = "third_party/tracy" });
-            
+
             // TODO: Add Tracy dependency when available
             // This would typically involve:
             // - Adding Tracy as a git submodule
@@ -218,27 +218,27 @@ pub const Validation = struct {
     /// Validate build configuration
     pub fn validateConfiguration(config: anytype) !void {
         const config_type = @TypeOf(config);
-        
+
         // Check for required fields
         if (@hasField(config_type, "target")) {
             if (config.target == null) {
                 return error.InvalidConfiguration;
             }
         }
-        
+
         if (@hasField(config_type, "optimize")) {
             if (config.optimize == null) {
                 return error.InvalidConfiguration;
             }
         }
-        
+
         // Validate paths exist
         if (@hasField(config_type, "source_dir")) {
             if (!fileExists(config.source_dir)) {
                 return error.SourceDirectoryNotFound;
             }
         }
-        
+
         if (@hasField(config_type, "output_dir")) {
             // Create output directory if it doesn't exist
             std.fs.cwd().makePath(config.output_dir) catch |err| {
@@ -247,7 +247,7 @@ pub const Validation = struct {
                 }
             };
         }
-        
+
         // TODO: Add more comprehensive validation:
         // - Check for conflicting options
         // - Validate target compatibility

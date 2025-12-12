@@ -52,7 +52,7 @@ pub const WindowSystemImpl = struct {
     config: Config,
     window: ?*Window,
     should_close: bool,
-    events: std.ArrayList(WindowEvent),
+    events: std.array_list.Managed(WindowEvent),
 
     const Self = @This();
 
@@ -63,7 +63,7 @@ pub const WindowSystemImpl = struct {
             .config = config,
             .window = null,
             .should_close = false,
-            .events = std.ArrayList(WindowEvent).init(allocator),
+            .events = try std.array_list.Managed(WindowEvent).initCapacity(allocator, 16),
         };
 
         // Create the actual window
@@ -93,7 +93,7 @@ pub const WindowSystemImpl = struct {
             win.deinit();
             self.allocator.destroy(win);
         }
-        self.events.deinit();
+        self.events.deinit(self.allocator);
         // Note: Don't destroy self here - that's the responsibility of the caller
     }
 
@@ -105,7 +105,7 @@ pub const WindowSystemImpl = struct {
             // This is a simplified implementation
             if (win.shouldClose()) {
                 self.should_close = true;
-                try self.events.append(.close);
+                try self.events.append(self.allocator, .close);
             }
         }
     }

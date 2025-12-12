@@ -150,7 +150,7 @@ pub fn setupCompilerFlags(exe: *std.Build.Step.Compile, optimize: std.builtin.Op
     exe.single_threaded = false;
 
     // Platform-specific flags
-    switch (exe.rootModuleTarget().os.tag) {
+    switch (exe.root_module.resolved_target.result.os.tag) {
         .windows => {
             exe.subsystem = .Windows;
         },

@@ -18,16 +18,16 @@ pub const NeuralBrain = struct {
     allocator: std.mem.Allocator,
 
     // Neural network architecture
-    networks: std.ArrayList(*NeuralNetwork),
-    agents: std.ArrayList(*AIAgent),
+    networks: std.array_list.Managed(*NeuralNetwork),
+    agents: std.array_list.Managed(*AIAgent),
 
     // Training and inference
     trainer: ?*NeuralTrainer = null,
     inference_engine: *InferenceEngine,
 
     // Behavior trees and decision making
-    behavior_trees: std.ArrayList(*BehaviorTree),
-    decision_makers: std.ArrayList(*DecisionMaker),
+    behavior_trees: std.array_list.Managed(*BehaviorTree),
+    decision_makers: std.array_list.Managed(*DecisionMaker),
 
     // Memory and experience replay
     experience_buffer: *ExperienceBuffer,
@@ -60,7 +60,7 @@ pub const NeuralBrain = struct {
     pub const NeuralNetwork = struct {
         id: u32,
         name: []const u8,
-        layers: std.ArrayList(*Layer),
+        layers: std.array_list.Managed(*Layer),
         architecture: NetworkArchitecture,
         weights: []f32,
         biases: []f32,
@@ -174,7 +174,7 @@ pub const NeuralBrain = struct {
             network.* = NeuralNetwork{
                 .id = id,
                 .name = try allocator.dupe(u8, name),
-                .layers = std.ArrayList(*Layer).init(allocator),
+                .layers = std.array_list.Managed(*Layer).init(allocator),
                 .architecture = architecture,
                 .weights = undefined,
                 .biases = undefined,
@@ -298,7 +298,7 @@ pub const NeuralBrain = struct {
             if (self.layers.items.len == 0) return;
 
             // Create temporary buffers for layer outputs
-            var temp_buffers = std.ArrayList([]f32).init(std.heap.page_allocator);
+            var temp_buffers = std.array_list.Managed([]f32).init(std.heap.page_allocator);
             defer {
                 for (temp_buffers.items) |buffer| {
                     std.heap.page_allocator.free(buffer);
@@ -384,7 +384,7 @@ pub const NeuralBrain = struct {
         curiosity: f32 = 0.3,
 
         // Learning and memory
-        experience: std.ArrayList(Experience),
+        experience: std.array_list.Managed(Experience),
         memory_capacity: u32 = 10000,
 
         pub const Experience = struct {
@@ -403,7 +403,7 @@ pub const NeuralBrain = struct {
                 .brain = brain,
                 .observations = try allocator.alloc(f32, brain.architecture.input_size),
                 .actions = try allocator.alloc(f32, brain.architecture.output_size),
-                .experience = std.ArrayList(Experience).init(allocator),
+                .experience = std.array_list.Managed(Experience).init(allocator),
             };
             return agent;
         }
@@ -488,7 +488,7 @@ pub const NeuralBrain = struct {
 
         pub const BehaviorNode = struct {
             node_type: NodeType,
-            children: std.ArrayList(*BehaviorNode),
+            children: std.array_list.Managed(*BehaviorNode),
             condition: ?*const fn (*AIAgent, *GameEnvironment) bool = null,
             action: ?*const fn (*AIAgent, *GameEnvironment, f32) void = null,
 
@@ -557,7 +557,7 @@ pub const NeuralBrain = struct {
 
     /// Decision making system for AI agents
     pub const DecisionMaker = struct {
-        utility_functions: std.ArrayList(*UtilityFunction),
+        utility_functions: std.array_list.Managed(*UtilityFunction),
 
         pub const UtilityFunction = struct {
             name: []const u8,
@@ -586,8 +586,8 @@ pub const NeuralBrain = struct {
     /// Game environment interface for AI agents
     pub const GameEnvironment = struct {
         // Environment state
-        agents: std.ArrayList(*AIAgent),
-        objects: std.ArrayList(*GameObject),
+        agents: std.array_list.Managed(*AIAgent),
+        objects: std.array_list.Managed(*GameObject),
         spatial_grid: *SpatialGrid,
 
         // Time and physics
@@ -611,7 +611,7 @@ pub const NeuralBrain = struct {
 
         pub const SpatialGrid = struct {
             // Simple spatial partitioning for efficient neighbor queries
-            grid: std.HashMap(u64, std.ArrayList(u32), std.hash_map.AutoContext(u64), std.hash_map.default_max_load_percentage),
+            grid: std.HashMap(u64, std.array_list.Managed(u32), std.hash_map.AutoContext(u64), std.hash_map.default_max_load_percentage),
             cell_size: f32,
 
             pub fn getNeighbors(self: *SpatialGrid, position: Vec3f, radius: f32) []u32 {
@@ -727,14 +727,14 @@ pub const NeuralBrain = struct {
 
     /// Experience buffer for replay-based learning
     pub const ExperienceBuffer = struct {
-        buffer: std.ArrayList(AIAgent.Experience),
+        buffer: std.array_list.Managed(AIAgent.Experience),
         capacity: u32,
         current_index: u32 = 0,
 
         pub fn init(allocator: std.mem.Allocator, capacity: u32) !*ExperienceBuffer {
             const buffer = try allocator.create(ExperienceBuffer);
             buffer.* = ExperienceBuffer{
-                .buffer = std.ArrayList(AIAgent.Experience).init(allocator),
+                .buffer = std.array_list.Managed(AIAgent.Experience).init(allocator),
                 .capacity = capacity,
             };
             return buffer;
@@ -772,7 +772,7 @@ pub const NeuralBrain = struct {
 
     /// Memory bank for long-term AI memory
     pub const MemoryBank = struct {
-        episodic_memory: std.ArrayList(EpisodicMemory),
+        episodic_memory: std.array_list.Managed(EpisodicMemory),
         semantic_memory: std.HashMap([]const u8, f32, std.hash_map.StringContext, std.hash_map.default_max_load_percentage),
 
         pub const EpisodicMemory = struct {
@@ -785,7 +785,7 @@ pub const NeuralBrain = struct {
         pub fn init(allocator: std.mem.Allocator) !*MemoryBank {
             const bank = try allocator.create(MemoryBank);
             bank.* = MemoryBank{
-                .episodic_memory = std.ArrayList(EpisodicMemory).init(allocator),
+                .episodic_memory = std.array_list.Managed(EpisodicMemory).init(allocator),
                 .semantic_memory = std.HashMap([]const u8, f32, std.hash_map.StringContext, std.hash_map.default_max_load_percentage).init(allocator),
             };
             return bank;
@@ -808,7 +808,7 @@ pub const NeuralBrain = struct {
         }
 
         pub fn retrieveSimilar(self: *MemoryBank, context: []const f32, threshold: f32) []EpisodicMemory {
-            var similar = std.ArrayList(EpisodicMemory).init(self.episodic_memory.allocator);
+            var similar = std.array_list.Managed(EpisodicMemory).init(self.episodic_memory.allocator);
 
             for (self.episodic_memory.items) |episode| {
                 const similarity = calculateSimilarity(context, episode.context);
@@ -881,7 +881,7 @@ pub const NeuralBrain = struct {
 
     /// AI thread pool for parallel processing
     pub const AIThreadPool = struct {
-        threads: std.ArrayList(std.Thread),
+        threads: std.array_list.Managed(std.Thread),
         task_queue: *TaskQueue,
         is_running: std.atomic.Value(bool),
 
@@ -892,7 +892,7 @@ pub const NeuralBrain = struct {
         };
 
         pub const TaskQueue = struct {
-            tasks: std.ArrayList(Task),
+            tasks: std.array_list.Managed(Task),
             mutex: std.Thread.Mutex,
             condition: std.Thread.Condition,
 
@@ -918,13 +918,13 @@ pub const NeuralBrain = struct {
         pub fn init(allocator: std.mem.Allocator, num_threads: u32) !*AIThreadPool {
             const pool = try allocator.create(AIThreadPool);
             pool.* = AIThreadPool{
-                .threads = std.ArrayList(std.Thread).init(allocator),
+                .threads = std.array_list.Managed(std.Thread).init(allocator),
                 .task_queue = try allocator.create(TaskQueue),
                 .is_running = std.atomic.Value(bool).init(true),
             };
 
             pool.task_queue.* = TaskQueue{
-                .tasks = std.ArrayList(Task).init(allocator),
+                .tasks = std.array_list.Managed(Task).init(allocator),
                 .mutex = .{},
                 .condition = .{},
             };
@@ -979,10 +979,10 @@ pub const NeuralBrain = struct {
         const brain = try allocator.create(Self);
         brain.* = Self{
             .allocator = allocator,
-            .networks = std.ArrayList(*NeuralNetwork).init(allocator),
-            .agents = std.ArrayList(*AIAgent).init(allocator),
-            .behavior_trees = std.ArrayList(*BehaviorTree).init(allocator),
-            .decision_makers = std.ArrayList(*DecisionMaker).init(allocator),
+            .networks = std.array_list.Managed(*NeuralNetwork).init(allocator),
+            .agents = std.array_list.Managed(*AIAgent).init(allocator),
+            .behavior_trees = std.array_list.Managed(*BehaviorTree).init(allocator),
+            .decision_makers = std.array_list.Managed(*DecisionMaker).init(allocator),
             .experience_buffer = try ExperienceBuffer.init(allocator, 100000),
             .memory_bank = try MemoryBank.init(allocator),
             .inference_engine = try InferenceEngine.init(allocator, .cpu),

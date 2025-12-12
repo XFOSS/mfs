@@ -28,7 +28,7 @@ pub const ResourceManager = struct {
     const Self = @This();
 
     pub fn init(allocator: Allocator) !*Self {
-        var mgr = try allocator.create(Self);
+        const mgr = try allocator.create(Self);
         mgr.* = .{
             .allocator = allocator,
             .textures = std.StringHashMap(*gfx.Texture).init(allocator),
@@ -43,9 +43,9 @@ pub const ResourceManager = struct {
         // ownership is shared with their respective subsystems and will be
         // cleaned up when their ref-count drops to zero.  For the prototype we
         // simply clear the hash-maps.
-        self.textures.deinit();
-        self.models.deinit();
-        self.sounds.deinit();
+        self.textures.deinit(self.allocator);
+        self.models.deinit(self.allocator);
+        self.sounds.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -70,9 +70,8 @@ pub const ResourceManager = struct {
             .usage = .{ .shader_resource = true },
         };
 
-        var texture = try gfx_sys.createTexture(tex_desc);
+        const texture = try gfx_sys.createTexture(tex_desc);
         // For the prototype we ignore upload; software backend doesn't render.
-        _ = texture;
 
         try self.textures.put(path, texture);
         return texture;

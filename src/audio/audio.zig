@@ -97,15 +97,15 @@ pub const AudioEngine = struct {
     audio_context: *AudioContext,
 
     // Audio sources and buffers
-    sources: std.ArrayList(*AudioSource),
-    buffers: std.ArrayList(*AudioBuffer),
-    streaming_sources: std.ArrayList(*StreamingSource),
+    sources: std.array_list.Managed(*AudioSource),
+    buffers: std.array_list.Managed(*AudioBuffer),
+    streaming_sources: std.array_list.Managed(*StreamingSource),
 
     // 3D Audio and listener
     listener: AudioListener,
 
     // Effects and processing
-    reverb_zones: std.ArrayList(*ReverbZone),
+    reverb_zones: std.array_list.Managed(*ReverbZone),
     effect_chain: *EffectChain,
 
     // Audio synthesis
@@ -522,11 +522,23 @@ pub const AudioEngine = struct {
             };
             defer self.allocator.free(file_data);
 
-            _ = file.readAll(file_data) catch {
-                std.log.warn("Failed to read WAV file data", .{});
+            // Ensure complete file read
+            var total_bytes_read: usize = 0;
+            while (total_bytes_read < file_data.len) {
+                const bytes_read = file.read(file_data[total_bytes_read..]) catch {
+                    std.log.warn("Failed to read WAV file data at offset {}", .{total_bytes_read});
+                    @memset(output_buffer, 0.0);
+                    return;
+                };
+                if (bytes_read == 0) break; // EOF
+                total_bytes_read += bytes_read;
+            }
+
+            if (total_bytes_read != file_data.len) {
+                std.log.warn("Incomplete WAV file read: expected {} bytes, got {}", .{ file_data.len, total_bytes_read });
                 @memset(output_buffer, 0.0);
                 return;
-            };
+            }
 
             // Parse WAV header
             if (!std.mem.eql(u8, file_data[0..4], "RIFF")) {
@@ -693,13 +705,13 @@ pub const AudioEngine = struct {
     /// Audio effects chain processor
     pub const EffectChain = struct {
         allocator: std.mem.Allocator,
-        effects: std.ArrayList(*AudioEffect),
+        effects: std.array_list.Managed(*AudioEffect),
 
         pub fn init(allocator: std.mem.Allocator) !*EffectChain {
             const chain = try allocator.create(EffectChain);
             chain.* = EffectChain{
                 .allocator = allocator,
-                .effects = std.ArrayList(*AudioEffect).init(allocator),
+                .effects = try std.array_list.Managed(*AudioEffect).initCapacity(allocator, 4),
             };
             return chain;
         }
@@ -779,14 +791,14 @@ pub const AudioEngine = struct {
     /// Audio synthesizer for procedural sound generation
     pub const AudioSynthesizer = struct {
         allocator: std.mem.Allocator,
-        oscillators: std.ArrayList(*Oscillator),
+        oscillators: std.array_list.Managed(*Oscillator),
         sample_rate: u32,
 
         pub fn init(allocator: std.mem.Allocator, sample_rate: u32) !*AudioSynthesizer {
             const synth = try allocator.create(AudioSynthesizer);
             synth.* = AudioSynthesizer{
                 .allocator = allocator,
-                .oscillators = std.ArrayList(*Oscillator).init(allocator),
+                .oscillators = try std.array_list.Managed(*Oscillator).initCapacity(allocator, 8),
                 .sample_rate = sample_rate,
             };
             return synth;
@@ -1023,11 +1035,11 @@ pub const AudioEngine = struct {
             .allocator = allocator,
             .audio_device = try AudioDevice.init(allocator, settings),
             .audio_context = try AudioContext.init(allocator),
-            .sources = std.ArrayList(*AudioSource).init(allocator),
-            .buffers = std.ArrayList(*AudioBuffer).init(allocator),
-            .streaming_sources = std.ArrayList(*StreamingSource).init(allocator),
+            .sources = try std.array_list.Managed(*AudioSource).initCapacity(allocator, 32),
+            .buffers = try std.array_list.Managed(*AudioBuffer).initCapacity(allocator, 16),
+            .streaming_sources = try std.array_list.Managed(*StreamingSource).initCapacity(allocator, 8),
             .listener = AudioListener{},
-            .reverb_zones = std.ArrayList(*ReverbZone).init(allocator),
+            .reverb_zones = try std.array_list.Managed(*ReverbZone).initCapacity(allocator, 4),
             .effect_chain = try EffectChain.init(allocator),
             .synthesizer = try AudioSynthesizer.init(allocator, settings.sample_rate),
             .audio_queue = try LockFreeQueue(AudioCommand).init(allocator, 1024),
@@ -1141,7 +1153,8 @@ pub const AudioEngine = struct {
             self.updateStats();
 
             // Small sleep to prevent busy waiting
-            std.time.sleep(1_000_000); // 1ms
+            // TODO: Fix sleep API for Zig 0.16 - std.time.sleep API changed
+            // std.time.sleep(1_000_000); // 1ms
         }
     }
 
