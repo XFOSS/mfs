@@ -142,8 +142,8 @@ pub const Profiler = struct {
     var zone_stack_depth: AtomicCounter = if (builtin.single_threaded) .{} else .{ .value = 0 };
 
     /// Collected data.
-    var entries: std.ArrayList(ProfileEntry) = undefined;
-    var counters: std.ArrayList(CounterEntry) = undefined;
+    var entries: std.array_list.Managed(ProfileEntry) = undefined;
+    var counters: std.array_list.Managed(CounterEntry) = undefined;
     var mutexes: struct {
         entries: std.Thread.Mutex = .{},
         counters: std.Thread.Mutex = .{},
@@ -163,8 +163,8 @@ pub const Profiler = struct {
         if (is_initialized) return;
 
         allocator = alloc;
-        entries = std.ArrayList(ProfileEntry).init(alloc);
-        counters = std.ArrayList(CounterEntry).init(alloc);
+        entries = std.array_list.Managed(ProfileEntry).init(alloc);
+        counters = std.array_list.Managed(CounterEntry).init(alloc);
         memory_allocations = std.AutoHashMap(*anyopaque, MemoryAllocation).init(alloc);
         total_allocated = 0;
         global_timer = try Timer.start();
@@ -429,7 +429,7 @@ pub const Profiler = struct {
 
     /// Get all current memory allocations.
     pub fn getMemoryAllocations() []MemoryAllocation {
-        var result = std.ArrayList(MemoryAllocation).init(std.heap.page_allocator);
+        var result = std.array_list.Managed(MemoryAllocation).init(std.heap.page_allocator);
         defer result.deinit();
 
         mutexes.memory.lock();
@@ -599,7 +599,7 @@ pub const TrackedAllocator = struct {
         log2_ptr_align: u8,
         ret_addr: usize,
     ) ?[*]u8 {
-        const self: *TrackedAllocator = @alignCast(@ptrCast(ctx));
+        const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
         const result = self.parent_allocator.vtable.alloc(self.parent_allocator.ptr, len, log2_ptr_align, ret_addr);
 
         if (result != null) {
@@ -616,7 +616,7 @@ pub const TrackedAllocator = struct {
         new_len: usize,
         ret_addr: usize,
     ) bool {
-        const self: *TrackedAllocator = @alignCast(@ptrCast(ctx));
+        const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
 
         if (new_len > buf.len) {
             Profiler.trackDeallocation(buf.ptr);
@@ -638,7 +638,7 @@ pub const TrackedAllocator = struct {
         log2_buf_align: u8,
         ret_addr: usize,
     ) void {
-        const self: *TrackedAllocator = @alignCast(@ptrCast(ctx));
+        const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
         Profiler.trackDeallocation(buf.ptr);
         self.parent_allocator.vtable.free(self.parent_allocator.ptr, buf, log2_buf_align, ret_addr);
     }
@@ -716,7 +716,8 @@ pub const AdvancedProfiler = struct {
     };
 
     allocator: std.mem.Allocator,
-    frame_history: std.RingBuffer(FrameMetrics),
+    frame_history: std.array_list.Managed(FrameMetrics),
+    history_capacity: usize,
     current_frame: FrameMetrics,
     timer: std.time.Timer,
     frame_count: u64,
@@ -730,7 +731,7 @@ pub const AdvancedProfiler = struct {
     // Bottleneck detection
     current_state: PerformanceState,
     state_stability_frames: u32,
-    optimization_suggestions: std.ArrayList(OptimizationSuggestion),
+    optimization_suggestions: std.array_list.Managed(OptimizationSuggestion),
 
     // Frame pacing analysis
     frame_time_variance: f64,
@@ -744,11 +745,12 @@ pub const AdvancedProfiler = struct {
 
     pub fn init(allocator: std.mem.Allocator, target_fps: f64) !AdvancedProfiler {
         const history_size = @as(usize, @intFromFloat(target_fps * 5.0)); // 5 seconds of history
-        const ring_buffer = try std.RingBuffer(FrameMetrics).init(allocator, history_size);
+        const ring_buffer = std.array_list.Managed(FrameMetrics).init(allocator);
 
         return AdvancedProfiler{
             .allocator = allocator,
             .frame_history = ring_buffer,
+            .history_capacity = history_size,
             .current_frame = std.mem.zeroes(FrameMetrics),
             .timer = try std.time.Timer.start(),
             .frame_count = 0,
@@ -758,7 +760,7 @@ pub const AdvancedProfiler = struct {
             .gpu_warning_threshold_ms = (1000.0 / target_fps) * 0.9,
             .current_state = .optimal,
             .state_stability_frames = 0,
-            .optimization_suggestions = std.ArrayList(OptimizationSuggestion).init(allocator),
+            .optimization_suggestions = std.array_list.Managed(OptimizationSuggestion).init(allocator),
             .frame_time_variance = 0.0,
             .frame_drops = 0,
             .micro_stutters = 0,
@@ -789,8 +791,12 @@ pub const AdvancedProfiler = struct {
         // Detect frame drops and micro-stutters
         self.analyzeFramePacing();
 
-        // Store frame data
-        self.frame_history.writeItem(self.current_frame) catch {};
+        // Store frame data (implement ring buffer behavior)
+        self.frame_history.append(self.current_frame) catch {};
+        // Remove oldest entries if we exceed capacity
+        while (self.frame_history.items.len > self.history_capacity) {
+            _ = self.frame_history.swapRemove(0);
+        }
         self.frame_count += 1;
 
         // Analyze performance every 60 frames (1 second at 60fps)
@@ -861,7 +867,8 @@ pub const AdvancedProfiler = struct {
         if (self.frame_history.len() >= 10) {
             var recent_times: [10]f64 = undefined;
             for (0..10) |i| {
-                if (self.frame_history.readItem(self.frame_history.len() - 1 - i)) |frame| {
+                if (i < self.frame_history.items.len) {
+                    const frame = self.frame_history.items[self.frame_history.items.len - 1 - i];
                     recent_times[i] = frame.cpu_time_ms;
                 }
             }
@@ -897,7 +904,8 @@ pub const AdvancedProfiler = struct {
 
         // Analyze last 30 frames
         for (0..@min(30, self.frame_history.len())) |i| {
-            if (self.frame_history.readItem(self.frame_history.len() - 1 - i)) |frame| {
+            if (i < self.frame_history.items.len) {
+                const frame = self.frame_history.items[self.frame_history.items.len - 1 - i];
                 avg_cpu_time += frame.cpu_time_ms;
                 avg_gpu_time += frame.gpu_time_ms;
                 avg_cpu_gpu_ratio += frame.cpu_gpu_ratio;
@@ -1002,7 +1010,8 @@ pub const AdvancedProfiler = struct {
         var count: u32 = 0;
 
         for (0..@min(30, self.frame_history.len())) |i| {
-            if (self.frame_history.readItem(self.frame_history.len() - 1 - i)) |frame| {
+            if (i < self.frame_history.items.len) {
+                const frame = self.frame_history.items[self.frame_history.items.len - 1 - i];
                 total += frame.fillrate_pressure;
                 count += 1;
             }
@@ -1018,7 +1027,8 @@ pub const AdvancedProfiler = struct {
         var count: u32 = 0;
 
         for (0..@min(30, self.frame_history.len())) |i| {
-            if (self.frame_history.readItem(self.frame_history.len() - 1 - i)) |frame| {
+            if (i < self.frame_history.items.len) {
+                const frame = self.frame_history.items[self.frame_history.items.len - 1 - i];
                 total += frame.vertex_pressure;
                 count += 1;
             }
@@ -1034,7 +1044,8 @@ pub const AdvancedProfiler = struct {
         var count: u32 = 0;
 
         for (0..@min(30, self.frame_history.len())) |i| {
-            if (self.frame_history.readItem(self.frame_history.len() - 1 - i)) |frame| {
+            if (i < self.frame_history.items.len) {
+                const frame = self.frame_history.items[self.frame_history.items.len - 1 - i];
                 total += frame.memory_bandwidth_usage;
                 count += 1;
             }
@@ -1075,7 +1086,8 @@ pub const AdvancedProfiler = struct {
         var count: u32 = 0;
 
         for (0..@min(60, self.frame_history.len())) |i| {
-            if (self.frame_history.readItem(self.frame_history.len() - 1 - i)) |frame| {
+            if (i < self.frame_history.items.len) {
+                const frame = self.frame_history.items[self.frame_history.items.len - 1 - i];
                 total += frame.cpu_time_ms;
                 count += 1;
             }

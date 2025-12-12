@@ -12,7 +12,7 @@ pub const GPUMemoryPool = struct {
     };
 
     allocator: std.mem.Allocator,
-    blocks: std.ArrayList(MemoryBlock),
+    blocks: std.array_list.Managed(MemoryBlock),
     total_size: u64,
     used_size: u64,
     alignment: u64,
@@ -20,7 +20,7 @@ pub const GPUMemoryPool = struct {
     pub fn init(allocator: std.mem.Allocator, total_size: u64, alignment: u64) !GPUMemoryPool {
         return GPUMemoryPool{
             .allocator = allocator,
-            .blocks = std.ArrayList(MemoryBlock).init(allocator),
+            .blocks = std.array_list.Managed(MemoryBlock).init(allocator),
             .total_size = total_size,
             .used_size = 0,
             .alignment = alignment,
@@ -87,7 +87,7 @@ pub const DescriptorHeapManager = struct {
     };
 
     allocator: std.mem.Allocator,
-    descriptor_sets: std.ArrayList(DescriptorSet),
+    descriptor_sets: std.array_list.Managed(DescriptorSet),
     heap_size: u32,
     descriptor_size: u32,
     used_descriptors: u32,
@@ -95,7 +95,7 @@ pub const DescriptorHeapManager = struct {
     pub fn init(allocator: std.mem.Allocator, heap_size: u32, descriptor_size: u32) !DescriptorHeapManager {
         return DescriptorHeapManager{
             .allocator = allocator,
-            .descriptor_sets = std.ArrayList(DescriptorSet).init(allocator),
+            .descriptor_sets = std.array_list.Managed(DescriptorSet).init(allocator),
             .heap_size = heap_size,
             .descriptor_size = descriptor_size,
             .used_descriptors = 0,
@@ -149,17 +149,19 @@ pub const PerformanceProfiler = struct {
     };
 
     allocator: std.mem.Allocator,
-    frame_history: std.RingBuffer(FrameData),
+    frame_history: std.array_list.Managed(FrameData),
+    history_capacity: usize,
     current_frame: FrameData,
     timer: std.time.Timer,
     frame_count: u64,
 
     pub fn init(allocator: std.mem.Allocator) !PerformanceProfiler {
-        const ring_buffer = try std.RingBuffer(FrameData).init(allocator, 120); // 2 seconds at 60fps
+        const ring_buffer = std.array_list.Managed(FrameData).init(allocator);
 
         return PerformanceProfiler{
             .allocator = allocator,
             .frame_history = ring_buffer,
+            .history_capacity = 120,
             .current_frame = std.mem.zeroes(FrameData),
             .timer = try std.time.Timer.start(),
             .frame_count = 0,
@@ -179,7 +181,11 @@ pub const PerformanceProfiler = struct {
         const frame_time = self.timer.read() - self.current_frame.timestamp;
         self.current_frame.cpu_time_ms = @as(f64, @floatFromInt(frame_time)) / 1_000_000.0;
 
-        self.frame_history.writeItem(self.current_frame) catch {};
+        self.frame_history.append(self.current_frame) catch {};
+        // Remove oldest entries if we exceed capacity
+        while (self.frame_history.items.len > self.history_capacity) {
+            _ = self.frame_history.swapRemove(0);
+        }
         self.frame_count += 1;
     }
 
@@ -198,11 +204,9 @@ pub const PerformanceProfiler = struct {
         var total: f64 = 0.0;
         var count: u32 = 0;
 
-        for (0..self.frame_history.len()) |i| {
-            if (self.frame_history.readItem(i)) |frame| {
-                total += frame.cpu_time_ms;
-                count += 1;
-            }
+        for (self.frame_history.items) |frame| {
+            total += frame.cpu_time_ms;
+            count += 1;
         }
 
         return if (count > 0) total / @as(f64, @floatFromInt(count)) else 0.0;
@@ -223,14 +227,14 @@ pub const CommandBufferPool = struct {
     };
 
     allocator: std.mem.Allocator,
-    buffers: std.ArrayList(CommandBuffer),
+    buffers: std.array_list.Managed(CommandBuffer),
     backend_type: interface.GraphicsBackendType,
 
     pub fn init(allocator: std.mem.Allocator, backend_type: interface.GraphicsBackendType) CommandBufferPool {
         // Store backend_type for future use when creating backend-specific command buffers
         return CommandBufferPool{
             .allocator = allocator,
-            .buffers = std.ArrayList(CommandBuffer).init(allocator),
+            .buffers = std.array_list.Managed(CommandBuffer).init(allocator),
             .backend_type = backend_type,
         };
     }
@@ -296,14 +300,14 @@ pub const ResourceBarrierDesc = struct {
 pub const OcclusionCullingSystem = struct {
     allocator: std.mem.Allocator,
     query_heap: ?*anyopaque,
-    query_results: std.ArrayList(bool),
+    query_results: std.array_list.Managed(bool),
     pending_queries: u32,
 
     pub fn init(allocator: std.mem.Allocator) OcclusionCullingSystem {
         return OcclusionCullingSystem{
             .allocator = allocator,
             .query_heap = null,
-            .query_results = std.ArrayList(bool).init(allocator),
+            .query_results = std.array_list.Managed(bool).init(allocator),
             .pending_queries = 0,
         };
     }
@@ -339,12 +343,12 @@ pub const LODManager = struct {
     };
 
     allocator: std.mem.Allocator,
-    lod_levels: std.HashMap(u32, std.ArrayList(LODLevel), std.hash_map.DefaultHashMap(u32, std.ArrayList(LODLevel)).Context, std.hash_map.default_max_load_percentage),
+    lod_levels: std.HashMap(u32, std.array_list.Managed(LODLevel), std.hash_map.DefaultHashMap(u32, std.array_list.Managed(LODLevel)).Context, std.hash_map.default_max_load_percentage),
 
     pub fn init(allocator: std.mem.Allocator) LODManager {
         return LODManager{
             .allocator = allocator,
-            .lod_levels = std.HashMap(u32, std.ArrayList(LODLevel), std.hash_map.DefaultHashMap(u32, std.ArrayList(LODLevel)).Context, std.hash_map.default_max_load_percentage).init(allocator),
+            .lod_levels = std.HashMap(u32, std.array_list.Managed(LODLevel), std.hash_map.DefaultHashMap(u32, std.array_list.Managed(LODLevel)).Context, std.hash_map.default_max_load_percentage).init(allocator),
         };
     }
 

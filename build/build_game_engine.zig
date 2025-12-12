@@ -25,111 +25,137 @@ pub fn build(b: *std.Build) void {
     // Core engine library
     const engine_lib = b.addStaticLibrary(.{
         .name = "mfs_engine",
-        .root_source_file = b.path("src/engine.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/engine.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Add build options to engine
-    engine_lib.root_module.addOptions("build_options", build_options);
+    engine_lib.addOptions("build_options", build_options);
 
     // Math library
     const math_lib = b.addStaticLibrary(.{
         .name = "mfs_math",
-        .root_source_file = b.path("src/libs/math/mod.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/libs/math/mod.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Graphics library with all backends
     const graphics_lib = b.addStaticLibrary(.{
         .name = "mfs_graphics",
-        .root_source_file = b.path("src/graphics/graphics.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/graphics/graphics.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
-    graphics_lib.root_module.addOptions("build_options", build_options);
+    graphics_lib.addOptions("build_options", build_options);
 
     // Shader system with dynamic compilation
     const shaders_lib = b.addStaticLibrary(.{
         .name = "mfs_shaders",
-        .root_source_file = b.path("src/shaders/dynamic_shader_compiler.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/shaders/dynamic_shader_compiler.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
-    shaders_lib.root_module.addOptions("build_options", build_options);
+    shaders_lib.addOptions("build_options", build_options);
 
     // Node-based shader editor
     const node_editor_lib = b.addStaticLibrary(.{
         .name = "mfs_node_editor",
-        .root_source_file = b.path("src/shaders/node_shader_editor.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/shaders/node_shader_editor.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // GPU-accelerated GUI system
     const gui_lib = b.addStaticLibrary(.{
         .name = "mfs_gui",
-        .root_source_file = b.path("src/gui/gpu_accelerated_gui.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/gui/gpu_accelerated_gui.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
-    gui_lib.root_module.addOptions("build_options", build_options);
+    gui_lib.addOptions("build_options", build_options);
 
     // Scene system with ECS
     const scene_lib = b.addStaticLibrary(.{
         .name = "mfs_scene",
-        .root_source_file = b.path("src/scene_system/interactive_scene.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/scene_system/interactive_scene.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Voxel engine
     const voxel_lib = b.addStaticLibrary(.{
         .name = "mfs_voxels",
-        .root_source_file = b.path("src/voxels/voxel_engine.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/voxels/voxel_engine.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // ML mesh converter
     const ml_lib = b.addStaticLibrary(.{
         .name = "mfs_ml",
-        .root_source_file = b.path("src/voxels/ml_mesh_converter.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/voxels/ml_mesh_converter.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Physics engine
     const physics_lib = b.addStaticLibrary(.{
         .name = "mfs_physics",
-        .root_source_file = b.path("src/physics/physics.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/physics/physics.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Audio engine
     const audio_lib = b.addStaticLibrary(.{
         .name = "mfs_audio",
-        .root_source_file = b.path("src/audio/audio.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/audio/audio.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Networking
     const network_lib = b.addStaticLibrary(.{
         .name = "mfs_network",
-        .root_source_file = b.path("src/network/network.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/network/network.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Platform abstraction
     const platform_lib = b.addStaticLibrary(.{
         .name = "mfs_platform",
-        .root_source_file = b.path("src/platform.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/platform.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Link system libraries based on platform
@@ -211,7 +237,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    engine_exe.root_module.addOptions("build_options", build_options);
+    engine_exe.addOptions("build_options", build_options);
     engine_exe.linkLibrary(engine_lib);
     engine_exe.linkLibrary(math_lib);
     engine_exe.linkLibrary(graphics_lib);
@@ -257,7 +283,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    advanced_demo.root_module.addOptions("build_options", build_options);
+    advanced_demo.addOptions("build_options", build_options);
     advanced_demo.linkLibrary(engine_lib);
     advanced_demo.linkLibrary(math_lib);
     advanced_demo.linkLibrary(graphics_lib);
@@ -274,7 +300,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    voxel_demo.root_module.addOptions("build_options", build_options);
+    voxel_demo.addOptions("build_options", build_options);
     voxel_demo.linkLibrary(voxel_lib);
     voxel_demo.linkLibrary(ml_lib);
     voxel_demo.linkLibrary(graphics_lib);
@@ -289,7 +315,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    node_editor_demo.root_module.addOptions("build_options", build_options);
+    node_editor_demo.addOptions("build_options", build_options);
     node_editor_demo.linkLibrary(node_editor_lib);
     node_editor_demo.linkLibrary(shaders_lib);
     node_editor_demo.linkLibrary(gui_lib);
@@ -325,46 +351,60 @@ pub fn build(b: *std.Build) void {
 
     // Tests
     const engine_tests = b.addTest(.{
-        .root_source_file = b.path("src/engine.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/engine.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     engine_tests.root_module.addOptions("build_options", build_options);
 
     const math_tests = b.addTest(.{
-        .root_source_file = b.path("src/libs/math/mod.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/libs/math/mod.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const graphics_tests = b.addTest(.{
-        .root_source_file = b.path("src/graphics/graphics.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/graphics/graphics.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const shader_tests = b.addTest(.{
-        .root_source_file = b.path("src/shaders/dynamic_shader_compiler.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/shaders/dynamic_shader_compiler.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const gui_tests = b.addTest(.{
-        .root_source_file = b.path("src/gui/gpu_accelerated_gui.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/gui/gpu_accelerated_gui.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const scene_tests = b.addTest(.{
-        .root_source_file = b.path("src/scene_system/interactive_scene.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/scene_system/interactive_scene.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const voxel_tests = b.addTest(.{
-        .root_source_file = b.path("src/voxels/voxel_engine.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/voxels/voxel_engine.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const test_step = b.step("test", "Run all tests");
@@ -416,7 +456,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .ReleaseFast,
     });
 
-    benchmark.root_module.addOptions("build_options", build_options);
+    benchmark.addOptions("build_options", build_options);
     benchmark.linkLibrary(engine_lib);
     benchmark.linkLibrary(math_lib);
     benchmark.linkLibrary(graphics_lib);
@@ -427,11 +467,12 @@ pub fn build(b: *std.Build) void {
     const benchmark_step = b.step("benchmark", "Run performance benchmarks");
     benchmark_step.dependOn(&run_benchmark.step);
 
-    // Code coverage
     const coverage = b.addTest(.{
-        .root_source_file = b.path("src/engine.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/engine.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     if (optimize == .Debug) {

@@ -8,7 +8,7 @@
 const std = @import("std");
 const math = @import("../math/mod.zig");
 const types = @import("types.zig");
-const neural = @import("../neural/mod.zig");
+const neural = @import("../ai/neural/mod.zig");
 
 const Vec2 = math.Vec2;
 const Vec3 = math.Vec3;
@@ -264,9 +264,9 @@ pub const TemporalTechniques = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.current_buffer.deinit(self.allocator);
-        self.history_buffer.deinit(self.allocator);
-        self.motion_buffer.deinit(self.allocator);
+        self.current_buffer.deinit();
+        self.history_buffer.deinit();
+        self.motion_buffer.deinit();
 
         if (self.neural_upscaler) |upscaler| {
             upscaler.deinit();
@@ -330,7 +330,7 @@ pub const TemporalTechniques = struct {
         // Prepare neural network inputs
         const neural_start = std.time.nanoTimestamp();
 
-        var inputs = std.ArrayList(f32).init(self.allocator);
+        var inputs = std.array_list.Managed(f32).init(self.allocator);
         defer inputs.deinit();
 
         try self.prepareNeuralInputs(&inputs, low_res_texture, motion_vectors);
@@ -538,7 +538,7 @@ pub const TemporalTechniques = struct {
         // Fallback traditional upscaling (bilinear/bicubic)
     }
 
-    fn prepareNeuralInputs(self: *Self, inputs: *std.ArrayList(f32), texture: *types.Texture, motion: *types.Texture) !void {
+    fn prepareNeuralInputs(self: *Self, inputs: *std.array_list.Managed(f32), texture: *types.Texture, motion: *types.Texture) !void {
         _ = self;
         _ = inputs;
         _ = texture;

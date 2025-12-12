@@ -14,16 +14,16 @@ pub const Time = struct {
     const Self = @This();
 
     pub fn init() Self {
-        const now = std.time.nanoTimestamp();
+        const now = std.time.Instant.now() catch std.time.Instant{ .timestamp = 0 };
         return Self{
-            .start_time = now,
-            .last_frame_time = now,
+            .start_time = now.timestamp,
+            .last_frame_time = now.timestamp,
             .fps_counter = FPSCounter.init(),
         };
     }
 
     pub fn update(self: *Self) void {
-        const now = std.time.nanoTimestamp();
+        const now = (std.time.Instant.now() catch std.time.Instant{ .timestamp = 0 }).timestamp;
         const delta_ns = now - self.last_frame_time;
         self.last_frame_time = now;
         self.frame_count += 1;

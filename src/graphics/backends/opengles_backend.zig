@@ -18,7 +18,7 @@ pub const OpenGLESBackend = struct {
     initialized: bool = false,
     version_major: u32 = 0,
     version_minor: u32 = 0,
-    extensions: std.ArrayList([]const u8),
+    extensions: std.array_list.Managed([]const u8),
     current_program: u32 = 0,
     current_texture_slots: [16]u32 = [_]u32{0} ** 16,
     current_vao: u32 = 0,
@@ -89,7 +89,7 @@ pub const OpenGLESBackend = struct {
         const backend = try allocator.create(Self);
         backend.* = Self{
             .allocator = allocator,
-            .extensions = std.ArrayList([]const u8).init(allocator),
+            .extensions = std.array_list.Managed([]const u8).init(allocator),
             .viewport = types.Viewport{ .width = 800, .height = 600 },
         };
 

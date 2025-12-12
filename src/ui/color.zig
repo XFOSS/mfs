@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const math = @import("math");
 const Vec4 = math.Vec4;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const HashMap = std.HashMap;
 
 /// ColorSpace represents different color spaces used in the application

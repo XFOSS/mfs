@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const math = @import("math");
+const math = @import("../math/mod.zig");
 const Vec4 = math.Vec4;
 const Vector = math.Vector;
 const Quaternion = math.Quaternion;
@@ -474,12 +474,12 @@ pub const SixDofJoint = struct {
 /// Joint manager for handling collections of joints
 pub const JointManager = struct {
     allocator: std.mem.Allocator,
-    joints: std.ArrayList(*Joint),
+    joints: std.array_list.Managed(*Joint),
 
     pub fn init(allocator: std.mem.Allocator) JointManager {
         return JointManager{
             .allocator = allocator,
-            .joints = std.ArrayList(*Joint).init(allocator),
+            .joints = std.array_list.Managed(*Joint).init(allocator),
         };
     }
 

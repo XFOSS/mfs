@@ -21,8 +21,8 @@ pub const World = struct {
     next_entity_id: EntityId,
     alive_entities: std.bit_set.IntegerBitSet(MAX_ENTITIES),
     component_masks: [MAX_ENTITIES]std.bit_set.IntegerBitSet(MAX_COMPONENT_TYPES),
-    component_pools: std.ArrayList(?*anyopaque),
-    systems: std.ArrayList(*System),
+    component_pools: std.array_list.Managed(?*anyopaque),
+    systems: std.array_list.Managed(*System),
 
     const Self = @This();
 
@@ -32,8 +32,8 @@ pub const World = struct {
             .next_entity_id = 0,
             .alive_entities = std.bit_set.IntegerBitSet(MAX_ENTITIES).initEmpty(),
             .component_masks = [_]std.bit_set.IntegerBitSet(MAX_COMPONENT_TYPES){std.bit_set.IntegerBitSet(MAX_COMPONENT_TYPES).initEmpty()} ** MAX_ENTITIES,
-            .component_pools = std.ArrayList(?*anyopaque).init(allocator),
-            .systems = std.ArrayList(*System).init(allocator),
+            .component_pools = std.array_list.Managed(?*anyopaque).init(allocator),
+            .systems = std.array_list.Managed(*System).init(allocator),
         };
     }
 
@@ -144,8 +144,8 @@ pub const World = struct {
     }
 
     /// Get all entities with a specific component mask
-    pub fn getEntitiesWithComponents(self: *const Self, required_mask: std.bit_set.IntegerBitSet(MAX_COMPONENT_TYPES)) std.ArrayList(EntityId) {
-        var entities = std.ArrayList(EntityId).init(self.allocator);
+    pub fn getEntitiesWithComponents(self: *const Self, required_mask: std.bit_set.IntegerBitSet(MAX_COMPONENT_TYPES)) std.array_list.Managed(EntityId) {
+        var entities = std.array_list.Managed(EntityId).init(self.allocator);
 
         var entity_id: EntityId = 0;
         while (entity_id < self.next_entity_id) : (entity_id += 1) {
@@ -164,7 +164,7 @@ pub const World = struct {
 /// Generic component pool
 pub const ComponentPool = struct {
     allocator: std.mem.Allocator,
-    components: std.HashMap(EntityId, *anyopaque, std.hash_map.DefaultContext(EntityId), std.hash_map.default_max_load_percentage),
+    components: std.AutoHashMap(EntityId, *anyopaque),
     component_size: usize,
 
     const Self = @This();

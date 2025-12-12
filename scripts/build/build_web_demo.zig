@@ -50,7 +50,7 @@ pub fn build(b: *std.Build) void {
 
     // Create JavaScript glue code
     const js_glue = b.addWriteFiles();
-    const js_content = 
+    const js_content =
         \\// MFS Engine WebAssembly Cube Demo - JavaScript Glue Code
         \\// This file provides the JavaScript interface for the WASM module
         \\
@@ -223,7 +223,7 @@ pub fn build(b: *std.Build) void {
     b.installFile(js_glue.getWrittenFiles().get("mfs-cube-demo.js"), "mfs-cube-demo.js");
 
     // Create a simple HTML demo page
-    const html_content = 
+    const html_content =
         \\<!DOCTYPE html>
         \\<html lang="en">
         \\<head>

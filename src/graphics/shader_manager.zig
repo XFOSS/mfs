@@ -6,7 +6,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const AutoHashMap = std.AutoHashMap;
 const Thread = std.Thread;
 const Mutex = std.Thread.Mutex;
@@ -166,7 +166,7 @@ pub const CompiledShader = struct {
     pub fn deinit(self: *CompiledShader, allocator: Allocator) void {
         allocator.free(self.source_path);
         allocator.free(self.bytecode);
-        self.reflection.deinit(allocator);
+        self.reflection.deinit();
         if (self.error_message) |msg| {
             allocator.free(msg);
         }
@@ -189,7 +189,7 @@ pub const ShaderProgram = struct {
 
     pub fn deinit(self: *ShaderProgram, allocator: Allocator) void {
         allocator.free(self.name);
-        self.combined_reflection.deinit(allocator);
+        self.combined_reflection.deinit();
         if (self.link_error) |error_msg| {
             allocator.free(error_msg);
         }
@@ -368,7 +368,7 @@ pub const ShaderManager = struct {
         self.shader_mutex.lock();
         var shader_iter = self.shaders.valueIterator();
         while (shader_iter.next()) |shader| {
-            shader.deinit(self.allocator);
+            shader.deinit();
         }
         self.shaders.deinit();
         self.shader_mutex.unlock();
@@ -377,7 +377,7 @@ pub const ShaderManager = struct {
         self.program_mutex.lock();
         var program_iter = self.programs.valueIterator();
         while (program_iter.next()) |program| {
-            program.deinit(self.allocator);
+            program.deinit();
         }
         self.programs.deinit();
         self.program_mutex.unlock();
@@ -719,7 +719,7 @@ pub const ShaderManager = struct {
 
     fn combineReflectionData(self: *Self, program: *ShaderProgram) !void {
         // Clear existing reflection data
-        program.reflection.deinit(self.allocator);
+        program.reflection.deinit();
         program.reflection = ShaderReflection.init(self.allocator);
 
         // Combine reflection data from all attached shaders

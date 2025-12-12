@@ -128,20 +128,23 @@ pub const GraphicsSystem = struct {
     const Self = @This();
 
     const BufferManager = struct {
-        buffers: std.ArrayList(*Buffer),
+        buffers: std.array_list.Managed(*Buffer),
         allocator: std.mem.Allocator,
 
-        pub fn init(allocator: std.mem.Allocator) BufferManager {
-            return BufferManager{
-                .buffers = std.ArrayList(*Buffer).init(allocator),
+        pub fn init(allocator: std.mem.Allocator) !BufferManager {
+            var manager = BufferManager{
                 .allocator = allocator,
+                .buffers = std.array_list.Managed(*Buffer).init(allocator),
             };
+            try manager.buffers.ensureTotalCapacity(16);
+            return manager;
         }
 
-        pub fn deinit(self: *BufferManager) void {
-            for (self.buffers.items) |buf| {
-                // TODO: Properly destroy buffers
-                _ = buf;
+        pub fn deinit(self: *BufferManager, backend: ?*GraphicsBackend) void {
+            if (backend) |b| {
+                for (self.buffers.items) |buf| {
+                    b.destroyBuffer(buf);
+                }
             }
             self.buffers.deinit();
         }
@@ -154,20 +157,23 @@ pub const GraphicsSystem = struct {
     };
 
     const TextureManager = struct {
-        textures: std.ArrayList(*Texture),
+        textures: std.array_list.Managed(*Texture),
         allocator: std.mem.Allocator,
 
-        pub fn init(allocator: std.mem.Allocator) TextureManager {
-            return TextureManager{
-                .textures = std.ArrayList(*Texture).init(allocator),
+        pub fn init(allocator: std.mem.Allocator) !TextureManager {
+            var manager = TextureManager{
                 .allocator = allocator,
+                .textures = std.array_list.Managed(*Texture).init(allocator),
             };
+            try manager.textures.ensureTotalCapacity(16);
+            return manager;
         }
 
-        pub fn deinit(self: *TextureManager) void {
-            for (self.textures.items) |tex| {
-                // TODO: Properly destroy textures
-                _ = tex;
+        pub fn deinit(self: *TextureManager, backend: ?*GraphicsBackend) void {
+            if (backend) |b| {
+                for (self.textures.items) |tex| {
+                    b.destroyTexture(tex);
+                }
             }
             self.textures.deinit();
         }
@@ -180,20 +186,23 @@ pub const GraphicsSystem = struct {
     };
 
     const ShaderManager = struct {
-        shaders: std.ArrayList(*Shader),
+        shaders: std.array_list.Managed(*Shader),
         allocator: std.mem.Allocator,
 
-        pub fn init(allocator: std.mem.Allocator) ShaderManager {
-            return ShaderManager{
-                .shaders = std.ArrayList(*Shader).init(allocator),
+        pub fn init(allocator: std.mem.Allocator) !ShaderManager {
+            var manager = ShaderManager{
                 .allocator = allocator,
+                .shaders = std.array_list.Managed(*Shader).init(allocator),
             };
+            try manager.shaders.ensureTotalCapacity(8);
+            return manager;
         }
 
-        pub fn deinit(self: *ShaderManager) void {
-            for (self.shaders.items) |shd| {
-                // TODO: Properly destroy shaders
-                _ = shd;
+        pub fn deinit(self: *ShaderManager, backend: ?*GraphicsBackend) void {
+            if (backend) |b| {
+                for (self.shaders.items) |shd| {
+                    b.destroyShader(shd);
+                }
             }
             self.shaders.deinit();
         }
@@ -206,19 +215,22 @@ pub const GraphicsSystem = struct {
     };
 
     const PipelineManager = struct {
-        pipelines: std.ArrayList(*Pipeline),
+        pipelines: std.array_list.Managed(*Pipeline),
         allocator: std.mem.Allocator,
 
-        pub fn init(allocator: std.mem.Allocator) PipelineManager {
-            return PipelineManager{
-                .pipelines = std.ArrayList(*Pipeline).init(allocator),
+        pub fn init(allocator: std.mem.Allocator) !PipelineManager {
+            var manager = PipelineManager{
                 .allocator = allocator,
+                .pipelines = std.array_list.Managed(*Pipeline).init(allocator),
             };
+            try manager.pipelines.ensureTotalCapacity(8);
+            return manager;
         }
 
         pub fn deinit(self: *PipelineManager) void {
+            // Pipelines are managed by the backend and don't need explicit destruction
+            // The backend will clean them up when deinitialized
             for (self.pipelines.items) |pipeline| {
-                // TODO: Properly destroy pipelines
                 _ = pipeline;
             }
             self.pipelines.deinit();
@@ -246,19 +258,20 @@ pub const GraphicsSystem = struct {
             .allocator = allocator,
             .backend_manager = backend_manager_instance,
             .current_backend = backend,
-            .buffer_manager = BufferManager.init(allocator),
-            .texture_manager = TextureManager.init(allocator),
-            .shader_manager = ShaderManager.init(allocator),
-            .pipeline_manager = PipelineManager.init(allocator),
+            .buffer_manager = try BufferManager.init(allocator),
+            .texture_manager = try TextureManager.init(allocator),
+            .shader_manager = try ShaderManager.init(allocator),
+            .pipeline_manager = try PipelineManager.init(allocator),
             .config = config,
         };
     }
 
     pub fn deinit(self: *Self) void {
+        const backend = self.current_backend;
         self.pipeline_manager.deinit();
-        self.shader_manager.deinit();
-        self.texture_manager.deinit();
-        self.buffer_manager.deinit();
+        self.shader_manager.deinit(backend);
+        self.texture_manager.deinit(backend);
+        self.buffer_manager.deinit(backend);
         self.backend_manager.deinit();
     }
 

@@ -6,7 +6,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const AutoHashMap = std.AutoHashMap;
 const Thread = std.Thread;
 const Mutex = std.Thread.Mutex;
@@ -334,7 +334,7 @@ pub const ShaderCompiler = struct {
         // Free cached compilation results
         var cache_iter = self.cache.valueIterator();
         while (cache_iter.next()) |result| {
-            result.deinit(self.allocator);
+            result.deinit();
         }
         self.cache.deinit();
 
@@ -658,7 +658,7 @@ pub const ShaderCompiler = struct {
 
         var cache_iter = self.cache.valueIterator();
         while (cache_iter.next()) |result| {
-            result.deinit(self.allocator);
+            result.deinit();
         }
         self.cache.clearAndFree();
     }

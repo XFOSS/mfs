@@ -130,9 +130,9 @@ pub const ErrorSeverity = enum(u8) {
 /// Enhanced error handler with recovery mechanisms
 pub const ErrorHandler = struct {
     allocator: std.mem.Allocator,
-    error_log: std.ArrayList(ErrorContext),
+    error_log: std.array_list.Managed(ErrorContext),
     recovery_strategies: std.AutoHashMap(anyerror, RecoveryStrategy),
-    error_callbacks: std.ArrayList(ErrorCallback),
+    error_callbacks: std.array_list.Managed(ErrorCallback),
     mutex: std.Thread.Mutex = .{},
 
     // Statistics
@@ -155,9 +155,9 @@ pub const ErrorHandler = struct {
     pub fn init(allocator: std.mem.Allocator) !ErrorHandler {
         return ErrorHandler{
             .allocator = allocator,
-            .error_log = std.ArrayList(ErrorContext).init(allocator),
+            .error_log = std.array_list.Managed(ErrorContext).init(allocator),
             .recovery_strategies = std.AutoHashMap(anyerror, RecoveryStrategy).init(allocator),
-            .error_callbacks = std.ArrayList(ErrorCallback).init(allocator),
+            .error_callbacks = std.array_list.Managed(ErrorCallback).init(allocator),
         };
     }
 
@@ -166,7 +166,7 @@ pub const ErrorHandler = struct {
         defer self.mutex.unlock();
 
         for (self.error_log.items) |*ctx| {
-            ctx.deinit(self.allocator);
+            ctx.deinit();
         }
         self.error_log.deinit();
         self.recovery_strategies.deinit();
@@ -261,7 +261,7 @@ pub const ErrorHandler = struct {
         defer self.mutex.unlock();
 
         for (self.error_log.items) |*ctx| {
-            ctx.deinit(self.allocator);
+            ctx.deinit();
         }
         self.error_log.clearRetainingCapacity();
     }
@@ -542,7 +542,7 @@ test "error context creation and formatting" {
         @src(),
         allocator,
     );
-    defer context.deinit(allocator);
+    defer context.deinit();
 
     try testing.expect(context.error_code == error.TestError);
     try testing.expectEqualStrings("Test error message", context.message);

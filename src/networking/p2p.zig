@@ -34,12 +34,12 @@ pub const PeerConnection = struct {
 };
 
 pub const P2PManager = struct {
-    peers: std.ArrayList(PeerConnection),
+    peers: std.array_list.Managed(PeerConnection),
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) P2PManager {
         return P2PManager{
-            .peers = std.ArrayList(PeerConnection).init(allocator),
+            .peers = std.array_list.Managed(PeerConnection).init(allocator),
             .allocator = allocator,
         };
     }

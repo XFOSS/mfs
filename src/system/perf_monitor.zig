@@ -25,11 +25,11 @@ else
 
 pub const PerformanceMonitor = struct {
     allocator: Allocator,
-    frame_times: std.ArrayList(f64),
-    memory_usage: std.ArrayList(u64),
-    cpu_usage: std.ArrayList(f32),
-    gpu_usage: std.ArrayList(f32),
-    draw_calls: std.ArrayList(u32),
+    frame_times: std.array_list.Managed(f64),
+    memory_usage: std.array_list.Managed(u64),
+    cpu_usage: std.array_list.Managed(f32),
+    gpu_usage: std.array_list.Managed(f32),
+    draw_calls: std.array_list.Managed(u32),
     start_time: i64,
     last_update: i64,
     sample_interval_ns: i64,
@@ -43,11 +43,31 @@ pub const PerformanceMonitor = struct {
 
         monitor.* = PerformanceMonitor{
             .allocator = allocator,
-            .frame_times = try std.ArrayList(f64).initCapacity(allocator, SAMPLE_COUNT),
-            .memory_usage = try std.ArrayList(u64).initCapacity(allocator, SAMPLE_COUNT),
-            .cpu_usage = try std.ArrayList(f32).initCapacity(allocator, SAMPLE_COUNT),
-            .gpu_usage = try std.ArrayList(f32).initCapacity(allocator, SAMPLE_COUNT),
-            .draw_calls = try std.ArrayList(u32).initCapacity(allocator, SAMPLE_COUNT),
+            .frame_times = blk: {
+                var list = std.array_list.Managed(f64).init(allocator);
+                try list.ensureTotalCapacity(SAMPLE_COUNT);
+                break :blk list;
+            },
+            .memory_usage = blk: {
+                var list = std.array_list.Managed(u64).init(allocator);
+                try list.ensureTotalCapacity(SAMPLE_COUNT);
+                break :blk list;
+            },
+            .cpu_usage = blk: {
+                var list = std.array_list.Managed(f32).init(allocator);
+                try list.ensureTotalCapacity(SAMPLE_COUNT);
+                break :blk list;
+            },
+            .gpu_usage = blk: {
+                var list = std.array_list.Managed(f32).init(allocator);
+                try list.ensureTotalCapacity(SAMPLE_COUNT);
+                break :blk list;
+            },
+            .draw_calls = blk: {
+                var list = std.array_list.Managed(u32).init(allocator);
+                try list.ensureTotalCapacity(SAMPLE_COUNT);
+                break :blk list;
+            },
             .start_time = time.timestamp(),
             .last_update = time.timestamp(),
             .sample_interval_ns = time.ns_per_s / 10, // Sample every 100ms by default

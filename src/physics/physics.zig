@@ -2,30 +2,12 @@
 //! This module provides fundamental physics constants and utility functions
 
 const std = @import("std");
-// pub const math = @import("math"); // Export math for other physics modules
-// const Vec3 = math.Vec3;
-// pub const Vec3f = math.Vec3f;
+const math = @import("../math/mod.zig");
 
-// Temporary placeholder types to resolve compilation
-pub const Vec3f = struct {
-    x: f32,
-    y: f32,
-    z: f32,
-    pub fn init(x: f32, y: f32, z: f32) Vec3f {
-        return .{ .x = x, .y = y, .z = z };
-    }
-    pub const zero = Vec3f{ .x = 0, .y = 0, .z = 0 };
-};
-
-pub const Quatf = struct {
-    x: f32,
-    y: f32,
-    z: f32,
-    w: f32,
-    pub fn identity() Quatf {
-        return .{ .x = 0, .y = 0, .z = 0, .w = 1 };
-    }
-};
+pub const Vec3f = math.Vec3f;
+pub const Quatf = math.Quatf;
+pub const Mat3f = math.Mat3f;
+pub const Mat4f = math.Mat4f;
 
 const Vec3 = Vec3f;
 
@@ -39,7 +21,8 @@ pub const PhysicsConstants = struct {
     pub const MAX_VELOCITY: f32 = 1000.0; // m/s
     pub const MIN_MASS: f32 = 0.001; // kg
     pub const SLEEP_THRESHOLD: f32 = 0.1;
-    pub const GRAVITY: Vec3f = Vec3f.init(0.0, -9.81, 0.0);
+    pub const SLEEP_TIME: f32 = 1.0; // seconds before object goes to sleep
+    pub const GRAVITY: Vec3f = Vec3f{ .x = 0.0, .y = -9.81, .z = 0.0 };
 };
 
 /// Object types for physics simulation
@@ -60,6 +43,8 @@ pub const PhysicalObject = struct {
     pinned: bool = false,
     active: bool = true,
     object_type: ObjectType = .dynamic,
+    sleep_timer: f32 = 0.0,
+    radius: f32 = 1.0,
 
     pub fn init(position: Vec3f, mass: f32) PhysicalObject {
         return PhysicalObject{

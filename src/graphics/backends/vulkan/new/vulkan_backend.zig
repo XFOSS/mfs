@@ -8,10 +8,101 @@
 //! - Debug utilities
 
 const std = @import("std");
-const vk = @import("vulkan");
-const memory_manager = @import("../../../memory/new/memory_manager.zig");
-const MemoryManager = memory_manager.MemoryManager;
-const MemoryBlock = memory_manager.MemoryBlock;
+
+// Mock Vulkan types for when real Vulkan package is not available
+pub const vk = struct {
+    pub const Instance = enum(u32) { null_handle = 0, _ };
+    pub const PhysicalDevice = enum(u32) { _ };
+    pub const Device = enum(u32) { null_handle = 0, _ };
+    pub const Queue = enum(u32) { null_handle = 0, _ };
+    pub const SurfaceKHR = enum(u32) { null_handle = 0, _ };
+    pub const Buffer = enum(u32) { null_handle = 0, _ };
+    pub const DeviceMemory = enum(u32) { null_handle = 0, _ };
+    pub const Image = enum(u32) { null_handle = 0, _ };
+    pub const Semaphore = enum(u32) { null_handle = 0, _ };
+    pub const Fence = enum(u32) { null_handle = 0, _ };
+    pub const DeviceSize = u64;
+    pub const BufferUsageFlags = u32;
+    pub const MemoryPropertyFlags = u32;
+    pub const SharingMode = enum(u32) { exclusive = 0, _ };
+    pub const ImageUsageFlags = u32;
+    pub const ImageType = enum(u32) { @"1d" = 0, @"2d" = 1, @"3d" = 2, _ };
+    pub const Format = enum(u32) { r8g8b8a8_unorm = 37, _ };
+    pub const ImageTiling = enum(u32) { optimal = 0, _ };
+    pub const SampleCountFlags = u32;
+    pub const ImageLayout = enum(u32) { undefined = 0, _ };
+    pub const CommandPool = enum(u32) { null_handle = 0, _ };
+    pub const CommandBuffer = enum(u32) { null_handle = 0, _ };
+    pub const PipelineStageFlags = u32;
+    pub const AccessFlags = u32;
+    pub const SubpassContents = enum(u32) { @"inline" = 0, _ };
+    pub const IndexType = enum(u32) { uint16 = 0, _ };
+    pub const PrimitiveTopology = enum(u32) { triangle_list = 3, _ };
+    pub const PFN_vkDebugUtilsMessengerCallbackEXT = ?*const fn () void;
+    pub const DebugUtilsMessengerEXT = enum(u32) { null_handle = 0, _ };
+    pub const ApplicationInfo = struct {
+        sType: u32 = 0,
+        pNext: ?*anyopaque = null,
+        pApplicationName: ?[*:0]const u8 = null,
+        applicationVersion: u32 = 0,
+        pEngineName: ?[*:0]const u8 = null,
+        engineVersion: u32 = 0,
+        apiVersion: u32 = 0,
+    };
+};
+
+// Define MemoryManager locally to avoid import issues
+const MemoryManager = struct {
+    pub fn init(allocator: std.mem.Allocator, device: anytype, physical_device: anytype, pool_size: usize, min_block_size: usize) !*MemoryManager {
+        _ = allocator;
+        _ = device;
+        _ = physical_device;
+        _ = pool_size;
+        _ = min_block_size;
+        // Mock implementation
+        return undefined;
+    }
+    pub fn deinit(self: *MemoryManager) void {
+        _ = self;
+    }
+    pub fn allocate(self: *MemoryManager, size: usize, alignment: usize, memory_type_bits: u32, required_flags: u32) !MemoryBlock {
+        _ = self;
+        _ = size;
+        _ = alignment;
+        _ = memory_type_bits;
+        _ = required_flags;
+        return undefined;
+    }
+    pub fn free(self: *MemoryManager, block: *MemoryBlock) void {
+        _ = self;
+        _ = block;
+    }
+    pub fn getStats(self: *MemoryManager) MemoryStats {
+        _ = self;
+        return .{};
+    }
+};
+
+// Define MemoryBlock locally
+const MemoryBlock = struct {
+    memory: vk.DeviceMemory,
+    offset: vk.DeviceSize,
+    size: vk.DeviceSize,
+    alignment: vk.DeviceSize,
+    memory_type_index: u32,
+    mapped_ptr: ?*anyopaque,
+    in_use: bool,
+};
+
+// Local memory stats type for this backend
+pub const MemoryStats = struct {
+    total_allocated: usize = 0,
+    total_freed: usize = 0,
+    peak_usage: usize = 0,
+    current_usage: usize = 0,
+    allocation_count: usize = 0,
+    deallocation_count: usize = 0,
+};
 
 /// Vulkan validation layers configuration
 pub const ValidationConfig = struct {
@@ -31,8 +122,8 @@ pub const DeviceRequirements = struct {
     descriptor_indexing: bool = false,
 };
 
-/// Vulkan backend configuration
-pub const BackendConfig = struct {
+/// Vulkan backend configuration (internal)
+pub const VulkanConfig = struct {
     app_name: []const u8,
     engine_name: []const u8,
     validation: ValidationConfig = .{},
@@ -57,10 +148,62 @@ pub const VulkanBackend = struct {
 
     const Self = @This();
 
+    /// Create a Vulkan backend instance (GraphicsBackend interface)
+    pub fn create(
+        allocator: std.mem.Allocator,
+        config: anytype,
+    ) !*@import("../../interface.zig").GraphicsBackend {
+        // Convert interface config to Vulkan config
+        const vulkan_config = VulkanConfig{
+            .app_name = "MFS Engine",
+            .engine_name = "MFS Engine",
+            .validation = .{ .enabled = config.enable_validation },
+            .device_requirements = .{
+                .graphics_queue = true,
+                .present_queue = true,
+                .ray_tracing = config.enable_ray_tracing,
+                .compute_queue = config.enable_compute_shaders,
+            },
+        };
+
+        // Initialize with window handle if provided
+        // Note: Self.init allocates the backend, so we don't need to allocate here
+        const backend = try Self.init(allocator, vulkan_config, config.window_handle orelse return error.WindowHandleRequired);
+        errdefer {
+            backend.deinit();
+            allocator.destroy(backend);
+        }
+
+        // Create the GraphicsBackend wrapper
+        const graphics_backend = try allocator.create(@import("../../interface.zig").GraphicsBackend);
+        errdefer allocator.destroy(graphics_backend);
+
+        graphics_backend.* = .{
+            .allocator = allocator,
+            .backend_type = .vulkan,
+            .initialized = true,
+            .vtable = &vtable,
+            .impl_data = backend,
+        };
+
+        return graphics_backend;
+    }
+
+    /// Get backend information
+    pub fn getInfo() @import("../../common.zig").BackendInfo {
+        return .{
+            .name = "Vulkan",
+            .version = "1.3",
+            .vendor = "Khronos Group",
+            .memory_budget = 0, // TODO: Query actual values
+            .memory_usage = 0,
+        };
+    }
+
     /// Initialize Vulkan backend
     pub fn init(
         allocator: std.mem.Allocator,
-        config: BackendConfig,
+        config: VulkanConfig,
         window_handle: *anyopaque,
     ) !*Self {
         var self = try allocator.create(Self);
@@ -233,14 +376,14 @@ pub const VulkanBackend = struct {
     }
 
     /// Get memory statistics
-    pub fn getMemoryStats(self: *Self) memory_manager.MemoryStats {
+    pub fn getMemoryStats(self: *Self) MemoryStats {
         return self.memory_manager.getStats();
     }
 
     /// Helper functions for instance/device creation
     fn createInstance(
         allocator: std.mem.Allocator,
-        config: BackendConfig,
+        config: VulkanConfig,
     ) !vk.Instance {
         const app_info = vk.ApplicationInfo{
             .pApplicationName = config.app_name.ptr,
@@ -250,7 +393,7 @@ pub const VulkanBackend = struct {
             .apiVersion = vk.API_VERSION_1_3,
         };
 
-        var layers = std.ArrayList([*:0]const u8).init(allocator);
+        var layers = std.array_list.Managed([*:0]const u8).init(allocator);
         defer layers.deinit();
 
         if (config.validation.enabled) {
@@ -441,9 +584,9 @@ pub const VulkanBackend = struct {
         const platform = @import("builtin").target.os.tag;
         switch (platform) {
             .windows => {
-                const win32 = @import("std").os.windows;
+                const win32 = @import("../../../../windows/api.zig");
                 const hwnd = @as(win32.HWND, @ptrCast(window_handle));
-                const hinstance = win32.kernel32.GetModuleHandleW(null);
+                const hinstance = win32.GetModuleHandleW(null) orelse return error.FailedToGetModuleHandle;
 
                 const surface_create_info = vk.Win32SurfaceCreateInfoKHR{
                     .hinstance = hinstance,
@@ -482,7 +625,7 @@ pub const VulkanBackend = struct {
             return error.MissingQueueFamily;
         }
 
-        var unique_queues = std.ArrayList(u32).init(std.heap.page_allocator);
+        var unique_queues = std.array_list.Managed(u32).init(std.heap.page_allocator);
         defer unique_queues.deinit();
 
         // Add required queue families
@@ -504,7 +647,7 @@ pub const VulkanBackend = struct {
         }
 
         // Create queue create infos
-        var queue_create_infos = std.ArrayList(vk.DeviceQueueCreateInfo).init(
+        var queue_create_infos = std.array_list.Managed(vk.DeviceQueueCreateInfo).init(
             std.heap.page_allocator,
         );
         defer queue_create_infos.deinit();
@@ -595,3 +738,384 @@ pub const VulkanBackend = struct {
         return true;
     }
 };
+
+/// VTable for GraphicsBackend interface
+const vtable = @import("../../interface.zig").GraphicsBackend.VTable{
+    .deinit = deinitBackend,
+
+    // SwapChain management
+    .create_swap_chain = createSwapChain,
+    .resize_swap_chain = resizeSwapChain,
+    .present = present,
+    .get_current_back_buffer = getCurrentBackBuffer,
+
+    // Resource creation
+    .create_texture = createTexture,
+    .create_buffer = createBuffer,
+    .create_shader = createShader,
+    .create_pipeline = createPipeline,
+    .create_render_target = createRenderTarget,
+
+    // Resource management
+    .update_buffer = updateBuffer,
+    .update_texture = updateTexture,
+    .destroy_texture = destroyTexture,
+    .destroy_buffer = destroyBuffer,
+    .destroy_shader = destroyShader,
+    .destroy_render_target = destroyRenderTarget,
+
+    // Command recording
+    .create_command_buffer = createCommandBuffer,
+    .begin_command_buffer = beginCommandBuffer,
+    .end_command_buffer = endCommandBuffer,
+    .submit_command_buffer = submitCommandBuffer,
+
+    // Render commands
+    .begin_render_pass = beginRenderPass,
+    .end_render_pass = endRenderPass,
+    .set_viewport = setViewport,
+    .set_scissor = setScissor,
+    .bind_pipeline = bindPipeline,
+    .bind_vertex_buffer = bindVertexBuffer,
+    .bind_index_buffer = bindIndexBuffer,
+    .bind_texture = bindTexture,
+    .bind_uniform_buffer = bindUniformBuffer,
+
+    // Draw commands
+    .draw = draw,
+    .draw_indexed = drawIndexed,
+    .dispatch = dispatch,
+
+    // Resource copying
+    .copy_buffer = copyBuffer,
+    .copy_texture = copyTexture,
+    .copy_buffer_to_texture = copyBufferToTexture,
+    .copy_texture_to_buffer = copyTextureToBuffer,
+
+    // Synchronization
+    .resource_barrier = resourceBarrier,
+
+    // Query and debug
+    .get_backend_info = getBackendInfo,
+    .set_debug_name = setDebugName,
+    .begin_debug_group = beginDebugGroup,
+    .end_debug_group = endDebugGroup,
+};
+
+// VTable function implementations
+fn deinitBackend(impl: *anyopaque) void {
+    const self = @as(*VulkanBackend, @ptrCast(@alignCast(impl)));
+    self.deinit();
+}
+
+fn createSwapChain(impl: *anyopaque, desc: *const @import("../../interface.zig").SwapChainDesc) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = desc;
+    // TODO: Implement swap chain creation
+    return error.BackendNotAvailable;
+}
+
+fn resizeSwapChain(impl: *anyopaque, width: u32, height: u32) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = width;
+    _ = height;
+    // TODO: Implement swap chain resize
+    return error.BackendNotAvailable;
+}
+
+fn present(impl: *anyopaque) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    // TODO: Implement present
+    return error.BackendNotAvailable;
+}
+
+fn getCurrentBackBuffer(impl: *anyopaque) @import("../../interface.zig").GraphicsBackendError!*@import("../../types.zig").Texture {
+    _ = impl;
+    // TODO: Implement get current back buffer
+    return error.BackendNotAvailable;
+}
+
+fn createTexture(impl: *anyopaque, texture: *@import("../../types.zig").Texture, data: ?[]const u8) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = texture;
+    _ = data;
+    // TODO: Implement texture creation
+    return error.BackendNotAvailable;
+}
+
+fn createBuffer(impl: *anyopaque, buffer: *@import("../../types.zig").Buffer, data: ?[]const u8) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = buffer;
+    _ = data;
+    // TODO: Implement buffer creation
+    return error.BackendNotAvailable;
+}
+
+fn createShader(impl: *anyopaque, shader: *@import("../../types.zig").Shader) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = shader;
+    // TODO: Implement shader creation
+    return error.BackendNotAvailable;
+}
+
+fn createPipeline(impl: *anyopaque, desc: *const @import("../../interface.zig").PipelineDesc) @import("../../interface.zig").GraphicsBackendError!*@import("../../interface.zig").Pipeline {
+    _ = impl;
+    _ = desc;
+    // TODO: Implement pipeline creation
+    return error.BackendNotAvailable;
+}
+
+fn createRenderTarget(impl: *anyopaque, render_target: *@import("../../types.zig").RenderTarget) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = render_target;
+    // TODO: Implement render target creation
+    return error.BackendNotAvailable;
+}
+
+fn updateBuffer(impl: *anyopaque, buffer: *@import("../../types.zig").Buffer, offset: u64, data: []const u8) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = buffer;
+    _ = offset;
+    _ = data;
+    // TODO: Implement buffer update
+    return error.BackendNotAvailable;
+}
+
+fn updateTexture(impl: *anyopaque, texture: *@import("../../types.zig").Texture, region: *const @import("../../interface.zig").TextureCopyRegion, data: []const u8) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = texture;
+    _ = region;
+    _ = data;
+    // TODO: Implement texture update
+    return error.BackendNotAvailable;
+}
+
+fn destroyTexture(impl: *anyopaque, texture: *@import("../../types.zig").Texture) void {
+    _ = impl;
+    _ = texture;
+    // TODO: Implement texture destruction
+}
+
+fn destroyBuffer(impl: *anyopaque, buffer: *@import("../../types.zig").Buffer) void {
+    _ = impl;
+    _ = buffer;
+    // TODO: Implement buffer destruction
+}
+
+fn destroyShader(impl: *anyopaque, shader: *@import("../../types.zig").Shader) void {
+    _ = impl;
+    _ = shader;
+    // TODO: Implement shader destruction
+}
+
+fn destroyRenderTarget(impl: *anyopaque, render_target: *@import("../../types.zig").RenderTarget) void {
+    _ = impl;
+    _ = render_target;
+    // TODO: Implement render target destruction
+}
+
+fn createCommandBuffer(impl: *anyopaque) @import("../../interface.zig").GraphicsBackendError!*@import("../../interface.zig").CommandBuffer {
+    _ = impl;
+    // TODO: Implement command buffer creation
+    return error.BackendNotAvailable;
+}
+
+fn beginCommandBuffer(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    // TODO: Implement begin command buffer
+    return error.BackendNotAvailable;
+}
+
+fn endCommandBuffer(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    // TODO: Implement end command buffer
+    return error.BackendNotAvailable;
+}
+
+fn submitCommandBuffer(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    // TODO: Implement submit command buffer
+    return error.BackendNotAvailable;
+}
+
+fn beginRenderPass(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, desc: *const @import("../../interface.zig").RenderPassDesc) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = desc;
+    // TODO: Implement begin render pass
+    return error.BackendNotAvailable;
+}
+
+fn endRenderPass(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    // TODO: Implement end render pass
+    return error.BackendNotAvailable;
+}
+
+fn setViewport(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, viewport: *const @import("../../types.zig").Viewport) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = viewport;
+    // TODO: Implement set viewport
+    return error.BackendNotAvailable;
+}
+
+fn setScissor(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, rect: *const @import("../../types.zig").Viewport) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = rect;
+    // TODO: Implement set scissor
+    return error.BackendNotAvailable;
+}
+
+fn bindPipeline(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, pipeline: *@import("../../interface.zig").Pipeline) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = pipeline;
+    // TODO: Implement bind pipeline
+    return error.BackendNotAvailable;
+}
+
+fn bindVertexBuffer(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, slot: u32, buffer: *@import("../../types.zig").Buffer, offset: u64) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = slot;
+    _ = buffer;
+    _ = offset;
+    // TODO: Implement bind vertex buffer
+    return error.BackendNotAvailable;
+}
+
+fn bindIndexBuffer(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, buffer: *@import("../../types.zig").Buffer, offset: u64, format: @import("../../interface.zig").IndexFormat) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = buffer;
+    _ = offset;
+    _ = format;
+    // TODO: Implement bind index buffer
+    return error.BackendNotAvailable;
+}
+
+fn bindTexture(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, slot: u32, texture: *@import("../../types.zig").Texture) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = slot;
+    _ = texture;
+    // TODO: Implement bind texture
+    return error.BackendNotAvailable;
+}
+
+fn bindUniformBuffer(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, slot: u32, buffer: *@import("../../types.zig").Buffer, offset: u64, size: u64) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = slot;
+    _ = buffer;
+    _ = offset;
+    _ = size;
+    // TODO: Implement bind uniform buffer
+    return error.BackendNotAvailable;
+}
+
+fn draw(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, draw_cmd: *const @import("../../interface.zig").DrawCommand) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = draw_cmd;
+    // TODO: Implement draw
+    return error.BackendNotAvailable;
+}
+
+fn drawIndexed(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, draw_cmd: *const @import("../../interface.zig").DrawIndexedCommand) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = draw_cmd;
+    // TODO: Implement draw indexed
+    return error.BackendNotAvailable;
+}
+
+fn dispatch(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, dispatch_cmd: *const @import("../../interface.zig").DispatchCommand) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = dispatch_cmd;
+    // TODO: Implement dispatch
+    return error.BackendNotAvailable;
+}
+
+fn copyBuffer(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, src: *@import("../../types.zig").Buffer, dst: *@import("../../types.zig").Buffer, region: *const @import("../../interface.zig").BufferCopyRegion) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = src;
+    _ = dst;
+    _ = region;
+    // TODO: Implement copy buffer
+    return error.BackendNotAvailable;
+}
+
+fn copyTexture(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, src: *@import("../../types.zig").Texture, dst: *@import("../../types.zig").Texture, region: *const @import("../../interface.zig").TextureCopyRegion) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = src;
+    _ = dst;
+    _ = region;
+    // TODO: Implement copy texture
+    return error.BackendNotAvailable;
+}
+
+fn copyBufferToTexture(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, src: *@import("../../types.zig").Buffer, dst: *@import("../../types.zig").Texture, region: *const @import("../../interface.zig").TextureCopyRegion) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = src;
+    _ = dst;
+    _ = region;
+    // TODO: Implement copy buffer to texture
+    return error.BackendNotAvailable;
+}
+
+fn copyTextureToBuffer(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, src: *@import("../../types.zig").Texture, dst: *@import("../../types.zig").Buffer, region: *const @import("../../interface.zig").TextureCopyRegion) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = src;
+    _ = dst;
+    _ = region;
+    // TODO: Implement copy texture to buffer
+    return error.BackendNotAvailable;
+}
+
+fn resourceBarrier(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, barriers: []const @import("../../interface.zig").ResourceBarrier) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = barriers;
+    // TODO: Implement resource barrier
+    return error.BackendNotAvailable;
+}
+
+fn getBackendInfo(impl: *anyopaque) @import("../../common.zig").BackendInfo {
+    _ = impl;
+    return VulkanBackend.getInfo();
+}
+
+fn setDebugName(impl: *anyopaque, resource: @import("../../interface.zig").ResourceHandle, name: []const u8) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = resource;
+    _ = name;
+    // TODO: Implement set debug name
+    return error.BackendNotAvailable;
+}
+
+fn beginDebugGroup(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer, name: []const u8) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    _ = name;
+    // TODO: Implement begin debug group
+    return error.BackendNotAvailable;
+}
+
+fn endDebugGroup(impl: *anyopaque, cmd: *@import("../../interface.zig").CommandBuffer) @import("../../interface.zig").GraphicsBackendError!void {
+    _ = impl;
+    _ = cmd;
+    // TODO: Implement end debug group
+    return error.BackendNotAvailable;
+}

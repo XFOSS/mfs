@@ -141,7 +141,7 @@ const MemoryPool = struct {
     memory: vk.DeviceMemory,
     size: vk.VkDeviceSize,
     used: vk.VkDeviceSize,
-    blocks: std.ArrayList(Block),
+    blocks: std.array_list.Managed(Block),
 
     const Block = struct {
         offset: vk.VkDeviceSize,
@@ -163,7 +163,7 @@ const MemoryPool = struct {
         const memory = try vk.allocateMemory(device, &alloc_info, null);
         errdefer vk.freeMemory(device, memory, null);
 
-        var blocks = std.ArrayList(Block).init(allocator);
+        var blocks = std.array_list.Managed(Block).init(allocator);
         try blocks.append(.{
             .offset = 0,
             .size = MemoryManager.POOL_SIZE,

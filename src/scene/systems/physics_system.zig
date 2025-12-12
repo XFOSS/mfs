@@ -1,12 +1,12 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const Entity = @import("../core/entity.zig").Entity;
 const Scene = @import("../core/scene.zig").Scene;
 const System = @import("../core/scene.zig").System;
 const TransformComponent = @import("../components/transform.zig").Transform;
 const PhysicsComponent = @import("../components/physics.zig").PhysicsComponent;
-const math = @import("math");
+const math = @import("../../libs/math/mod.zig");
 const Vec3 = math.Vec3;
 const Mat4 = math.Mat4;
 
@@ -389,10 +389,24 @@ pub fn update(system: *System, scene: *Scene, delta_time: f32) void {
                 if (physics.body_type == .Dynamic) {
                     // Apply gravity
                     const gravity = Vec3.init(0, -9.81, 0);
-                    physics.velocity = physics.velocity.add(gravity.scale(delta_time));
+                    const scaled_gravity = Vec3{
+                        .x = gravity.x * delta_time,
+                        .y = gravity.y * delta_time,
+                        .z = gravity.z * delta_time,
+                    };
+                    physics.velocity.x += scaled_gravity.x;
+                    physics.velocity.y += scaled_gravity.y;
+                    physics.velocity.z += scaled_gravity.z;
 
                     // Update position
-                    transform.position = transform.position.add(physics.velocity.scale(delta_time));
+                    const scaled_velocity = Vec3{
+                        .x = physics.velocity.x * delta_time,
+                        .y = physics.velocity.y * delta_time,
+                        .z = physics.velocity.z * delta_time,
+                    };
+                    transform.position.x += scaled_velocity.x;
+                    transform.position.y += scaled_velocity.y;
+                    transform.position.z += scaled_velocity.z;
                     transform.dirty = true;
                 }
             }

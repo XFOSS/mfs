@@ -1,6 +1,25 @@
 const std = @import("std");
 const testing = std.testing;
-const vk = @import("../../backends/vulkan/new/vulkan_backend.zig");
+
+// Define mock Vulkan types for testing
+const VkDeviceMemory = enum(u32) { _ };
+const VkMemoryType = extern struct {
+    propertyFlags: u32,
+    heapIndex: u32,
+};
+const VkMemoryHeap = extern struct {
+    size: u64,
+    flags: u32,
+};
+const VkPhysicalDeviceMemoryProperties = extern struct {
+    memoryTypeCount: u32,
+    memoryTypes: [32]VkMemoryType,
+    memoryHeapCount: u32,
+    memoryHeaps: [16]VkMemoryHeap,
+};
+const VkMemoryPropertyFlags = u32;
+const VkDeviceSize = u64;
+
 const memory_manager = @import("memory_manager.zig");
 const MemoryManager = memory_manager.MemoryManager;
 const MemoryBlock = memory_manager.MemoryBlock;
@@ -8,9 +27,9 @@ const MemoryBlock = memory_manager.MemoryBlock;
 /// Mock Vulkan device for testing
 const MockDevice = struct {
     allocator: std.mem.Allocator,
-    memory_properties: vk.PhysicalDeviceMemoryProperties,
-    allocated_memory: std.ArrayList(vk.DeviceMemory),
-    mapped_memory: std.AutoHashMap(vk.DeviceMemory, *anyopaque),
+    memory_properties: VkPhysicalDeviceMemoryProperties,
+    allocated_memory: std.array_list.Managed(VkDeviceMemory),
+    mapped_memory: std.AutoHashMap(VkDeviceMemory, *anyopaque),
 
     pub fn init(allocator: std.mem.Allocator) !*MockDevice {
         const self = try allocator.create(MockDevice);
@@ -18,27 +37,24 @@ const MockDevice = struct {
             .allocator = allocator,
             .memory_properties = .{
                 .memoryTypeCount = 2,
-                .memoryTypes = [_]vk.MemoryType{
+                .memoryTypes = [_]VkMemoryType{
                     .{
-                        .propertyFlags = .{ .device_local_bit = true },
+                        .propertyFlags = 0x00000001, // VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
                         .heapIndex = 0,
                     },
                     .{
-                        .propertyFlags = .{
-                            .host_visible_bit = true,
-                            .host_coherent_bit = true,
-                        },
+                        .propertyFlags = 0x00000006, // VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
                         .heapIndex = 1,
                     },
-                },
+                } ++ [_]VkMemoryType{.{ .propertyFlags = 0, .heapIndex = 0 }} ** 30,
                 .memoryHeapCount = 2,
-                .memoryHeaps = [_]vk.MemoryHeap{
-                    .{ .size = 1024 * 1024 * 1024, .flags = .{ .device_local_bit = true } },
-                    .{ .size = 512 * 1024 * 1024, .flags = .{} },
-                },
+                .memoryHeaps = [_]VkMemoryHeap{
+                    .{ .size = 1024 * 1024 * 1024, .flags = 0x00000001 }, // VK_MEMORY_HEAP_DEVICE_LOCAL_BIT
+                    .{ .size = 512 * 1024 * 1024, .flags = 0 },
+                } ++ [_]VkMemoryHeap{.{ .size = 0, .flags = 0 }} ** 14,
             },
-            .allocated_memory = std.ArrayList(vk.DeviceMemory).init(allocator),
-            .mapped_memory = std.AutoHashMap(vk.DeviceMemory, *anyopaque).init(allocator),
+            .allocated_memory = std.array_list.Managed(VkDeviceMemory).init(allocator),
+            .mapped_memory = std.AutoHashMap(VkDeviceMemory, *anyopaque).init(allocator),
         };
         return self;
     }
@@ -52,14 +68,14 @@ const MockDevice = struct {
     pub fn allocateMemory(
         self: *MockDevice,
         _: std.mem.Allocator,
-        _: vk.MemoryAllocateInfo,
-    ) !vk.DeviceMemory {
-        const memory = @as(vk.DeviceMemory, @ptrFromInt(@intFromPtr(self) + self.allocated_memory.items.len + 1));
+        _: anytype, // Mock allocate info
+    ) !VkDeviceMemory {
+        const memory = @as(VkDeviceMemory, @ptrFromInt(@intFromPtr(self) + self.allocated_memory.items.len + 1));
         try self.allocated_memory.append(memory);
         return memory;
     }
 
-    pub fn freeMemory(self: *MockDevice, memory: vk.DeviceMemory, _: ?*const anyopaque) void {
+    pub fn freeMemory(self: *MockDevice, memory: VkDeviceMemory, _: ?*const anyopaque) void {
         for (self.allocated_memory.items, 0..) |mem, i| {
             if (mem == memory) {
                 _ = self.allocated_memory.orderedRemove(i);
@@ -71,17 +87,17 @@ const MockDevice = struct {
 
     pub fn mapMemory(
         self: *MockDevice,
-        memory: vk.DeviceMemory,
-        _: vk.DeviceSize,
-        _: vk.DeviceSize,
-        _: vk.MemoryMapFlags,
+        memory: VkDeviceMemory,
+        _: VkDeviceSize,
+        _: VkDeviceSize,
+        _: u32, // Mock flags
     ) !*anyopaque {
         const ptr = try self.allocator.alloc(u8, 1024);
         try self.mapped_memory.put(memory, ptr.ptr);
         return ptr.ptr;
     }
 
-    pub fn unmapMemory(self: *MockDevice, memory: vk.DeviceMemory) void {
+    pub fn unmapMemory(self: *MockDevice, memory: VkDeviceMemory) void {
         if (self.mapped_memory.get(memory)) |ptr| {
             const slice = @as([*]u8, @ptrCast(ptr))[0..1024];
             self.allocator.free(slice);
@@ -109,7 +125,7 @@ test "MemoryManager basic allocation" {
         256,
         64,
         0b01, // First memory type
-        .{ .device_local_bit = true },
+        0x00000001, // VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
     );
 
     try testing.expect(block1.size == 256);
@@ -122,7 +138,7 @@ test "MemoryManager basic allocation" {
         512,
         128,
         0b10, // Second memory type
-        .{ .host_visible_bit = true, .host_coherent_bit = true },
+        0x00000006, // VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
     );
 
     try testing.expect(block2.size == 512);
@@ -260,7 +276,7 @@ test "MemoryManager thread safety" {
         allocator: std.mem.Allocator,
 
         fn run(self: @This()) !void {
-            var blocks = std.ArrayList(MemoryBlock).init(self.allocator);
+            var blocks = std.array_list.Managed(MemoryBlock).init(self.allocator);
             defer blocks.deinit();
 
             // Perform multiple allocations

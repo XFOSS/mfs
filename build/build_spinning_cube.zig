@@ -26,7 +26,7 @@ pub fn build(b: *std.Build) void {
     build_options.addOption(bool, "is_desktop", true);
     build_options.addOption([]const u8, "target_os", @tagName(target.result.os.tag));
 
-    spinning_cube.root_module.addOptions("build_options", build_options);
+    spinning_cube.addOptions("build_options", build_options);
 
     // Link system libraries based on platform
     switch (target.result.os.tag) {
@@ -70,9 +70,11 @@ pub fn build(b: *std.Build) void {
 
     // Create test step
     const spinning_cube_tests = b.addTest(.{
-        .root_source_file = b.path("src/spinning_cube_app.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/spinning_cube_app.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     spinning_cube_tests.root_module.addOptions("build_options", build_options);

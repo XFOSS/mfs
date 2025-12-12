@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const AutoHashMap = std.AutoHashMap;
 // const math = @import("math");
 const Vec3 = struct {
@@ -64,7 +64,11 @@ pub const Scene = struct {
         scene.* = Scene{
             .allocator = allocator,
             .entities = AutoHashMap(EntityId, Entity).init(allocator),
-            .systems = ArrayList(System).init(allocator),
+            .systems = blk: {
+                var list = ArrayList(System).init(allocator);
+                try list.ensureTotalCapacity(8);
+                break :blk list;
+            },
             .next_entity_id = 1,
             .next_system_id = 1,
             .main_camera = null,
@@ -76,8 +80,9 @@ pub const Scene = struct {
         };
 
         // Initialize octree
-        const BoundingBox = @import("../components/render.zig").BoundingBox;
-        const world_bounds = BoundingBox.init(Vec3.init(-1000, -1000, -1000), Vec3.init(1000, 1000, 1000));
+        const render = @import("../components/render.zig");
+        const BoundingBox = render.BoundingBox;
+        const world_bounds = BoundingBox.init(.{ .x = -1000, .y = -1000, .z = -1000 }, .{ .x = 1000, .y = 1000, .z = 1000 });
         scene.octree = try Octree.init(allocator, world_bounds, 10, 6);
 
         // Register default systems
@@ -89,7 +94,7 @@ pub const Scene = struct {
     pub fn deinit(self: *Scene) void {
         var entity_iter = self.entities.iterator();
         while (entity_iter.next()) |entry| {
-            entry.value_ptr.deinit(self.allocator);
+            entry.value_ptr.deinit();
         }
         self.entities.deinit();
 
@@ -137,7 +142,7 @@ pub const Scene = struct {
                 self.destroyEntity(child_id);
             }
 
-            entity.deinit(self.allocator);
+            entity.deinit();
         }
     }
 
@@ -155,7 +160,7 @@ pub const Scene = struct {
         return null;
     }
 
-    pub fn findEntitiesByTag(self: *Scene, tag: []const u8, results: *ArrayList(EntityId)) !void {
+    pub fn findEntitiesByTag(self: *Scene, tag: []const u8, results: *ArrayList(EntityId), _: Allocator) !void {
         var entity_iter = self.entities.iterator();
         while (entity_iter.next()) |entry| {
             if (std.mem.eql(u8, entry.value_ptr.tag, tag)) {
@@ -211,6 +216,7 @@ pub const Scene = struct {
             try handlers.append(handler);
         } else {
             var handlers = ArrayList(*const fn (*Scene, []const u8, ?*anyopaque) void).init(self.allocator);
+            try handlers.ensureTotalCapacity(4);
             try handlers.append(handler);
             try self.event_handlers.put(key, handlers);
         }

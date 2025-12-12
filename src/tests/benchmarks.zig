@@ -6,7 +6,7 @@ const build_options = @import("build_options");
 const math = @import("math");
 const graphics = @import("../graphics/graphics.zig");
 const platform = @import("../platform/platform.zig");
-const physics = @import("../physics/physics.zig");
+const physics = @import("../physics/mod.zig");
 
 const tracy = if (@hasDecl(build_options, "enable_tracy") and build_options.enable_tracy)
     @import("tracy")
@@ -69,13 +69,13 @@ pub const Benchmarker = struct {
     const Self = @This();
 
     config: BenchmarkConfig,
-    results: std.ArrayList(BenchmarkReport),
+    results: std.array_list.Managed(BenchmarkReport),
     timer: std.time.Timer,
 
     pub fn init(config: BenchmarkConfig) !Self {
         return Self{
             .config = config,
-            .results = std.ArrayList(BenchmarkReport).init(config.allocator),
+            .results = std.array_list.Managed(BenchmarkReport).init(config.allocator),
             .timer = try std.time.Timer.start(),
         };
     }

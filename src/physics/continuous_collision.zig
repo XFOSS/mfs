@@ -1,5 +1,5 @@
 const std = @import("std");
-const math = @import("math");
+const math = @import("../math/mod.zig");
 const Vec4 = math.Vec4;
 const Vector = math.Vector;
 const shapes = @import("shapes.zig");
@@ -57,10 +57,10 @@ pub const ContinuousCollision = struct {
         for (objects, 0..) |*obj, idx| {
             // Skip self or inactive objects
             if (ignore_idx != null and idx == ignore_idx.?) continue;
-            if (!obj.active or obj.sleeping) continue;
+            if (!obj.active) continue;
 
             // Currently only sphere vs sphere sweep is implemented
-            const sphere_radius = obj.collision_radius + radius;
+            const sphere_radius = obj.radius + radius;
 
             // Compute closest approach between ray and sphere center
             const sphere_to_ray_start = start_pos - obj.position;
@@ -105,7 +105,7 @@ pub const ContinuousCollision = struct {
         object_idx: usize,
     ) void {
         // Only apply CCD to moving objects
-        if (obj.sleeping or obj.pinned) return;
+        if (!obj.active or obj.pinned) return;
 
         // Calculate new position using velocity
         const next_position = obj.position + obj.velocity * Vector.splat(dt);
@@ -114,19 +114,20 @@ pub const ContinuousCollision = struct {
         const sweep = linearCast(
             obj.position,
             next_position,
-            obj.collision_radius,
+            obj.radius,
             objects,
             object_idx,
         );
 
         if (sweep.hit) {
             // Move to point of impact
-            obj.position = sweep.point - sweep.normal * Vector.splat(obj.collision_radius * 1.01);
+            obj.position = sweep.point - sweep.normal * Vector.splat(obj.radius * 1.01);
 
-            // Reflect velocity off the surface
+            // Reflect velocity off the surface (use default restitution since PhysicalObject doesn't have restitution property)
+            const default_restitution = 0.5;
             const vel_dot_normal = Vector.dot3(obj.velocity, sweep.normal);
             if (vel_dot_normal < 0.0) {
-                const reflection_scale = -(1.0 + obj.restitution) * vel_dot_normal;
+                const reflection_scale = -(1.0 + default_restitution) * vel_dot_normal;
                 obj.velocity += sweep.normal * Vector.splat(reflection_scale);
             }
 
@@ -138,7 +139,7 @@ pub const ContinuousCollision = struct {
                 .normal = sweep.normal,
                 .penetration = 0.01, // Small penetration to ensure contact resolution
                 .point = sweep.point,
-                .restitution = @min(obj.restitution, other_obj.restitution),
+                .restitution = default_restitution,
             };
 
             // Resolve the collision

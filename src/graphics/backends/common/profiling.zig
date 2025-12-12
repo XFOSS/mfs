@@ -33,7 +33,7 @@ pub const PerformanceMarker = struct {
     name: []const u8,
     start_time: u64,
     parent: ?*PerformanceMarker = null,
-    children: std.ArrayList(*PerformanceMarker),
+    children: std.array_list.Managed(*PerformanceMarker),
     metrics: GpuMetrics = .{},
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) !*PerformanceMarker {
@@ -41,14 +41,14 @@ pub const PerformanceMarker = struct {
         marker.* = .{
             .name = name,
             .start_time = 0,
-            .children = std.ArrayList(*PerformanceMarker).init(allocator),
+            .children = std.array_list.Managed(*PerformanceMarker).init(allocator),
         };
         return marker;
     }
 
     pub fn deinit(self: *PerformanceMarker, allocator: std.mem.Allocator) void {
         for (self.children.items) |child| {
-            child.deinit(allocator);
+            child.deinit();
         }
         self.children.deinit();
         allocator.destroy(self);
@@ -64,21 +64,21 @@ pub const PerformanceMarker = struct {
 pub const GpuProfiler = struct {
     allocator: std.mem.Allocator,
     current_frame: u64 = 0,
-    frame_metrics: std.ArrayList(GpuMetrics),
-    active_markers: std.ArrayList(*PerformanceMarker),
+    frame_metrics: std.array_list.Managed(GpuMetrics),
+    active_markers: std.array_list.Managed(*PerformanceMarker),
     root_marker: ?*PerformanceMarker = null,
 
     pub fn init(allocator: std.mem.Allocator) !GpuProfiler {
         return GpuProfiler{
             .allocator = allocator,
-            .frame_metrics = std.ArrayList(GpuMetrics).init(allocator),
-            .active_markers = std.ArrayList(*PerformanceMarker).init(allocator),
+            .frame_metrics = std.array_list.Managed(GpuMetrics).init(allocator),
+            .active_markers = std.array_list.Managed(*PerformanceMarker).init(allocator),
         };
     }
 
     pub fn deinit(self: *GpuProfiler) void {
         if (self.root_marker) |root| {
-            root.deinit(self.allocator);
+            root.deinit();
         }
         self.frame_metrics.deinit();
         self.active_markers.deinit();
@@ -87,7 +87,7 @@ pub const GpuProfiler = struct {
     pub fn beginFrame(self: *GpuProfiler) !void {
         // Clean up previous frame
         if (self.root_marker) |root| {
-            root.deinit(self.allocator);
+            root.deinit();
         }
 
         // Create new root marker

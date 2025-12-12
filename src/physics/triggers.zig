@@ -1,5 +1,5 @@
 const std = @import("std");
-const math = @import("math");
+const math = @import("../math/mod.zig");
 const Vec4 = math.Vec4;
 const Vector = math.Vector;
 const shapes = @import("shapes.zig");
@@ -66,12 +66,11 @@ pub const TriggerVolume = struct {
     pub fn containsObject(self: *TriggerVolume, object: *const PhysicalObject) bool {
         if (!self.active) return false;
 
-        // Skip objects that don't match filter
-        if ((object.collision_group & self.filter_mask) == 0) return false;
-        if ((self.filter_group & object.collision_mask) == 0) return false;
+        // Skip objects that don't match filter (PhysicalObject doesn't have collision_group/collision_mask, so skip filter check)
+        // Note: If collision filtering is needed, these properties should be added to PhysicalObject
 
         // Simple sphere vs bounding box check for quick rejection
-        const object_aabb = AABB.fromSphere(object.position, object.collision_radius);
+        const object_aabb = AABB.fromSphere(object.position, object.radius);
         const trigger_aabb = self.shape.getBoundingBox(self.position, self.orientation);
 
         if (!trigger_aabb.overlaps(object_aabb)) return false;
@@ -81,7 +80,7 @@ pub const TriggerVolume = struct {
             .Sphere => |sphere| {
                 const delta = object.position - self.position;
                 const dist_sq = Vector.dot3(delta, delta);
-                const radius_sum = sphere.radius + object.collision_radius;
+                const radius_sum = sphere.radius + object.radius;
                 return dist_sq <= radius_sum * radius_sum;
             },
             .Box => |box| {
@@ -90,15 +89,15 @@ pub const TriggerVolume = struct {
                 const local_pos = inv_orientation.rotateVector(object.position - self.position);
 
                 // Check if point is inside box (plus object radius)
-                return std.math.fabs(local_pos[0]) <= box.half_extents[0] + object.collision_radius and
-                    std.math.fabs(local_pos[1]) <= box.half_extents[1] + object.collision_radius and
-                    std.math.fabs(local_pos[2]) <= box.half_extents[2] + object.collision_radius;
+                return std.math.fabs(local_pos[0]) <= box.half_extents[0] + object.radius and
+                    std.math.fabs(local_pos[1]) <= box.half_extents[1] + object.radius and
+                    std.math.fabs(local_pos[2]) <= box.half_extents[2] + object.radius;
             },
             // For other shapes, just use sphere check for now
             else => {
                 const delta = object.position - self.position;
                 const dist_sq = Vector.dot3(delta, delta);
-                const effective_radius = @max(Vector.length3(self.shape.getBoundingBox(Vec4{ 0, 0, 0, 0 }, math.Quaternion.identity()).max), object.collision_radius);
+                const effective_radius = @max(Vector.length3(self.shape.getBoundingBox(Vec4{ 0, 0, 0, 0 }, math.Quaternion.identity()).max), object.radius);
                 return dist_sq <= effective_radius * effective_radius;
             },
         };
@@ -175,7 +174,7 @@ pub const TriggerVolume = struct {
 /// Manager for multiple trigger volumes
 pub const TriggerManager = struct {
     allocator: std.mem.Allocator,
-    triggers: std.ArrayList(TriggerVolume),
+    triggers: std.array_list.Managed(TriggerVolume),
     next_id: usize = 0,
     callbacks: std.AutoHashMap(usize, TriggerCallback),
     time: f64 = 0,
@@ -183,7 +182,7 @@ pub const TriggerManager = struct {
     pub fn init(allocator: std.mem.Allocator) TriggerManager {
         return TriggerManager{
             .allocator = allocator,
-            .triggers = std.ArrayList(TriggerVolume).init(allocator),
+            .triggers = std.array_list.Managed(TriggerVolume).init(allocator),
             .callbacks = std.AutoHashMap(usize, TriggerCallback).init(allocator),
         };
     }

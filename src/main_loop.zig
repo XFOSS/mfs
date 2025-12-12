@@ -34,20 +34,17 @@ pub const MainLoop = struct {
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator, cfg: Config) !Self {
-        var ws = try platform_window.init(allocator, cfg.window);
+        const ws = try platform_window.init(allocator, cfg.window);
 
-        var maybe_gfx: ?*graphics.GraphicsSystem = null;
-        if (cfg.graphics_enabled) {
-            maybe_gfx = blk: {
-                const sys_val = graphics.init(allocator) catch |err| {
-                    std.log.warn("Graphics init failed: {}. Continuing without graphics", .{err});
-                    break :blk null;
-                };
-                var sys_ptr = try allocator.create(graphics.GraphicsSystem);
-                sys_ptr.* = sys_val;
-                break :blk sys_ptr;
+        const maybe_gfx: ?*graphics.GraphicsSystem = if (cfg.graphics_enabled) blk: {
+            const sys_val = graphics.init(allocator) catch |err| {
+                std.log.warn("Graphics init failed: {}. Continuing without graphics", .{err});
+                break :blk null;
             };
-        }
+            const sys_ptr = try allocator.create(graphics.GraphicsSystem);
+            sys_ptr.* = sys_val;
+            break :blk sys_ptr;
+        } else null;
 
         return Self{
             .allocator = allocator,

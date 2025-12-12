@@ -4,7 +4,7 @@
 //! @symbol PublicInputAPI
 
 const std = @import("std");
-const math = @import("math");
+const math = @import("../libs/math/mod.zig");
 
 // Input device types
 pub const InputDevice = enum {
@@ -158,7 +158,7 @@ pub const InputManager = struct {
     allocator: std.mem.Allocator,
     current_state: InputState,
     previous_state: InputState,
-    event_queue: std.ArrayList(InputEvent),
+    event_queue: std.array_list.Managed(InputEvent),
     mutex: std.Thread.Mutex,
 
     pub fn init(allocator: std.mem.Allocator) InputManager {
@@ -166,7 +166,7 @@ pub const InputManager = struct {
             .allocator = allocator,
             .current_state = InputState.init(),
             .previous_state = InputState.init(),
-            .event_queue = std.ArrayList(InputEvent).init(allocator),
+            .event_queue = std.array_list.Managed(InputEvent).init(allocator),
             .mutex = std.Thread.Mutex{},
         };
     }
@@ -266,6 +266,100 @@ pub const InputManager = struct {
         return self.current_state.wheel_delta;
     }
 };
+
+/// Input System - wrapper around InputManager with configuration support
+pub const InputSystem = struct {
+    allocator: std.mem.Allocator,
+    manager: InputManager,
+    config: InputSystemConfig,
+
+    const Self = @This();
+
+    pub const InputSystemConfig = struct {
+        enable_keyboard: bool = true,
+        enable_mouse: bool = true,
+        enable_gamepad: bool = true,
+        enable_touch: bool = true,
+        max_gamepads: u8 = 4,
+        max_touch_points: u8 = 10,
+        deadzone_threshold: f32 = 0.1,
+
+        pub fn validate(self: InputSystemConfig) !void {
+            if (self.max_gamepads == 0 or self.max_gamepads > 16) {
+                return error.InvalidParameter;
+            }
+            if (self.max_touch_points == 0 or self.max_touch_points > 32) {
+                return error.InvalidParameter;
+            }
+            if (self.deadzone_threshold < 0.0 or self.deadzone_threshold > 1.0) {
+                return error.InvalidParameter;
+            }
+        }
+    };
+
+    pub fn init(allocator: std.mem.Allocator, config: InputSystemConfig) !*Self {
+        try config.validate();
+        const system = try allocator.create(Self);
+        system.* = Self{
+            .allocator = allocator,
+            .manager = InputManager.init(allocator),
+            .config = config,
+        };
+        return system;
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.manager.deinit();
+        self.allocator.destroy(self);
+    }
+
+    pub fn update(self: *Self) void {
+        self.manager.update();
+    }
+
+    pub fn pushEvent(self: *Self, event: InputEvent) !void {
+        try self.manager.pushEvent(event);
+    }
+
+    pub fn isKeyPressed(self: *const Self, key: KeyCode) bool {
+        return self.manager.isKeyPressed(key);
+    }
+
+    pub fn isKeyJustPressed(self: *const Self, key: KeyCode) bool {
+        return self.manager.isKeyJustPressed(key);
+    }
+
+    pub fn isKeyJustReleased(self: *const Self, key: KeyCode) bool {
+        return self.manager.isKeyJustReleased(key);
+    }
+
+    pub fn isMouseButtonPressed(self: *const Self, button: MouseButton) bool {
+        return self.manager.isMouseButtonPressed(button);
+    }
+
+    pub fn isMouseButtonJustPressed(self: *const Self, button: MouseButton) bool {
+        return self.manager.isMouseButtonJustPressed(button);
+    }
+
+    pub fn isMouseButtonJustReleased(self: *const Self, button: MouseButton) bool {
+        return self.manager.isMouseButtonJustReleased(button);
+    }
+
+    pub fn getMousePosition(self: *const Self) math.Vec2 {
+        return self.manager.getMousePosition();
+    }
+
+    pub fn getMouseDelta(self: *const Self) math.Vec2 {
+        return self.manager.getMouseDelta();
+    }
+
+    pub fn getWheelDelta(self: *const Self) math.Vec2 {
+        return self.manager.getWheelDelta();
+    }
+};
+
+// Re-export InputSystemConfig for mod.zig
+pub const InputConfig = InputSystem.InputSystemConfig;
 
 // Global input manager instance
 var g_input_manager: ?InputManager = null;

@@ -1,2 +1,2 @@
 //! Legacy stub for graphics utils: forward to core utils
-pub usingnamespace @import("../../utils/error_utils.zig");
+pub const error_utils = @import("../../utils/error_utils.zig");

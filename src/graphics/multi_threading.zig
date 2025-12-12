@@ -170,11 +170,11 @@ pub const CommandBufferContext = struct {
     cmd_buffer: *anyopaque, // Backend-specific command buffer
     thread_id: u32,
     recording: bool = false,
-    work_items: std.ArrayList(GraphicsWorkItem),
+    work_items: std.array_list.Managed(GraphicsWorkItem),
 
     // Resource tracking for thread safety
     bound_pipeline: ?*types.Pipeline = null,
-    bound_descriptor_sets: std.ArrayList(*anyopaque),
+    bound_descriptor_sets: std.array_list.Managed(*anyopaque),
 
     // Statistics
     commands_recorded: u32 = 0,
@@ -184,8 +184,8 @@ pub const CommandBufferContext = struct {
         return CommandBufferContext{
             .cmd_buffer = cmd_buffer,
             .thread_id = thread_id,
-            .work_items = std.ArrayList(GraphicsWorkItem).init(allocator),
-            .bound_descriptor_sets = std.ArrayList(*anyopaque).init(allocator),
+            .work_items = std.array_list.Managed(GraphicsWorkItem).init(allocator),
+            .bound_descriptor_sets = std.array_list.Managed(*anyopaque).init(allocator),
         };
     }
 
@@ -273,7 +273,7 @@ pub const MultiThreadingStats = struct {
 /// Work queue with priority support and load balancing
 const WorkQueue = struct {
     items: std.PriorityQueue(GraphicsWorkItem, void, workItemPriorityFn),
-    dependencies: std.HashMap(u64, std.ArrayList(u64), std.hash_map.HashContext(u64), std.hash_map.default_max_load_percentage),
+    dependencies: std.HashMap(u64, std.array_list.Managed(u64), std.hash_map.HashContext(u64), std.hash_map.default_max_load_percentage),
     completed_items: std.HashMap(u64, void, std.hash_map.HashContext(u64), std.hash_map.default_max_load_percentage),
     item_counter: std.atomic.Atomic(u64),
     mutex: std.Thread.Mutex,
@@ -282,7 +282,7 @@ const WorkQueue = struct {
     pub fn init(allocator: std.mem.Allocator) WorkQueue {
         return WorkQueue{
             .items = std.PriorityQueue(GraphicsWorkItem, void, workItemPriorityFn).init(allocator, {}),
-            .dependencies = std.HashMap(u64, std.ArrayList(u64), std.hash_map.HashContext(u64), std.hash_map.default_max_load_percentage).init(allocator),
+            .dependencies = std.HashMap(u64, std.array_list.Managed(u64), std.hash_map.HashContext(u64), std.hash_map.default_max_load_percentage).init(allocator),
             .completed_items = std.HashMap(u64, void, std.hash_map.HashContext(u64), std.hash_map.default_max_load_percentage).init(allocator),
             .item_counter = std.atomic.Atomic(u64).init(1),
             .mutex = std.Thread.Mutex{},
@@ -318,7 +318,7 @@ const WorkQueue = struct {
 
         // Add dependencies
         if (mutable_item.dependencies.len > 0) {
-            var dep_list = std.ArrayList(u64).init(self.items.allocator);
+            var dep_list = std.array_list.Managed(u64).init(self.items.allocator);
             dep_list.appendSlice(mutable_item.dependencies) catch return 0;
             self.dependencies.put(mutable_item.id, dep_list) catch return 0;
         }
@@ -334,7 +334,7 @@ const WorkQueue = struct {
         defer self.mutex.unlock();
 
         // Find work item with satisfied dependencies
-        var temp_items = std.ArrayList(GraphicsWorkItem).init(self.items.allocator);
+        var temp_items = std.array_list.Managed(GraphicsWorkItem).init(self.items.allocator);
         defer temp_items.deinit();
 
         while (self.items.removeOrNull()) |item| {
@@ -401,7 +401,7 @@ const WorkerThread = struct {
     thread_id: u32,
     is_running: bool,
     work_queue: *WorkQueue,
-    cmd_contexts: std.ArrayList(CommandBufferContext),
+    cmd_contexts: std.array_list.Managed(CommandBufferContext),
     current_context: u32 = 0,
 
     // Statistics
@@ -417,7 +417,7 @@ const WorkerThread = struct {
         cmd_buffer_count: u32,
         graphics_backend: *anyopaque,
     ) !WorkerThread {
-        var cmd_contexts = std.ArrayList(CommandBufferContext).init(allocator);
+        var cmd_contexts = std.array_list.Managed(CommandBufferContext).init(allocator);
 
         // Create command buffer contexts
         for (0..cmd_buffer_count) |i| {
@@ -623,8 +623,8 @@ pub const MultiThreadedGraphics = struct {
 
         // Clean up other resources
         self.work_queue.deinit();
-        self.load_balancer.deinit(self.allocator);
-        self.stats.deinit(self.allocator);
+        self.load_balancer.deinit();
+        self.stats.deinit();
 
         destroyFrameFence(self.graphics_backend, self.frame_fence);
 
@@ -768,7 +768,7 @@ pub const MultiThreadedGraphics = struct {
     // Private methods
     fn submitAllCommandBuffers(self: *Self) !void {
         // Collect all recorded command buffers
-        var cmd_buffers = std.ArrayList(*anyopaque).init(self.allocator);
+        var cmd_buffers = std.array_list.Managed(*anyopaque).init(self.allocator);
         defer cmd_buffers.deinit();
 
         for (self.worker_threads) |*worker| {

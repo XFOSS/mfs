@@ -52,7 +52,7 @@ pub const WindowSystemImpl = struct {
     config: Config,
     window: ?*Window,
     should_close: bool,
-    events: std.ArrayList(WindowEvent),
+    events: std.array_list.Managed(WindowEvent),
 
     const Self = @This();
 
@@ -63,7 +63,11 @@ pub const WindowSystemImpl = struct {
             .config = config,
             .window = null,
             .should_close = false,
-            .events = std.ArrayList(WindowEvent).init(allocator),
+            .events = blk: {
+                var list = std.array_list.Managed(WindowEvent).init(allocator);
+                try list.ensureTotalCapacity(16);
+                break :blk list;
+            },
         };
 
         // Create the actual window

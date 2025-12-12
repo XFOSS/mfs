@@ -174,9 +174,9 @@ pub const Stats = struct {
 /// High-performance type-safe event system
 pub const EventSystem = struct {
     allocator: std.mem.Allocator,
-    handlers: std.ArrayList(Handler),
-    event_queue: std.ArrayList(QueuedEvent),
-    immediate_queue: std.ArrayList(QueuedEvent),
+    handlers: std.array_list.Managed(Handler),
+    event_queue: std.array_list.Managed(QueuedEvent),
+    immediate_queue: std.array_list.Managed(QueuedEvent),
     mutex: std.Thread.Mutex,
     max_queue_size: u32,
     stats: Stats,
@@ -195,9 +195,9 @@ pub const EventSystem = struct {
     pub fn init(allocator: std.mem.Allocator, config: Config) Self {
         return Self{
             .allocator = allocator,
-            .handlers = std.ArrayList(Handler).init(allocator),
-            .event_queue = std.ArrayList(QueuedEvent).init(allocator),
-            .immediate_queue = std.ArrayList(QueuedEvent).init(allocator),
+            .handlers = std.array_list.Managed(Handler).init(allocator),
+            .event_queue = std.array_list.Managed(QueuedEvent).init(allocator),
+            .immediate_queue = std.array_list.Managed(QueuedEvent).init(allocator),
             .mutex = std.Thread.Mutex{},
             .max_queue_size = config.max_queue_size,
             .stats = Stats{},
@@ -214,12 +214,12 @@ pub const EventSystem = struct {
 
         // Clean up queued events
         for (self.event_queue.items) |event| {
-            event.deinit(self.allocator);
+            event.deinit();
         }
         self.event_queue.deinit();
 
         for (self.immediate_queue.items) |event| {
-            event.deinit(self.allocator);
+            event.deinit();
         }
         self.immediate_queue.deinit();
 
@@ -337,7 +337,7 @@ pub const EventSystem = struct {
 
         // Update timing statistics
         if (start_time > 0) {
-            const end_time = std.time.nanoTimestamp();
+            const end_time = (std.time.Instant.now() catch std.time.Instant{ .timestamp = 0 }).timestamp;
             const process_time = @as(u64, @intCast(end_time - start_time));
             self.stats.average_process_time_ns = (self.stats.average_process_time_ns + process_time) / 2;
         }
@@ -422,13 +422,13 @@ pub const EventSystem = struct {
         // Process immediate events
         for (immediate_events) |queued_event| {
             try self.processQueuedEvent(queued_event);
-            queued_event.deinit(self.allocator);
+            queued_event.deinit();
         }
 
         // Process regular events
         for (events) |queued_event| {
             try self.processQueuedEvent(queued_event);
-            queued_event.deinit(self.allocator);
+            queued_event.deinit();
         }
 
         // Update queue size
@@ -441,7 +441,7 @@ pub const EventSystem = struct {
 
     /// Process a single queued event
     fn processQueuedEvent(self: *Self, queued_event: QueuedEvent) EventError!void {
-        const start_time = std.time.nanoTimestamp();
+        const start_time = (std.time.Instant.now() catch std.time.Instant{ .timestamp = 0 }).timestamp;
 
         if (self.thread_safe) {
             self.mutex.lock();
@@ -469,7 +469,7 @@ pub const EventSystem = struct {
         self.stats.handlers_called += handlers_called;
 
         // Update timing statistics
-        const end_time = std.time.nanoTimestamp();
+        const end_time = (std.time.Instant.now() catch std.time.Instant{ .timestamp = 0 }).timestamp;
         const process_time = @as(u64, @intCast(end_time - start_time));
         self.stats.average_process_time_ns = (self.stats.average_process_time_ns + process_time) / 2;
     }
@@ -501,12 +501,12 @@ pub const EventSystem = struct {
         }
 
         for (self.event_queue.items) |event| {
-            event.deinit(self.allocator);
+            event.deinit();
         }
         self.event_queue.clearRetainingCapacity();
 
         for (self.immediate_queue.items) |event| {
-            event.deinit(self.allocator);
+            event.deinit();
         }
         self.immediate_queue.clearRetainingCapacity();
 
@@ -663,7 +663,7 @@ pub const SystemEvent = struct {
 /// Event listener for automatic subscription management
 pub const EventListener = struct {
     event_system: *EventSystem,
-    subscriptions: std.ArrayList(Subscription),
+    subscriptions: std.array_list.Managed(Subscription),
     allocator: std.mem.Allocator,
 
     const Self = @This();
@@ -678,7 +678,7 @@ pub const EventListener = struct {
     pub fn init(allocator: std.mem.Allocator, event_system: *EventSystem) Self {
         return Self{
             .event_system = event_system,
-            .subscriptions = std.ArrayList(Subscription).init(allocator),
+            .subscriptions = std.array_list.Managed(Subscription).init(allocator),
             .allocator = allocator,
         };
     }
@@ -779,12 +779,12 @@ test "event priority handling" {
     const TestEvent = struct { value: i32 };
 
     const TestHandlers = struct {
-        var call_order: std.ArrayList(i32) = undefined;
+        var call_order: std.array_list.Managed(i32) = undefined;
         var allocator_ref: std.mem.Allocator = undefined;
 
         fn init(alloc: std.mem.Allocator) void {
             allocator_ref = alloc;
-            call_order = std.ArrayList(i32).init(alloc);
+            call_order = std.array_list.Managed(i32).init(alloc);
         }
 
         fn deinit() void {

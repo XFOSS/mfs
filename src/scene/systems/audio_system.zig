@@ -1,12 +1,12 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const Entity = @import("../core/entity.zig").Entity;
 const Scene = @import("../core/scene.zig").Scene;
 const TransformComponent = @import("../components/transform.zig").Transform;
 const System = @import("../core/scene.zig").System;
 const AudioComponent = @import("../components/audio.zig").AudioComponent;
-const math = @import("math");
+const math = @import("../../libs/math/mod.zig");
 const Vec3 = math.Vec3;
 const openal = @import("openal.zig");
 
@@ -157,7 +157,7 @@ pub fn update(system: *System, scene: *Scene, delta_time: f32) void {
     // implementation above but operates directly on the Scene.
     _ = delta_time; // Currently unused but kept for future time-based effects
 
-    var master_volume: f32 = 1.0;
+    const master_volume: f32 = 1.0;
 
     // ---------------------------------------------------------------------
     // 1. Locate the active listener (if any) and update its properties

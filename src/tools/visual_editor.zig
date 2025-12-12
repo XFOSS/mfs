@@ -253,8 +253,8 @@ pub const NodeEditor = struct {
     visible: bool = true,
 
     // Node system
-    nodes: std.ArrayList(Node),
-    connections: std.ArrayList(Connection),
+    nodes: std.array_list.Managed(Node),
+    connections: std.array_list.Managed(Connection),
     next_node_id: u32 = 1,
     next_connection_id: u32 = 1,
 
@@ -269,8 +269,8 @@ pub const NodeEditor = struct {
     pub fn init(allocator: std.mem.Allocator) !Self {
         return Self{
             .allocator = allocator,
-            .nodes = std.ArrayList(Node).init(allocator),
-            .connections = std.ArrayList(Connection).init(allocator),
+            .nodes = std.array_list.Managed(Node).init(allocator),
+            .connections = std.array_list.Managed(Connection).init(allocator),
         };
     }
 
@@ -365,7 +365,7 @@ pub const AssetBrowser = struct {
     visible: bool = true,
 
     // Asset management
-    assets: std.ArrayList(Asset),
+    assets: std.array_list.Managed(Asset),
     current_directory: []const u8,
     selected_asset: ?u32 = null,
 
@@ -378,7 +378,7 @@ pub const AssetBrowser = struct {
     pub fn init(allocator: std.mem.Allocator) !Self {
         return Self{
             .allocator = allocator,
-            .assets = std.ArrayList(Asset).init(allocator),
+            .assets = std.array_list.Managed(Asset).init(allocator),
             .current_directory = try allocator.dupe(u8, "assets/"),
         };
     }
@@ -479,7 +479,7 @@ pub const SceneHierarchy = struct {
     visible: bool = true,
 
     // Scene data
-    root_entities: std.ArrayList(u32),
+    root_entities: std.array_list.Managed(u32),
     selected_entity: ?u32 = null,
 
     const Self = @This();
@@ -487,7 +487,7 @@ pub const SceneHierarchy = struct {
     pub fn init(allocator: std.mem.Allocator) !Self {
         return Self{
             .allocator = allocator,
-            .root_entities = std.ArrayList(u32).init(allocator),
+            .root_entities = std.array_list.Managed(u32).init(allocator),
         };
     }
 
@@ -575,14 +575,14 @@ pub const Timeline = struct {
     playing: bool = false,
 
     // Tracks
-    tracks: std.ArrayList(TimelineTrack),
+    tracks: std.array_list.Managed(TimelineTrack),
 
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator) !Self {
         return Self{
             .allocator = allocator,
-            .tracks = std.ArrayList(TimelineTrack).init(allocator),
+            .tracks = std.array_list.Managed(TimelineTrack).init(allocator),
         };
     }
 
@@ -712,8 +712,8 @@ pub const Node = struct {
     size: Vec2 = .{ .x = 120, .y = 80 },
 
     // Node data
-    inputs: std.ArrayList(NodePin),
-    outputs: std.ArrayList(NodePin),
+    inputs: std.array_list.Managed(NodePin),
+    outputs: std.array_list.Managed(NodePin),
     properties: std.HashMap([]const u8, NodeProperty, std.hash_map.StringContext, std.hash_map.default_max_load_percentage),
 
     pub fn create(allocator: std.mem.Allocator, id: u32, node_type: NodeType, position: Vec2) !Node {
@@ -722,8 +722,8 @@ pub const Node = struct {
             .id = id,
             .node_type = node_type,
             .position = position,
-            .inputs = std.ArrayList(NodePin).init(allocator),
-            .outputs = std.ArrayList(NodePin).init(allocator),
+            .inputs = std.array_list.Managed(NodePin).init(allocator),
+            .outputs = std.array_list.Managed(NodePin).init(allocator),
             .properties = std.HashMap([]const u8, NodeProperty, std.hash_map.StringContext, std.hash_map.default_max_load_percentage).init(allocator),
         };
 
@@ -740,7 +740,7 @@ pub const Node = struct {
         var prop_iterator = self.properties.iterator();
         while (prop_iterator.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
-            entry.value_ptr.deinit(self.allocator);
+            entry.value_ptr.deinit();
         }
         self.properties.deinit();
     }
@@ -960,7 +960,7 @@ pub const GizmoMode = enum {
 pub const TimelineTrack = struct {
     allocator: std.mem.Allocator,
     name: []const u8,
-    keyframes: std.ArrayList(Keyframe),
+    keyframes: std.array_list.Managed(Keyframe),
 
     pub fn deinit(self: *TimelineTrack) void {
         self.allocator.free(self.name);

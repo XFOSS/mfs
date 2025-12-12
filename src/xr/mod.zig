@@ -102,7 +102,7 @@ pub fn isAvailable() bool {
 
 /// Get available XR runtimes
 pub fn getAvailableRuntimes(allocator: std.mem.Allocator) ![]RuntimeType {
-    var runtimes = std.ArrayList(RuntimeType).init(allocator);
+    var runtimes = std.array_list.Managed(RuntimeType).init(allocator);
     defer runtimes.deinit();
 
     // Check for OpenXR

@@ -6,15 +6,13 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-
-// Core input components
-pub const input = @import("input.zig");
+const input = @import("input.zig");
 
 // Re-export main input types
-pub const InputSystem = input.InputSystem;
-pub const InputConfig = input.InputConfig;
 pub const InputEvent = input.InputEvent;
 pub const InputState = input.InputState;
+pub const InputManager = input.InputManager;
+pub const InputConfig = InputSystemConfig;
 
 // Input device types
 pub const InputDevice = enum {
@@ -155,31 +153,11 @@ pub const GamepadAxis = enum(u8) {
     right_trigger = 5,
 };
 
-// Input system configuration
-pub const InputSystemConfig = struct {
-    enable_keyboard: bool = true,
-    enable_mouse: bool = true,
-    enable_gamepad: bool = true,
-    enable_touch: bool = true,
-    max_gamepads: u8 = 4,
-    max_touch_points: u8 = 10,
-    deadzone_threshold: f32 = 0.1,
-
-    pub fn validate(self: InputSystemConfig) !void {
-        if (self.max_gamepads == 0 or self.max_gamepads > 16) {
-            return error.InvalidParameter;
-        }
-        if (self.max_touch_points == 0 or self.max_touch_points > 32) {
-            return error.InvalidParameter;
-        }
-        if (self.deadzone_threshold < 0.0 or self.deadzone_threshold > 1.0) {
-            return error.InvalidParameter;
-        }
-    }
-};
+// Input system configuration (re-exported from InputSystem)
+pub const InputSystemConfig = input.InputSystem.InputSystemConfig;
 
 // Initialize input system
-pub fn init(allocator: std.mem.Allocator, config: InputSystemConfig) !*InputSystem {
+pub fn init(allocator: std.mem.Alocator, config: InputSystemConfig) !*InputSystem {
     try config.validate();
     return try InputSystem.init(allocator, config);
 }

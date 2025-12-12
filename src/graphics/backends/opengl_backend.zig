@@ -9,18 +9,26 @@ const Allocator = std.mem.Allocator;
 const types = @import("../types.zig");
 const common = @import("common.zig");
 const interface = @import("interface.zig");
-const c = @cImport({
-    @cInclude("GL/gl.h");
-    @cInclude("GL/glext.h");
-    @cDefine("GLAD_GL_IMPLEMENTATION", "");
-});
 
-const has_headers = comptime blk: {
+const has_headers = blk: {
     // If the C import failed due to missing headers, the file would not even compile.
     // So for safety we expose a comptime constant that can be toggled via build options in the future.
     break :blk build_options.Graphics.opengl_available;
 };
 
+comptime {
+    if (!has_headers) {
+        @compileError("OpenGL backend requires OpenGL headers which are not available");
+    }
+}
+
+const c = if (has_headers) @cImport({
+    @cInclude("GL/gl.h");
+    @cInclude("GL/glext.h");
+    @cDefine("GLAD_GL_IMPLEMENTATION", "");
+}) else @compileError("OpenGL backend disabled due to missing headers");
+
+// If headers are not available, provide stub implementations
 pub const OpenGLError = error{
     InitializationFailed,
     ShaderCompilationFailed,
@@ -538,11 +546,10 @@ pub const OpenGLBackend = struct {
         };
     }
 
-    fn createPipelineImpl(impl: *anyopaque, pipeline: *types.Pipeline, desc: *const interface.PipelineDesc) interface.GraphicsBackendError!void {
+    fn createPipelineImpl(impl: *anyopaque, desc: *const interface.PipelineDesc) interface.GraphicsBackendError!*interface.Pipeline {
         _ = impl;
-        _ = pipeline;
         _ = desc;
-        return interface.GraphicsBackendError.UnsupportedFormat; // Not implemented
+        return interface.GraphicsBackendError.UnsupportedOperation; // Not implemented
     }
 
     fn createRenderTargetImpl(impl: *anyopaque, render_target: *types.RenderTarget) interface.GraphicsBackendError!void {
@@ -554,7 +561,7 @@ pub const OpenGLBackend = struct {
         };
     }
 
-    fn updateBufferImpl(impl: *anyopaque, buffer: *types.Buffer, data: []const u8, offset: u32) interface.GraphicsBackendError!void {
+    fn updateBufferImpl(impl: *anyopaque, buffer: *types.Buffer, offset: u64, data: []const u8) interface.GraphicsBackendError!void {
         _ = impl;
         _ = buffer;
         _ = data;

@@ -141,7 +141,7 @@ pub const Value = union(enum) {
             .string => |s| allocator.free(s),
             .array => |arr| {
                 for (arr) |*item| {
-                    item.deinit(allocator);
+                    item.deinit();
                 }
                 allocator.free(arr);
             },
@@ -149,7 +149,7 @@ pub const Value = union(enum) {
                 var iter = obj.iterator();
                 while (iter.next()) |entry| {
                     allocator.free(entry.key_ptr.*);
-                    entry.value_ptr.deinit(allocator);
+                    entry.value_ptr.deinit();
                 }
                 obj.deinit();
             },
@@ -453,7 +453,7 @@ pub const Config = struct {
             if (entry.value_ptr.description) |desc| {
                 self.allocator.free(desc);
             }
-            entry.value_ptr.value.deinit(self.allocator);
+            entry.value_ptr.value.deinit();
         }
         self.entries.deinit();
 

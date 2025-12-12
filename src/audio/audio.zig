@@ -97,15 +97,15 @@ pub const AudioEngine = struct {
     audio_context: *AudioContext,
 
     // Audio sources and buffers
-    sources: std.ArrayList(*AudioSource),
-    buffers: std.ArrayList(*AudioBuffer),
-    streaming_sources: std.ArrayList(*StreamingSource),
+    sources: std.array_list.Managed(*AudioSource),
+    buffers: std.array_list.Managed(*AudioBuffer),
+    streaming_sources: std.array_list.Managed(*StreamingSource),
 
     // 3D Audio and listener
     listener: AudioListener,
 
     // Effects and processing
-    reverb_zones: std.ArrayList(*ReverbZone),
+    reverb_zones: std.array_list.Managed(*ReverbZone),
     effect_chain: *EffectChain,
 
     // Audio synthesis
@@ -431,8 +431,8 @@ pub const AudioEngine = struct {
         }
 
         pub fn deinit(self: *StreamingSource, allocator: std.mem.Allocator) void {
-            self.buffers[0].deinit(allocator);
-            self.buffers[1].deinit(allocator);
+            self.buffers[0].deinit();
+            self.buffers[1].deinit();
             self.decoder.deinit();
             allocator.free(self.file_path);
             allocator.destroy(self);
@@ -522,11 +522,23 @@ pub const AudioEngine = struct {
             };
             defer self.allocator.free(file_data);
 
-            _ = file.readAll(file_data) catch {
-                std.log.warn("Failed to read WAV file data", .{});
+            // Ensure complete file read
+            var total_bytes_read: usize = 0;
+            while (total_bytes_read < file_data.len) {
+                const bytes_read = file.read(file_data[total_bytes_read..]) catch {
+                    std.log.warn("Failed to read WAV file data at offset {}", .{total_bytes_read});
+                    @memset(output_buffer, 0.0);
+                    return;
+                };
+                if (bytes_read == 0) break; // EOF
+                total_bytes_read += bytes_read;
+            }
+
+            if (total_bytes_read != file_data.len) {
+                std.log.warn("Incomplete WAV file read: expected {} bytes, got {}", .{ file_data.len, total_bytes_read });
                 @memset(output_buffer, 0.0);
                 return;
-            };
+            }
 
             // Parse WAV header
             if (!std.mem.eql(u8, file_data[0..4], "RIFF")) {
@@ -693,13 +705,17 @@ pub const AudioEngine = struct {
     /// Audio effects chain processor
     pub const EffectChain = struct {
         allocator: std.mem.Allocator,
-        effects: std.ArrayList(*AudioEffect),
+        effects: std.array_list.Managed(*AudioEffect),
 
         pub fn init(allocator: std.mem.Allocator) !*EffectChain {
             const chain = try allocator.create(EffectChain);
             chain.* = EffectChain{
                 .allocator = allocator,
-                .effects = std.ArrayList(*AudioEffect).init(allocator),
+                .effects = blk: {
+                    var list = std.array_list.Managed(*AudioEffect).init(allocator);
+                    try list.ensureTotalCapacity(4);
+                    break :blk list;
+                },
             };
             return chain;
         }
@@ -779,14 +795,18 @@ pub const AudioEngine = struct {
     /// Audio synthesizer for procedural sound generation
     pub const AudioSynthesizer = struct {
         allocator: std.mem.Allocator,
-        oscillators: std.ArrayList(*Oscillator),
+        oscillators: std.array_list.Managed(*Oscillator),
         sample_rate: u32,
 
         pub fn init(allocator: std.mem.Allocator, sample_rate: u32) !*AudioSynthesizer {
             const synth = try allocator.create(AudioSynthesizer);
             synth.* = AudioSynthesizer{
                 .allocator = allocator,
-                .oscillators = std.ArrayList(*Oscillator).init(allocator),
+                .oscillators = blk: {
+                    var list = std.array_list.Managed(*Oscillator).init(allocator);
+                    try list.ensureTotalCapacity(8);
+                    break :blk list;
+                },
                 .sample_rate = sample_rate,
             };
             return synth;
@@ -794,7 +814,7 @@ pub const AudioEngine = struct {
 
         pub fn deinit(self: *AudioSynthesizer) void {
             for (self.oscillators.items) |osc| {
-                osc.deinit(self.allocator);
+                osc.deinit();
             }
             self.oscillators.deinit();
             self.allocator.destroy(self);
@@ -1023,11 +1043,27 @@ pub const AudioEngine = struct {
             .allocator = allocator,
             .audio_device = try AudioDevice.init(allocator, settings),
             .audio_context = try AudioContext.init(allocator),
-            .sources = std.ArrayList(*AudioSource).init(allocator),
-            .buffers = std.ArrayList(*AudioBuffer).init(allocator),
-            .streaming_sources = std.ArrayList(*StreamingSource).init(allocator),
+            .sources = blk: {
+                var list = std.array_list.Managed(*AudioSource).init(allocator);
+                try list.ensureTotalCapacity(32);
+                break :blk list;
+            },
+            .buffers = blk: {
+                var list = std.array_list.Managed(*AudioBuffer).init(allocator);
+                try list.ensureTotalCapacity(16);
+                break :blk list;
+            },
+            .streaming_sources = blk: {
+                var list = std.array_list.Managed(*StreamingSource).init(allocator);
+                try list.ensureTotalCapacity(8);
+                break :blk list;
+            },
             .listener = AudioListener{},
-            .reverb_zones = std.ArrayList(*ReverbZone).init(allocator),
+            .reverb_zones = blk: {
+                var list = std.array_list.Managed(*ReverbZone).init(allocator);
+                try list.ensureTotalCapacity(4);
+                break :blk list;
+            },
             .effect_chain = try EffectChain.init(allocator),
             .synthesizer = try AudioSynthesizer.init(allocator, settings.sample_rate),
             .audio_queue = try LockFreeQueue(AudioCommand).init(allocator, 1024),
@@ -1063,13 +1099,13 @@ pub const AudioEngine = struct {
 
         // Clean up buffers
         for (self.buffers.items) |buffer| {
-            buffer.deinit(self.allocator);
+            buffer.deinit();
         }
         self.buffers.deinit();
 
         // Clean up streaming sources
         for (self.streaming_sources.items) |source| {
-            source.deinit(self.allocator);
+            source.deinit();
         }
         self.streaming_sources.deinit();
 
@@ -1082,9 +1118,9 @@ pub const AudioEngine = struct {
         // Clean up subsystems
         self.effect_chain.deinit();
         self.synthesizer.deinit();
-        self.audio_queue.deinit(self.allocator);
-        self.audio_context.deinit(self.allocator);
-        self.audio_device.deinit(self.allocator);
+        self.audio_queue.deinit();
+        self.audio_context.deinit();
+        self.audio_device.deinit();
 
         self.allocator.destroy(self);
     }
@@ -1141,7 +1177,8 @@ pub const AudioEngine = struct {
             self.updateStats();
 
             // Small sleep to prevent busy waiting
-            std.time.sleep(1_000_000); // 1ms
+            // TODO: Fix sleep API for Zig 0.16 - std.time.sleep API changed
+            // std.time.sleep(1_000_000); // 1ms
         }
     }
 

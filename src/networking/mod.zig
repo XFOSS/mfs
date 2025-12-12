@@ -20,7 +20,7 @@ pub const NetworkManager = struct {
     mode: NetworkMode,
 
     // Network components
-    server: ?server.GameServer = null,
+    server: ?server.NetworkServer = null,
     client: ?client.GameClient = null,
     p2p_node: ?p2p.P2PNode = null,
     sync_manager: sync.SynchronizationManager,
@@ -371,14 +371,14 @@ pub const NetworkStats = struct {
 /// Network Event System
 pub const NetworkEventSystem = struct {
     allocator: std.mem.Allocator,
-    handlers: std.HashMap(protocol.MessageType, std.ArrayList(protocol.MessageHandler), std.hash_map.AutoContext(protocol.MessageType), std.hash_map.default_max_load_percentage),
+    handlers: std.HashMap(protocol.MessageType, std.array_list.Managed(protocol.MessageHandler), std.hash_map.AutoContext(protocol.MessageType), std.hash_map.default_max_load_percentage),
 
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .allocator = allocator,
-            .handlers = std.HashMap(protocol.MessageType, std.ArrayList(protocol.MessageHandler), std.hash_map.AutoContext(protocol.MessageType), std.hash_map.default_max_load_percentage).init(allocator),
+            .handlers = std.HashMap(protocol.MessageType, std.array_list.Managed(protocol.MessageHandler), std.hash_map.AutoContext(protocol.MessageType), std.hash_map.default_max_load_percentage).init(allocator),
         };
     }
 
@@ -393,7 +393,7 @@ pub const NetworkEventSystem = struct {
     pub fn registerHandler(self: *Self, message_type: protocol.MessageType, handler: protocol.MessageHandler) !void {
         const result = try self.handlers.getOrPut(message_type);
         if (!result.found_existing) {
-            result.value_ptr.* = std.ArrayList(protocol.MessageHandler).init(self.allocator);
+            result.value_ptr.* = std.array_list.Managed(protocol.MessageHandler).init(self.allocator);
         }
         try result.value_ptr.append(handler);
     }
@@ -517,9 +517,9 @@ pub const RateLimit = struct {
 /// Network Diagnostics and Monitoring
 pub const NetworkDiagnostics = struct {
     allocator: std.mem.Allocator,
-    latency_history: std.ArrayList(f32),
-    packet_loss_history: std.ArrayList(f32),
-    bandwidth_history: std.ArrayList(f32),
+    latency_history: std.array_list.Managed(f32),
+    packet_loss_history: std.array_list.Managed(f32),
+    bandwidth_history: std.array_list.Managed(f32),
 
     const Self = @This();
     const HISTORY_SIZE = 100;
@@ -527,9 +527,9 @@ pub const NetworkDiagnostics = struct {
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .allocator = allocator,
-            .latency_history = std.ArrayList(f32).init(allocator),
-            .packet_loss_history = std.ArrayList(f32).init(allocator),
-            .bandwidth_history = std.ArrayList(f32).init(allocator),
+            .latency_history = std.array_list.Managed(f32).init(allocator),
+            .packet_loss_history = std.array_list.Managed(f32).init(allocator),
+            .bandwidth_history = std.array_list.Managed(f32).init(allocator),
         };
     }
 

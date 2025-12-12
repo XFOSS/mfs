@@ -4,3 +4,20 @@
 # Cache directories
 .mypy_cache/
 .zig-cache-clean/
+
+# Build artifacts
+*.exe
+*.pdb
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# Build reports
+*.csv
+build_date.txt
+build_output.txt
+build_report.csv
+code_quality_report.csv
+function_dupes.json

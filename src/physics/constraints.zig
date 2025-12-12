@@ -1,6 +1,6 @@
 const std = @import("std");
 const physics_engine = @import("physics_engine.zig");
-const math = @import("math");
+const math = @import("../math/mod.zig");
 const Vector = math.Vector;
 const Quaternion = math.Quaternion;
 const Vec3f = physics_engine.Vec3f;
@@ -449,12 +449,12 @@ pub const AngleConstraint = struct {
 /// ConstraintManager for handling various constraint types
 pub const ConstraintManager = struct {
     allocator: std.mem.Allocator,
-    constraints: std.ArrayList(Constraint),
+    constraints: std.array_list.Managed(Constraint),
 
     pub fn init(allocator: std.mem.Allocator) ConstraintManager {
         return ConstraintManager{
             .allocator = allocator,
-            .constraints = std.ArrayList(Constraint).init(allocator),
+            .constraints = std.array_list.Managed(Constraint).init(allocator),
         };
     }
 

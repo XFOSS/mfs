@@ -1,8 +1,8 @@
 const std = @import("std");
 const testing = std.testing;
-const vk = @import("vulkan_backend.zig");
-const vulkan_backend = @import("vulkan_backend.zig");
-const VulkanBackend = vulkan_backend.VulkanBackend;
+const vulkan_backend_mod = @import("vulkan_backend.zig");
+const vk = vulkan_backend_mod.vk;
+const VulkanBackend = vulkan_backend_mod.VulkanBackend;
 
 /// Mock window handle for testing
 const MockWindow = struct {
@@ -17,7 +17,7 @@ test "VulkanBackend initialization" {
     var window = MockWindow{};
 
     // Create backend config
-    const config = vulkan_backend.BackendConfig{
+    const config = vulkan_backend_mod.BackendConfig{
         .app_name = "VulkanBackendTest",
         .engine_name = "TestEngine",
         .validation = .{
@@ -36,40 +36,40 @@ test "VulkanBackend initialization" {
     };
 
     // Initialize backend
-    var backend = try VulkanBackend.init(allocator, config, &window);
-    defer backend.deinit();
+    var vk_backend = try VulkanBackend.init(allocator, config, &window);
+    defer vk_backend.deinit();
 
     // Verify initialization
-    try testing.expect(backend.instance != .null_handle);
-    try testing.expect(backend.physical_device != .null_handle);
-    try testing.expect(backend.device != .null_handle);
-    try testing.expect(backend.graphics_queue != .null_handle);
-    try testing.expect(backend.transfer_queue != .null_handle);
-    try testing.expect(backend.present_queue != .null_handle);
-    try testing.expect(backend.compute_queue != null);
-    try testing.expect(backend.surface != .null_handle);
+    try testing.expect(vk_backend.instance != .null_handle);
+    try testing.expect(vk_backend.physical_device != .null_handle);
+    try testing.expect(vk_backend.device != .null_handle);
+    try testing.expect(vk_backend.graphics_queue != .null_handle);
+    try testing.expect(vk_backend.transfer_queue != .null_handle);
+    try testing.expect(vk_backend.present_queue != .null_handle);
+    try testing.expect(vk_backend.compute_queue != null);
+    try testing.expect(vk_backend.surface != .null_handle);
 }
 
 test "VulkanBackend buffer creation" {
     const allocator = testing.allocator;
     var window = MockWindow{};
-    const config = vulkan_backend.BackendConfig{
+    const config = vulkan_backend_mod.BackendConfig{
         .app_name = "VulkanBackendTest",
         .engine_name = "TestEngine",
     };
 
-    var backend = try VulkanBackend.init(allocator, config, &window);
-    defer backend.deinit();
+    var vk_backend = try VulkanBackend.init(allocator, config, &window);
+    defer vk_backend.deinit();
 
     // Create vertex buffer
-    const vertex_buffer = try backend.createBuffer(
+    const vertex_buffer = try vk_backend.createBuffer(
         1024,
         .{ .vertex_buffer_bit = true },
         .{ .device_local_bit = true },
     );
     defer {
-        backend.device.destroyBuffer(vertex_buffer.buffer, null);
-        backend.memory_manager.free(&vertex_buffer.memory);
+        vk_backend.device.destroyBuffer(vertex_buffer.buffer, null);
+        vk_backend.memory_manager.free(&vertex_buffer.memory);
     }
 
     // Verify buffer creation
@@ -81,16 +81,16 @@ test "VulkanBackend buffer creation" {
 test "VulkanBackend image creation" {
     const allocator = testing.allocator;
     var window = MockWindow{};
-    const config = vulkan_backend.BackendConfig{
+    const config = vulkan_backend_mod.BackendConfig{
         .app_name = "VulkanBackendTest",
         .engine_name = "TestEngine",
     };
 
-    var backend = try VulkanBackend.init(allocator, config, &window);
-    defer backend.deinit();
+    var vk_backend = try VulkanBackend.init(allocator, config, &window);
+    defer vk_backend.deinit();
 
     // Create texture image
-    const texture = try backend.createImage(
+    const texture = try vk_backend.createImage(
         256,
         256,
         .r8g8b8a8_unorm,
@@ -98,8 +98,8 @@ test "VulkanBackend image creation" {
         .{ .device_local_bit = true },
     );
     defer {
-        backend.device.destroyImage(texture.image, null);
-        backend.memory_manager.free(&texture.memory);
+        vk_backend.device.destroyImage(texture.image, null);
+        vk_backend.memory_manager.free(&texture.memory);
     }
 
     // Verify image creation
@@ -110,37 +110,37 @@ test "VulkanBackend image creation" {
 test "VulkanBackend memory stats" {
     const allocator = testing.allocator;
     var window = MockWindow{};
-    const config = vulkan_backend.BackendConfig{
+    const config = vulkan_backend_mod.BackendConfig{
         .app_name = "VulkanBackendTest",
         .engine_name = "TestEngine",
     };
 
-    var backend = try VulkanBackend.init(allocator, config, &window);
-    defer backend.deinit();
+    var vk_backend = try VulkanBackend.init(allocator, config, &window);
+    defer vk_backend.deinit();
 
     // Create some resources
-    const buffer1 = try backend.createBuffer(
+    const buffer1 = try vk_backend.createBuffer(
         1024,
         .{ .vertex_buffer_bit = true },
         .{ .device_local_bit = true },
     );
     defer {
-        backend.device.destroyBuffer(buffer1.buffer, null);
-        backend.memory_manager.free(&buffer1.memory);
+        vk_backend.device.destroyBuffer(buffer1.buffer, null);
+        vk_backend.memory_manager.free(&buffer1.memory);
     }
 
-    const buffer2 = try backend.createBuffer(
+    const buffer2 = try vk_backend.createBuffer(
         2048,
         .{ .uniform_buffer_bit = true },
         .{ .host_visible_bit = true, .host_coherent_bit = true },
     );
     defer {
-        backend.device.destroyBuffer(buffer2.buffer, null);
-        backend.memory_manager.free(&buffer2.memory);
+        vk_backend.device.destroyBuffer(buffer2.buffer, null);
+        vk_backend.memory_manager.free(&buffer2.memory);
     }
 
     // Check memory stats
-    const stats = backend.getMemoryStats();
+    const stats = vk_backend.getMemoryStats();
     try testing.expect(stats.total_allocated >= 3072);
     try testing.expect(stats.allocation_count == 2);
     try testing.expect(stats.current_usage >= 3072);

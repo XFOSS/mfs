@@ -71,7 +71,6 @@ pub const ui = @import("ui/mod.zig");
 // =============================================================================
 
 pub const voxels = @import("voxels/mod.zig");
-pub const neural = @import("neural/mod.zig");
 pub const xr = @import("xr.zig");
 
 // =============================================================================
@@ -82,7 +81,6 @@ pub const ai = @import("ai/mod.zig");
 pub const networking = @import("networking/mod.zig");
 pub const community = @import("community/mod.zig");
 pub const tools = @import("tools/mod.zig");
-pub const ecosystem = @import("ecosystem/mod.zig");
 pub const system = @import("system/mod.zig");
 
 // =============================================================================

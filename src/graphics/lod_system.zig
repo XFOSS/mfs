@@ -366,7 +366,7 @@ pub const LODSystem = struct {
     pub fn deinit(self: *Self) void {
         var iter = self.objects.iterator();
         while (iter.next()) |entry| {
-            entry.value_ptr.deinit(self.allocator);
+            entry.value_ptr.deinit();
         }
         self.objects.deinit();
 
@@ -383,7 +383,7 @@ pub const LODSystem = struct {
     pub fn unregisterObject(self: *Self, object_id: u64) void {
         if (self.objects.fetchRemove(object_id)) |removed| {
             var mutable_object = removed.value;
-            mutable_object.deinit(self.allocator);
+            mutable_object.deinit();
             self.stats.total_objects -= 1;
         }
     }
