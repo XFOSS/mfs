@@ -146,11 +146,12 @@ foreach ($example in $examples) {
 Write-Host "`n🖥️  Platform Compatibility Check..." -ForegroundColor Yellow
 
 $platformCheckStart = Get-Date
+$architecture = if ([System.Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
 $platformInfo = @{
     "OS" = [System.Environment]::OSVersion.VersionString
-    "Architecture" = [System.Environment]::Is64BitOperatingSystem ? "x64" : "x86"
+    "Architecture" = $architecture
     "PowerShell Version" = $PSVersionTable.PSVersion.ToString()
-    "Zig Version" = (& zig version 2>&1) -replace "`n", ""
+    "Zig Version" = ((& zig version 2>&1) -join "").Trim()
 }
 
 Write-Host "Platform Information:" -ForegroundColor Cyan
