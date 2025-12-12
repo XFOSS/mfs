@@ -156,7 +156,7 @@ pub const Scene = struct {
         return null;
     }
 
-    pub fn findEntitiesByTag(self: *Scene, tag: []const u8, results: *ArrayList(EntityId), allocator: Allocator) !void {
+    pub fn findEntitiesByTag(self: *Scene, tag: []const u8, results: *ArrayList(EntityId), _: Allocator) !void {
         var entity_iter = self.entities.iterator();
         while (entity_iter.next()) |entry| {
             if (std.mem.eql(u8, entry.value_ptr.tag, tag)) {

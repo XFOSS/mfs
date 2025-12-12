@@ -1,9 +1,8 @@
 const std = @import("std");
 const testing = std.testing;
-const backend = @import("vulkan_backend.zig");
-const vk = backend.vk;
-const vulkan_backend = @import("vulkan_backend.zig");
-const VulkanBackend = vulkan_backend.VulkanBackend;
+const vulkan_backend_mod = @import("vulkan_backend.zig");
+const vk = vulkan_backend_mod.vk;
+const VulkanBackend = vulkan_backend_mod.VulkanBackend;
 
 /// Mock window handle for testing
 const MockWindow = struct {
@@ -18,7 +17,7 @@ test "VulkanBackend initialization" {
     var window = MockWindow{};
 
     // Create backend config
-    const config = vulkan_backend.BackendConfig{
+    const config = vulkan_backend_mod.BackendConfig{
         .app_name = "VulkanBackendTest",
         .engine_name = "TestEngine",
         .validation = .{
@@ -54,7 +53,7 @@ test "VulkanBackend initialization" {
 test "VulkanBackend buffer creation" {
     const allocator = testing.allocator;
     var window = MockWindow{};
-    const config = vulkan_backend.BackendConfig{
+    const config = vulkan_backend_mod.BackendConfig{
         .app_name = "VulkanBackendTest",
         .engine_name = "TestEngine",
     };
@@ -82,7 +81,7 @@ test "VulkanBackend buffer creation" {
 test "VulkanBackend image creation" {
     const allocator = testing.allocator;
     var window = MockWindow{};
-    const config = vulkan_backend.BackendConfig{
+    const config = vulkan_backend_mod.BackendConfig{
         .app_name = "VulkanBackendTest",
         .engine_name = "TestEngine",
     };
@@ -111,7 +110,7 @@ test "VulkanBackend image creation" {
 test "VulkanBackend memory stats" {
     const allocator = testing.allocator;
     var window = MockWindow{};
-    const config = vulkan_backend.BackendConfig{
+    const config = vulkan_backend_mod.BackendConfig{
         .app_name = "VulkanBackendTest",
         .engine_name = "TestEngine",
     };
