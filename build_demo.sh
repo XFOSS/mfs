@@ -49,7 +49,7 @@ cat > web/test_demo.html << 'EOF'
         <h1>MFS Engine Spinning Cube Demo Test</h1>
         <div id="demo-container"></div>
     </div>
-    
+
     <script src="spinning_cube_embed.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
