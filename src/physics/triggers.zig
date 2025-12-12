@@ -174,7 +174,7 @@ pub const TriggerVolume = struct {
 /// Manager for multiple trigger volumes
 pub const TriggerManager = struct {
     allocator: std.mem.Allocator,
-    triggers: std.ArrayList(TriggerVolume),
+    triggers: std.array_list.Managed(TriggerVolume),
     next_id: usize = 0,
     callbacks: std.AutoHashMap(usize, TriggerCallback),
     time: f64 = 0,
@@ -182,7 +182,7 @@ pub const TriggerManager = struct {
     pub fn init(allocator: std.mem.Allocator) TriggerManager {
         return TriggerManager{
             .allocator = allocator,
-            .triggers = std.ArrayList(TriggerVolume).init(allocator),
+            .triggers = std.array_list.Managed(TriggerVolume).init(allocator),
             .callbacks = std.AutoHashMap(usize, TriggerCallback).init(allocator),
         };
     }

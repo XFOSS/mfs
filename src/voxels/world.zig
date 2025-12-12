@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const AutoHashMap = std.AutoHashMap;
 const ChunkPosition = @import("chunk.zig").ChunkPosition;
 const VoxelChunk = @import("chunk.zig").VoxelChunk;

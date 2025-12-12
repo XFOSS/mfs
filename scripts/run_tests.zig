@@ -159,7 +159,7 @@ fn runTestSuite(allocator: std.mem.Allocator, suite: TestSuite, verbose: bool, m
     };
 
     // Build test command
-    var cmd_args = try std.ArrayList([]const u8).initCapacity(allocator, 4);
+    var cmd_args = try std.array_list.Managed([]const u8).initCapacity(allocator, 4);
     defer cmd_args.deinit(allocator);
 
     try cmd_args.append(allocator, "zig");

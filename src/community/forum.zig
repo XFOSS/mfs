@@ -63,9 +63,9 @@ pub const ForumConfig = struct {
 pub const Forum = struct {
     allocator: std.mem.Allocator,
     config: ForumConfig,
-    posts: std.ArrayList(Post),
-    categories: std.ArrayList(Category),
-    users: std.ArrayList(User),
+    posts: std.array_list.Managed(Post),
+    categories: std.array_list.Managed(Category),
+    users: std.array_list.Managed(User),
     next_post_id: u64,
     next_category_id: u64,
     next_user_id: u64,
@@ -74,9 +74,9 @@ pub const Forum = struct {
         return Forum{
             .allocator = allocator,
             .config = config,
-            .posts = std.ArrayList(Post).init(allocator),
-            .categories = std.ArrayList(Category).init(allocator),
-            .users = std.ArrayList(User).init(allocator),
+            .posts = std.array_list.Managed(Post).init(allocator),
+            .categories = std.array_list.Managed(Category).init(allocator),
+            .users = std.array_list.Managed(User).init(allocator),
             .next_post_id = 1,
             .next_category_id = 1,
             .next_user_id = 1,
@@ -133,7 +133,7 @@ pub const Forum = struct {
         return user.id;
     }
 
-    pub fn getPostsByCategory(self: *const Forum, category_id: u64, results: *std.ArrayList(Post)) !void {
+    pub fn getPostsByCategory(self: *const Forum, category_id: u64, results: *std.array_list.Managed(Post)) !void {
         results.clearRetainingCapacity();
         for (self.posts.items) |post| {
             if (post.category_id == category_id) {
@@ -142,7 +142,7 @@ pub const Forum = struct {
         }
     }
 
-    pub fn searchPosts(self: *const Forum, query: []const u8, results: *std.ArrayList(Post)) !void {
+    pub fn searchPosts(self: *const Forum, query: []const u8, results: *std.array_list.Managed(Post)) !void {
         results.clearRetainingCapacity();
         for (self.posts.items) |post| {
             if (std.mem.indexOf(u8, post.title, query) != null or

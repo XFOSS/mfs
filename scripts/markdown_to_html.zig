@@ -35,7 +35,7 @@ pub fn main() !void {
 }
 
 fn markdownToHtml(allocator: std.mem.Allocator, markdown: []const u8, title: []const u8) ![]const u8 {
-    var html = std.ArrayList(u8).init(allocator);
+    var html = std.array_list.Managed(u8).init(allocator);
     defer html.deinit();
 
     // HTML template header
@@ -293,7 +293,7 @@ fn markdownToHtml(allocator: std.mem.Allocator, markdown: []const u8, title: []c
     return html.toOwnedSlice();
 }
 
-fn convertMarkdown(allocator: std.mem.Allocator, html: *std.ArrayList(u8), markdown: []const u8) !void {
+fn convertMarkdown(allocator: std.mem.Allocator, html: *std.array_list.Managed(u8), markdown: []const u8) !void {
     var lines = std.mem.split(u8, markdown, "\n");
     var in_code_block = false;
     var code_language = "";
@@ -424,7 +424,7 @@ fn convertMarkdown(allocator: std.mem.Allocator, html: *std.ArrayList(u8), markd
 }
 
 fn convertInlineMarkdown(allocator: std.mem.Allocator, text: []const u8) ![]const u8 {
-    var result = std.ArrayList(u8).init(allocator);
+    var result = std.array_list.Managed(u8).init(allocator);
     defer result.deinit();
 
     var i: usize = 0;
@@ -487,8 +487,8 @@ fn convertInlineMarkdown(allocator: std.mem.Allocator, text: []const u8) ![]cons
     return result.toOwnedSlice();
 }
 
-fn convertTableRow(allocator: std.mem.Allocator, html: *std.ArrayList(u8), row: []const u8) !void {
-    var cells = std.ArrayList([]const u8).init(allocator);
+fn convertTableRow(allocator: std.mem.Allocator, html: *std.array_list.Managed(u8), row: []const u8) !void {
+    var cells = std.array_list.Managed([]const u8).init(allocator);
     defer cells.deinit();
 
     var cell_start: usize = 0;
@@ -515,7 +515,7 @@ fn convertTableRow(allocator: std.mem.Allocator, html: *std.ArrayList(u8), row: 
 }
 
 fn escapeHtml(allocator: std.mem.Allocator, text: []const u8) ![]const u8 {
-    var result = std.ArrayList(u8).init(allocator);
+    var result = std.array_list.Managed(u8).init(allocator);
     defer result.deinit();
 
     for (text) |char| {

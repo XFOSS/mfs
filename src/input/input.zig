@@ -158,7 +158,7 @@ pub const InputManager = struct {
     allocator: std.mem.Allocator,
     current_state: InputState,
     previous_state: InputState,
-    event_queue: std.ArrayList(InputEvent),
+    event_queue: std.array_list.Managed(InputEvent),
     mutex: std.Thread.Mutex,
 
     pub fn init(allocator: std.mem.Allocator) InputManager {
@@ -166,7 +166,7 @@ pub const InputManager = struct {
             .allocator = allocator,
             .current_state = InputState.init(),
             .previous_state = InputState.init(),
-            .event_queue = std.ArrayList(InputEvent).init(allocator),
+            .event_queue = std.array_list.Managed(InputEvent).init(allocator),
             .mutex = std.Thread.Mutex{},
         };
     }

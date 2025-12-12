@@ -64,7 +64,7 @@ pub const MemoryPool = struct {
     memory: vk.DeviceMemory,
     size: vk.DeviceSize,
     memory_type_index: u32,
-    blocks: std.ArrayList(MemoryBlock),
+    blocks: std.array_list.Managed(MemoryBlock),
     mutex: std.Thread.Mutex,
 
     pub fn init(
@@ -83,7 +83,7 @@ pub const MemoryPool = struct {
             .memory = memory,
             .size = size,
             .memory_type_index = memory_type_index,
-            .blocks = std.ArrayList(MemoryBlock).init(allocator),
+            .blocks = std.array_list.Managed(MemoryBlock).init(allocator),
             .mutex = std.Thread.Mutex{},
         };
     }
@@ -182,7 +182,7 @@ pub const MemoryManager = struct {
     allocator: std.mem.Allocator,
     device: vk.Device,
     physical_device: vk.PhysicalDevice,
-    pools: std.ArrayList(MemoryPool),
+    pools: std.array_list.Managed(MemoryPool),
     stats: MemoryStats,
     mutex: std.Thread.Mutex,
 
@@ -200,7 +200,7 @@ pub const MemoryManager = struct {
             .allocator = allocator,
             .device = device,
             .physical_device = physical_device,
-            .pools = std.ArrayList(MemoryPool).init(allocator),
+            .pools = std.array_list.Managed(MemoryPool).init(allocator),
             .stats = MemoryStats{},
             .mutex = std.Thread.Mutex{},
         };

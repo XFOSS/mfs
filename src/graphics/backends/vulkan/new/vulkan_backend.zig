@@ -393,7 +393,7 @@ pub const VulkanBackend = struct {
             .apiVersion = vk.API_VERSION_1_3,
         };
 
-        var layers = std.ArrayList([*:0]const u8).init(allocator);
+        var layers = std.array_list.Managed([*:0]const u8).init(allocator);
         defer layers.deinit();
 
         if (config.validation.enabled) {
@@ -625,7 +625,7 @@ pub const VulkanBackend = struct {
             return error.MissingQueueFamily;
         }
 
-        var unique_queues = std.ArrayList(u32).init(std.heap.page_allocator);
+        var unique_queues = std.array_list.Managed(u32).init(std.heap.page_allocator);
         defer unique_queues.deinit();
 
         // Add required queue families
@@ -647,7 +647,7 @@ pub const VulkanBackend = struct {
         }
 
         // Create queue create infos
-        var queue_create_infos = std.ArrayList(vk.DeviceQueueCreateInfo).init(
+        var queue_create_infos = std.array_list.Managed(vk.DeviceQueueCreateInfo).init(
             std.heap.page_allocator,
         );
         defer queue_create_infos.deinit();

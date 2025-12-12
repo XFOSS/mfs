@@ -28,7 +28,7 @@ const MemoryBlock = memory_manager.MemoryBlock;
 const MockDevice = struct {
     allocator: std.mem.Allocator,
     memory_properties: VkPhysicalDeviceMemoryProperties,
-    allocated_memory: std.ArrayList(VkDeviceMemory),
+    allocated_memory: std.array_list.Managed(VkDeviceMemory),
     mapped_memory: std.AutoHashMap(VkDeviceMemory, *anyopaque),
 
     pub fn init(allocator: std.mem.Allocator) !*MockDevice {
@@ -53,7 +53,7 @@ const MockDevice = struct {
                     .{ .size = 512 * 1024 * 1024, .flags = 0 },
                 } ++ [_]VkMemoryHeap{.{ .size = 0, .flags = 0 }} ** 14,
             },
-            .allocated_memory = std.ArrayList(VkDeviceMemory).init(allocator),
+            .allocated_memory = std.array_list.Managed(VkDeviceMemory).init(allocator),
             .mapped_memory = std.AutoHashMap(VkDeviceMemory, *anyopaque).init(allocator),
         };
         return self;
@@ -276,7 +276,7 @@ test "MemoryManager thread safety" {
         allocator: std.mem.Allocator,
 
         fn run(self: @This()) !void {
-            var blocks = std.ArrayList(MemoryBlock).init(self.allocator);
+            var blocks = std.array_list.Managed(MemoryBlock).init(self.allocator);
             defer blocks.deinit();
 
             // Perform multiple allocations

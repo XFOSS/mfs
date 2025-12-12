@@ -97,15 +97,15 @@ pub const AudioEngine = struct {
     audio_context: *AudioContext,
 
     // Audio sources and buffers
-    sources: std.ArrayList(*AudioSource),
-    buffers: std.ArrayList(*AudioBuffer),
-    streaming_sources: std.ArrayList(*StreamingSource),
+    sources: std.array_list.Managed(*AudioSource),
+    buffers: std.array_list.Managed(*AudioBuffer),
+    streaming_sources: std.array_list.Managed(*StreamingSource),
 
     // 3D Audio and listener
     listener: AudioListener,
 
     // Effects and processing
-    reverb_zones: std.ArrayList(*ReverbZone),
+    reverb_zones: std.array_list.Managed(*ReverbZone),
     effect_chain: *EffectChain,
 
     // Audio synthesis

@@ -10,12 +10,12 @@ pub const AdvancedProfiler = struct {
     enabled: bool = true,
 
     // Profiling data
-    samples: std.ArrayList(ProfileSample),
+    samples: std.array_list.Managed(ProfileSample),
     current_frame: u64 = 0,
 
     // Statistics
-    frame_times: std.ArrayList(f64),
-    memory_usage: std.ArrayList(u64),
+    frame_times: std.array_list.Managed(f64),
+    memory_usage: std.array_list.Managed(u64),
 
     // Configuration
     max_samples: u32 = 10000,
@@ -26,9 +26,9 @@ pub const AdvancedProfiler = struct {
     pub fn init(allocator: std.mem.Allocator) !Self {
         return Self{
             .allocator = allocator,
-            .samples = std.ArrayList(ProfileSample).init(allocator),
-            .frame_times = std.ArrayList(f64).init(allocator),
-            .memory_usage = std.ArrayList(u64).init(allocator),
+            .samples = std.array_list.Managed(ProfileSample).init(allocator),
+            .frame_times = std.array_list.Managed(f64).init(allocator),
+            .memory_usage = std.array_list.Managed(u64).init(allocator),
         };
     }
 

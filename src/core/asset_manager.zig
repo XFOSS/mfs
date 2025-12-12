@@ -57,8 +57,8 @@ pub const AssetMetadata = struct {
     size: u64,
     last_modified: i64,
     checksum: u64,
-    dependencies: std.ArrayList(types.Handle),
-    tags: std.ArrayList([]const u8),
+    dependencies: std.array_list.Managed(types.Handle),
+    tags: std.array_list.Managed([]const u8),
 
     pub fn init(allocator: std.mem.Allocator, path: []const u8, asset_type: AssetType) AssetMetadata {
         return AssetMetadata{
@@ -67,8 +67,8 @@ pub const AssetMetadata = struct {
             .size = 0,
             .last_modified = 0,
             .checksum = 0,
-            .dependencies = std.ArrayList(types.Handle).init(allocator),
-            .tags = std.ArrayList([]const u8).init(allocator),
+            .dependencies = std.array_list.Managed(types.Handle).init(allocator),
+            .tags = std.array_list.Managed([]const u8).init(allocator),
         };
     }
 
@@ -353,7 +353,7 @@ pub const AssetManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        var to_remove = std.ArrayList(types.Handle).init(self.allocator);
+        var to_remove = std.array_list.Managed(types.Handle).init(self.allocator);
         defer to_remove.deinit();
 
         var asset_iter = self.assets.iterator();

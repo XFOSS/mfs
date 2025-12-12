@@ -30,14 +30,14 @@ pub const BrowserConfig = struct {
 pub const AssetBrowser = struct {
     allocator: std.mem.Allocator,
     config: BrowserConfig,
-    assets: std.ArrayList(AssetInfo),
+    assets: std.array_list.Managed(AssetInfo),
     current_directory: []const u8,
 
     pub fn init(allocator: std.mem.Allocator, config: BrowserConfig) !AssetBrowser {
         return AssetBrowser{
             .allocator = allocator,
             .config = config,
-            .assets = std.ArrayList(AssetInfo).init(allocator),
+            .assets = std.array_list.Managed(AssetInfo).init(allocator),
             .current_directory = try allocator.dupe(u8, config.root_directory),
         };
     }
@@ -57,7 +57,7 @@ pub const AssetBrowser = struct {
         return self.assets.items;
     }
 
-    pub fn filterByType(self: *const AssetBrowser, asset_type: AssetType, results: *std.ArrayList(AssetInfo)) !void {
+    pub fn filterByType(self: *const AssetBrowser, asset_type: AssetType, results: *std.array_list.Managed(AssetInfo)) !void {
         results.clearRetainingCapacity();
         for (self.assets.items) |asset| {
             if (asset.type == asset_type) {
@@ -66,7 +66,7 @@ pub const AssetBrowser = struct {
         }
     }
 
-    pub fn searchAssets(self: *const AssetBrowser, query: []const u8, results: *std.ArrayList(AssetInfo)) !void {
+    pub fn searchAssets(self: *const AssetBrowser, query: []const u8, results: *std.array_list.Managed(AssetInfo)) !void {
         results.clearRetainingCapacity();
         for (self.assets.items) |asset| {
             if (std.mem.indexOf(u8, asset.name, query) != null) {

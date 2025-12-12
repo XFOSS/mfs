@@ -31,7 +31,7 @@ pub const ResourceManager = struct {
     mutex: std.Thread.Mutex,
 
     // Asset paths
-    search_paths: std.ArrayList([]const u8),
+    search_paths: std.array_list.Managed([]const u8),
 
     const Self = @This();
 
@@ -59,7 +59,7 @@ pub const ResourceManager = struct {
             .stats = ResourceStats{},
             .garbage_collector = garbage_collector,
             .mutex = .{},
-            .search_paths = std.ArrayList([]const u8).init(allocator),
+            .search_paths = std.array_list.Managed([]const u8).init(allocator),
         };
 
         // Initialize shader cache
@@ -346,7 +346,7 @@ pub const ResourceStats = struct {
 /// @symbol Internal resource cleanup system
 pub const ResourceGarbageCollector = struct {
     allocator: Allocator,
-    garbage_queue: std.ArrayList(GarbageItem),
+    garbage_queue: std.array_list.Managed(GarbageItem),
     deletion_frame_lag: u64 = 3, // Wait this many frames before deletion
 
     const GarbageType = enum {
@@ -371,7 +371,7 @@ pub const ResourceGarbageCollector = struct {
     pub fn init(allocator: Allocator) ResourceGarbageCollector {
         return ResourceGarbageCollector{
             .allocator = allocator,
-            .garbage_queue = std.ArrayList(GarbageItem).init(allocator),
+            .garbage_queue = std.array_list.Managed(GarbageItem).init(allocator),
         };
     }
 

@@ -74,8 +74,8 @@ pub const VulkanAccelerationStructure = struct {
     // Advanced features
     compacted_size: u64 = 0,
     build_info: ASBuildInfo,
-    geometry_data: std.ArrayList(GeometryData),
-    instance_data: std.ArrayList(InstanceData),
+    geometry_data: std.array_list.Managed(GeometryData),
+    instance_data: std.array_list.Managed(InstanceData),
 
     // Performance tracking
     build_time_ms: f64 = 0.0,
@@ -139,10 +139,10 @@ pub const VulkanRayTracingPipeline = struct {
     sbt: ShaderBindingTable,
 
     // Shader stages
-    raygen_shaders: std.ArrayList(RayGenShader),
-    miss_shaders: std.ArrayList(MissShader),
-    hit_groups: std.ArrayList(HitGroup),
-    callable_shaders: std.ArrayList(CallableShader),
+    raygen_shaders: std.array_list.Managed(RayGenShader),
+    miss_shaders: std.array_list.Managed(MissShader),
+    hit_groups: std.array_list.Managed(HitGroup),
+    callable_shaders: std.array_list.Managed(CallableShader),
 
     // Pipeline configuration
     max_recursion_depth: u32,
@@ -238,7 +238,7 @@ pub const ShaderBindingTable = struct {
 
     const BindlessTextureManager = struct {
         descriptor_set: *anyopaque, // VkDescriptorSet
-        texture_handles: std.ArrayList(u32),
+        texture_handles: std.array_list.Managed(u32),
         max_textures: u32,
 
         pub fn addTexture(self: *BindlessTextureManager, texture_handle: u32) !u32 {
@@ -312,8 +312,8 @@ pub const VulkanRayTracingContext = struct {
     vkCmdTraceRaysIndirectKHR: ?*const fn () void = null,
 
     // Resource management
-    acceleration_structures: std.ArrayList(*VulkanAccelerationStructure),
-    pipelines: std.ArrayList(*VulkanRayTracingPipeline),
+    acceleration_structures: std.array_list.Managed(*VulkanAccelerationStructure),
+    pipelines: std.array_list.Managed(*VulkanRayTracingPipeline),
 
     // Memory pools
     scratch_buffer_pool: ScratchBufferPool,
@@ -323,7 +323,7 @@ pub const VulkanRayTracingContext = struct {
     frame_stats: FrameStats,
 
     const ScratchBufferPool = struct {
-        buffers: std.ArrayList(ScratchBuffer),
+        buffers: std.array_list.Managed(ScratchBuffer),
         current_buffer: u32 = 0,
 
         const ScratchBuffer = struct {
@@ -362,9 +362,9 @@ pub const VulkanRayTracingContext = struct {
     };
 
     const GeometryBufferPool = struct {
-        vertex_buffers: std.ArrayList(*anyopaque),
-        index_buffers: std.ArrayList(*anyopaque),
-        staging_buffers: std.ArrayList(*anyopaque),
+        vertex_buffers: std.array_list.Managed(*anyopaque),
+        index_buffers: std.array_list.Managed(*anyopaque),
+        staging_buffers: std.array_list.Managed(*anyopaque),
 
         pub fn getVertexBuffer(self: *GeometryBufferPool, size: u64) !*anyopaque {
             // Find or create suitable vertex buffer
@@ -425,15 +425,15 @@ pub const VulkanRayTracingContext = struct {
             .features = AdvancedRayTracingFeatures{},
             .config = RayGenConfig{},
             .build_config = ASBuildConfig{},
-            .acceleration_structures = std.ArrayList(*VulkanAccelerationStructure).init(allocator),
-            .pipelines = std.ArrayList(*VulkanRayTracingPipeline).init(allocator),
+            .acceleration_structures = std.array_list.Managed(*VulkanAccelerationStructure).init(allocator),
+            .pipelines = std.array_list.Managed(*VulkanRayTracingPipeline).init(allocator),
             .scratch_buffer_pool = ScratchBufferPool{
-                .buffers = std.ArrayList(ScratchBufferPool.ScratchBuffer).init(allocator),
+                .buffers = std.array_list.Managed(ScratchBufferPool.ScratchBuffer).init(allocator),
             },
             .geometry_buffer_pool = GeometryBufferPool{
-                .vertex_buffers = std.ArrayList(*anyopaque).init(allocator),
-                .index_buffers = std.ArrayList(*anyopaque).init(allocator),
-                .staging_buffers = std.ArrayList(*anyopaque).init(allocator),
+                .vertex_buffers = std.array_list.Managed(*anyopaque).init(allocator),
+                .index_buffers = std.array_list.Managed(*anyopaque).init(allocator),
+                .staging_buffers = std.array_list.Managed(*anyopaque).init(allocator),
             },
             .frame_stats = FrameStats{},
         };
@@ -495,8 +495,8 @@ pub const VulkanRayTracingContext = struct {
                 .scratch_size = 0,
                 .update_scratch_size = 0,
             },
-            .geometry_data = std.ArrayList(VulkanAccelerationStructure.GeometryData).init(self.allocator),
-            .instance_data = std.ArrayList(VulkanAccelerationStructure.InstanceData).init(self.allocator),
+            .geometry_data = std.array_list.Managed(VulkanAccelerationStructure.GeometryData).init(self.allocator),
+            .instance_data = std.array_list.Managed(VulkanAccelerationStructure.InstanceData).init(self.allocator),
         };
 
         // Copy geometry data
@@ -533,8 +533,8 @@ pub const VulkanRayTracingContext = struct {
                 .scratch_size = 0,
                 .update_scratch_size = 0,
             },
-            .geometry_data = std.ArrayList(VulkanAccelerationStructure.GeometryData).init(self.allocator),
-            .instance_data = std.ArrayList(VulkanAccelerationStructure.InstanceData).init(self.allocator),
+            .geometry_data = std.array_list.Managed(VulkanAccelerationStructure.GeometryData).init(self.allocator),
+            .instance_data = std.array_list.Managed(VulkanAccelerationStructure.InstanceData).init(self.allocator),
         };
 
         // Copy instance data
@@ -563,7 +563,7 @@ pub const VulkanRayTracingContext = struct {
                 .callable_region = .{ .offset = 1120, .size = 128, .stride = 32, .count = 4 },
                 .bindless_textures = .{
                     .descriptor_set = @ptrFromInt(0x78901234),
-                    .texture_handles = std.ArrayList(u32).init(self.allocator),
+                    .texture_handles = std.array_list.Managed(u32).init(self.allocator),
                     .max_textures = 16384,
                 },
                 .material_data = .{
@@ -572,10 +572,10 @@ pub const VulkanRayTracingContext = struct {
                     .material_count = 0,
                 },
             },
-            .raygen_shaders = std.ArrayList(VulkanRayTracingPipeline.RayGenShader).init(self.allocator),
-            .miss_shaders = std.ArrayList(VulkanRayTracingPipeline.MissShader).init(self.allocator),
-            .hit_groups = std.ArrayList(VulkanRayTracingPipeline.HitGroup).init(self.allocator),
-            .callable_shaders = std.ArrayList(VulkanRayTracingPipeline.CallableShader).init(self.allocator),
+            .raygen_shaders = std.array_list.Managed(VulkanRayTracingPipeline.RayGenShader).init(self.allocator),
+            .miss_shaders = std.array_list.Managed(VulkanRayTracingPipeline.MissShader).init(self.allocator),
+            .hit_groups = std.array_list.Managed(VulkanRayTracingPipeline.HitGroup).init(self.allocator),
+            .callable_shaders = std.array_list.Managed(VulkanRayTracingPipeline.CallableShader).init(self.allocator),
             .max_recursion_depth = pipeline_desc.max_recursion_depth,
             .max_payload_size = pipeline_desc.max_payload_size,
             .max_attribute_size = pipeline_desc.max_attribute_size,

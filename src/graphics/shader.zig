@@ -320,7 +320,7 @@ pub const ShaderCache = struct {
         defer self.mutex.unlock();
 
         const current_time = std.time.timestamp();
-        var to_remove = std.ArrayList(u64).init(self.allocator);
+        var to_remove = std.array_list.Managed(u64).init(self.allocator);
         defer to_remove.deinit();
 
         var it = self.shader_map.iterator();
@@ -354,7 +354,7 @@ pub fn deinitShaderCache() void {
 pub const ShaderPreprocessor = struct {
     allocator: Allocator,
     options: ShaderCompileOptions,
-    include_stack: std.ArrayList([]const u8),
+    include_stack: std.array_list.Managed([]const u8),
     defines: std.StringHashMap([]const u8),
     processed_includes: std.StringHashMap([]const u8),
 
@@ -364,7 +364,7 @@ pub const ShaderPreprocessor = struct {
         var preprocessor = Self{
             .allocator = allocator,
             .options = options,
-            .include_stack = std.ArrayList([]const u8).init(allocator),
+            .include_stack = std.array_list.Managed([]const u8).init(allocator),
             .defines = std.StringHashMap([]const u8).init(allocator),
             .processed_includes = std.StringHashMap([]const u8).init(allocator),
         };
@@ -399,7 +399,7 @@ pub const ShaderPreprocessor = struct {
     }
 
     pub fn process(self: *Self, source: []const u8, base_path: []const u8) ![]const u8 {
-        var output = std.ArrayList(u8).init(self.allocator);
+        var output = std.array_list.Managed(u8).init(self.allocator);
         errdefer output.deinit();
 
         try self.include_stack.append(base_path);
@@ -538,7 +538,7 @@ pub const ShaderPreprocessor = struct {
     }
 
     fn replaceMacros(self: *Self, line: []const u8) ![]const u8 {
-        var result = std.ArrayList(u8).init(self.allocator);
+        var result = std.array_list.Managed(u8).init(self.allocator);
         errdefer result.deinit();
 
         var i: usize = 0;
@@ -575,7 +575,7 @@ pub const ReflectionData = struct {
     samplers: std.StringHashMap(SamplerInfo),
     storage_buffers: std.StringHashMap(StorageBufferInfo),
     uniform_blocks: std.StringHashMap(UniformBlockInfo),
-    entry_points: std.ArrayList(EntryPointInfo),
+    entry_points: std.array_list.Managed(EntryPointInfo),
 
     const Self = @This();
 
@@ -587,7 +587,7 @@ pub const ReflectionData = struct {
             .samplers = std.StringHashMap(SamplerInfo).init(allocator),
             .storage_buffers = std.StringHashMap(StorageBufferInfo).init(allocator),
             .uniform_blocks = std.StringHashMap(UniformBlockInfo).init(allocator),
-            .entry_points = std.ArrayList(EntryPointInfo).init(allocator),
+            .entry_points = std.array_list.Managed(EntryPointInfo).init(allocator),
         };
     }
 
@@ -602,7 +602,7 @@ pub const ReflectionData = struct {
 
     /// Get all entry points for a specific shader stage
     pub fn getEntryPoints(self: *const Self, stage: gpu.ShaderType, allocator: Allocator) ![]EntryPointInfo {
-        var result = std.ArrayList(EntryPointInfo).init(allocator);
+        var result = std.array_list.Managed(EntryPointInfo).init(allocator);
         defer result.deinit();
 
         for (self.entry_points.items) |entry| {
@@ -807,7 +807,7 @@ pub const ShaderHotReloader = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        var to_reload = std.ArrayList(struct {
+        var to_reload = std.array_list.Managed(struct {
             path: []const u8,
             info: ShaderWatchInfo,
         }).init(self.allocator);

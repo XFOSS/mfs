@@ -508,7 +508,7 @@ const AssetProcessor = struct {
         defer file.close();
 
         // Create array of asset metadata for JSON serialization
-        var assets_list = std.ArrayList(AssetMetadataJson).init(self.allocator);
+        var assets_list = std.array_list.Managed(AssetMetadataJson).init(self.allocator);
         defer assets_list.deinit();
 
         var metadata_iter = self.metadata_map.iterator();
@@ -588,7 +588,7 @@ pub fn main() !void {
     const output_dir = args[2];
 
     // Set up configuration with default options
-    var asset_types = std.ArrayList(AssetType).init(allocator);
+    var asset_types = std.array_list.Managed(AssetType).init(allocator);
     defer asset_types.deinit();
 
     var compression_level: u8 = 9;

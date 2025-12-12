@@ -9,12 +9,12 @@ const CollisionResolver = @import("collision_resolver.zig").CollisionResolver;
 /// Cell in the spatial grid
 pub const GridCell = struct {
     allocator: std.mem.Allocator,
-    objects: std.ArrayList(usize),
+    objects: std.array_list.Managed(usize),
 
     pub fn init(allocator: std.mem.Allocator) !GridCell {
         return GridCell{
             .allocator = allocator,
-            .objects = try std.ArrayList(usize).initCapacity(allocator, 8),
+            .objects = try std.array_list.Managed(usize).initCapacity(allocator, 8),
         };
     }
 
@@ -31,7 +31,7 @@ pub const SpatialGrid = struct {
     world_size: f32,
     grid_dim: u32,
     cells: []GridCell,
-    collision_pairs: std.ArrayList([2]usize),
+    collision_pairs: std.array_list.Managed([2]usize),
 
     /// Initialize a new spatial grid
     pub fn init(allocator: std.mem.Allocator, world_size: f32, cell_size: f32) !SpatialGrid {
@@ -56,7 +56,7 @@ pub const SpatialGrid = struct {
             .world_size = world_size,
             .grid_dim = @intFromFloat(grid_dim),
             .cells = cells,
-            .collision_pairs = try std.ArrayList([2]usize).initCapacity(allocator, 64),
+            .collision_pairs = try std.array_list.Managed([2]usize).initCapacity(allocator, 64),
         };
     }
 

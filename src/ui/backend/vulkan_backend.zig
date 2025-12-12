@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const interface = @import("interface.zig");
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 
 // Re-export Vulkan types from vulkan.zig
 const vk = @import("vulkan.zig").vk;

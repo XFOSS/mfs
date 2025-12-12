@@ -7,7 +7,7 @@ pub const ErrorHandler = struct {
     allocator: Allocator,
     last_error: ?[]const u8,
     error_code: ?ErrorCode,
-    error_stack: std.ArrayList(ErrorData),
+    error_stack: std.array_list.Managed(ErrorData),
     max_stack_size: usize,
     mutex: std.Thread.Mutex, // For thread-safety
 
@@ -66,7 +66,7 @@ pub const ErrorHandler = struct {
             .allocator = allocator,
             .last_error = null,
             .error_code = null,
-            .error_stack = std.ArrayList(ErrorData).init(allocator),
+            .error_stack = std.array_list.Managed(ErrorData).init(allocator),
             .max_stack_size = max_stack_size orelse 10, // Use provided size or default to 10
             .mutex = std.Thread.Mutex{},
         };
@@ -191,7 +191,7 @@ pub const ErrorHandler = struct {
             return self.allocator.dupe(u8, "No errors recorded");
         }
 
-        var buffer = std.ArrayList(u8).init(self.allocator);
+        var buffer = std.array_list.Managed(u8).init(self.allocator);
         defer buffer.deinit();
 
         try buffer.writer().print("Error summary ({d} errors):\n", .{self.error_stack.items.len});

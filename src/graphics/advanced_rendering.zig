@@ -84,7 +84,7 @@ pub const RayTracingContext = struct {
 
     // Acceleration structures
     top_level_as: ?*anyopaque = null,
-    bottom_level_as: std.ArrayList(*anyopaque),
+    bottom_level_as: std.array_list.Managed(*anyopaque),
 
     // Ray tracing pipeline
     rt_pipeline: ?*graphics.types.Pipeline = null,
@@ -95,7 +95,7 @@ pub const RayTracingContext = struct {
         return Self{
             .allocator = allocator,
             .backend = backend,
-            .bottom_level_as = std.ArrayList(*anyopaque).init(allocator),
+            .bottom_level_as = std.array_list.Managed(*anyopaque).init(allocator),
         };
     }
 

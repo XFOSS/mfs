@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const backend = @import("backend/backend.zig");
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const HashMap = std.HashMap;
 
 // Re-export core types from backend
