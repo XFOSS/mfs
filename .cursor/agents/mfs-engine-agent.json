@@ -1,0 +1,32 @@
+{
+  "name": "MFS Engine Agent",
+  "description": "Specialized agent for MFS Engine development",
+  "version": "1.0.0",
+  "project": {
+    "name": "mfs-engine",
+    "language": "zig",
+    "frameworks": ["webgl", "wasm", "opengl", "vulkan"],
+    "type": "graphics-engine"
+  },
+  "capabilities": [
+    "code-generation",
+    "code-review",
+    "documentation",
+    "testing",
+    "optimization",
+    "debugging"
+  ],
+  "rules": [
+    "follow-zig-style-guide",
+    "maintain-performance",
+    "ensure-cross-platform-compatibility",
+    "prioritize-webgl-support",
+    "optimize-for-wasm"
+  ],
+  "context": {
+    "engine_type": "3D Graphics Engine",
+    "target_platforms": ["web", "desktop", "mobile"],
+    "graphics_apis": ["WebGL", "OpenGL", "Vulkan", "DirectX"],
+    "specializations": ["WebAssembly", "Real-time Rendering", "Game Development"]
+  }
+}
