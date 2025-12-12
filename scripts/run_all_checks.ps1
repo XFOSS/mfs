@@ -99,28 +99,15 @@ if (-not $SkipQuality) {
     Write-Host "`n📊 Running Code Quality Analysis..." -ForegroundColor Yellow
     $qualityStart = Get-Date
     
-    # Build and run the quality checker
-    $qualityBuildResult = & zig build-exe scripts/code_quality_check.zig 2>&1
-    $qualityBuildSuccess = $LASTEXITCODE -eq 0
-    
-    if ($qualityBuildSuccess) {
-        $qualityResult = & ./code_quality_check.exe 2>&1
-        $qualitySuccess = $LASTEXITCODE -eq 0
-        $qualityDuration = (Get-Date) - $qualityStart
-        
-        Write-Result "Code Quality Analysis" $qualitySuccess $qualityDuration
-        
-        if ($Verbose -or $qualitySuccess) {
-            $qualityResult | Write-Host
-        }
-        
-        # Clean up executable
-        if (Test-Path "code_quality_check.exe") {
-            Remove-Item "code_quality_check.exe" -Force
-        }
-    } else {
-        $qualityDuration = (Get-Date) - $qualityStart
-        Write-Result "Code Quality Analysis (Build Failed)" $false $qualityDuration
+    # Run the quality checker directly
+    $qualityResult = & zig run scripts/code_quality_check.zig 2>&1
+    $qualitySuccess = $LASTEXITCODE -eq 0
+    $qualityDuration = (Get-Date) - $qualityStart
+
+    Write-Result "Code Quality Analysis" $qualitySuccess $qualityDuration
+
+    if ($Verbose -or $qualitySuccess) {
+        $qualityResult | Write-Host
     }
 } else {
     Write-Host "`n⏭️  Skipping quality analysis" -ForegroundColor Yellow
