@@ -64,7 +64,11 @@ pub const Scene = struct {
         scene.* = Scene{
             .allocator = allocator,
             .entities = AutoHashMap(EntityId, Entity).init(allocator),
-            .systems = try ArrayList(System).initCapacity(allocator, 8),
+            .systems = blk: {
+                var list = ArrayList(System).init(allocator);
+                try list.ensureTotalCapacity(8);
+                break :blk list;
+            },
             .next_entity_id = 1,
             .next_system_id = 1,
             .main_camera = null,
@@ -211,7 +215,8 @@ pub const Scene = struct {
         if (self.event_handlers.getPtr(key)) |handlers| {
             try handlers.append(handler);
         } else {
-            var handlers = try ArrayList(*const fn (*Scene, []const u8, ?*anyopaque) void).initCapacity(self.allocator, 4);
+            var handlers = ArrayList(*const fn (*Scene, []const u8, ?*anyopaque) void).init(self.allocator);
+            try handlers.ensureTotalCapacity(4);
             try handlers.append(handler);
             try self.event_handlers.put(key, handlers);
         }

@@ -164,7 +164,11 @@ pub const RigidBodyManager = struct {
     pub fn init(allocator: std.mem.Allocator) !RigidBodyManager {
         return .{
             .allocator = allocator,
-            .rigid_bodies = try std.ArrayList(RigidBody).initCapacity(allocator, 64),
+            .rigid_bodies = blk: {
+                var list = std.array_list.Managed(RigidBody).init(allocator);
+                try list.ensureTotalCapacity(64);
+                break :blk list;
+            },
             .object_to_rigid_body = std.AutoHashMap(usize, usize).init(allocator),
         };
     }

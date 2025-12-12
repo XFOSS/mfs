@@ -14,7 +14,11 @@ pub const GridCell = struct {
     pub fn init(allocator: std.mem.Allocator) !GridCell {
         return GridCell{
             .allocator = allocator,
-            .objects = try std.array_list.Managed(usize).initCapacity(allocator, 8),
+            .objects = blk: {
+                var list = std.array_list.Managed(usize).init(allocator);
+                try list.ensureTotalCapacity(8);
+                break :blk list;
+            },
         };
     }
 
@@ -56,7 +60,11 @@ pub const SpatialGrid = struct {
             .world_size = world_size,
             .grid_dim = @intFromFloat(grid_dim),
             .cells = cells,
-            .collision_pairs = try std.array_list.Managed([2]usize).initCapacity(allocator, 64),
+            .collision_pairs = blk: {
+                var list = std.array_list.Managed([2]usize).init(allocator);
+                try list.ensureTotalCapacity(64);
+                break :blk list;
+            },
         };
     }
 

@@ -140,10 +140,11 @@ pub const GraphicsSystem = struct {
             return manager;
         }
 
-        pub fn deinit(self: *BufferManager) void {
-            for (self.buffers.items) |buf| {
-                // TODO: Properly destroy buffers
-                _ = buf;
+        pub fn deinit(self: *BufferManager, backend: ?*GraphicsBackend) void {
+            if (backend) |b| {
+                for (self.buffers.items) |buf| {
+                    b.destroyBuffer(buf);
+                }
             }
             self.buffers.deinit();
         }
@@ -168,10 +169,11 @@ pub const GraphicsSystem = struct {
             return manager;
         }
 
-        pub fn deinit(self: *TextureManager) void {
-            for (self.textures.items) |tex| {
-                // TODO: Properly destroy textures
-                _ = tex;
+        pub fn deinit(self: *TextureManager, backend: ?*GraphicsBackend) void {
+            if (backend) |b| {
+                for (self.textures.items) |tex| {
+                    b.destroyTexture(tex);
+                }
             }
             self.textures.deinit();
         }
@@ -196,10 +198,11 @@ pub const GraphicsSystem = struct {
             return manager;
         }
 
-        pub fn deinit(self: *ShaderManager) void {
-            for (self.shaders.items) |shd| {
-                // TODO: Properly destroy shaders
-                _ = shd;
+        pub fn deinit(self: *ShaderManager, backend: ?*GraphicsBackend) void {
+            if (backend) |b| {
+                for (self.shaders.items) |shd| {
+                    b.destroyShader(shd);
+                }
             }
             self.shaders.deinit();
         }
@@ -225,8 +228,9 @@ pub const GraphicsSystem = struct {
         }
 
         pub fn deinit(self: *PipelineManager) void {
+            // Pipelines are managed by the backend and don't need explicit destruction
+            // The backend will clean them up when deinitialized
             for (self.pipelines.items) |pipeline| {
-                // TODO: Properly destroy pipelines
                 _ = pipeline;
             }
             self.pipelines.deinit();
@@ -263,10 +267,11 @@ pub const GraphicsSystem = struct {
     }
 
     pub fn deinit(self: *Self) void {
+        const backend = self.current_backend;
         self.pipeline_manager.deinit();
-        self.shader_manager.deinit();
-        self.texture_manager.deinit();
-        self.buffer_manager.deinit();
+        self.shader_manager.deinit(backend);
+        self.texture_manager.deinit(backend);
+        self.buffer_manager.deinit(backend);
         self.backend_manager.deinit();
     }
 

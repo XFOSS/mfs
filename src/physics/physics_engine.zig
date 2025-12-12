@@ -153,7 +153,11 @@ pub const PhysicsEngine = struct {
         pub fn init(allocator: std.mem.Allocator) !ConstraintManager {
             return .{
                 .allocator = allocator,
-                .constraints = try std.ArrayList(Constraint).initCapacity(allocator, 16),
+                .constraints = blk: {
+                    var list = std.array_list.Managed(Constraint).init(allocator);
+                    try list.ensureTotalCapacity(16);
+                    break :blk list;
+                },
             };
         }
 
@@ -298,8 +302,16 @@ pub const PhysicsEngine = struct {
         pub fn init(allocator: std.mem.Allocator) !CollisionDetector {
             return .{
                 .allocator = allocator,
-                .collision_pairs = try std.ArrayList(CollisionPair).initCapacity(allocator, 32),
-                .contact_manifolds = try std.ArrayList(ContactManifold).initCapacity(allocator, 32),
+                .collision_pairs = blk: {
+                    var list = std.array_list.Managed(CollisionPair).init(allocator);
+                    try list.ensureTotalCapacity(32);
+                    break :blk list;
+                },
+                .contact_manifolds = blk: {
+                    var list = std.array_list.Managed(ContactManifold).init(allocator);
+                    try list.ensureTotalCapacity(32);
+                    break :blk list;
+                },
             };
         }
 
@@ -453,7 +465,11 @@ pub const PhysicsEngine = struct {
         const engine = try allocator.create(PhysicsEngine);
         engine.* = .{
             .allocator = allocator,
-            .objects = try std.ArrayList(PhysicalObject).initCapacity(allocator, 64),
+            .objects = blk: {
+                var list = std.array_list.Managed(PhysicalObject).init(allocator);
+                try list.ensureTotalCapacity(64);
+                break :blk list;
+            },
             .rigid_body_manager = try rigid_body.RigidBodyManager.init(allocator),
             .constraint_manager = try ConstraintManager.init(allocator),
             .collision_detector = try CollisionDetector.init(allocator),

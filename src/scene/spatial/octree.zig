@@ -23,7 +23,11 @@ pub const Octree = struct {
         octree.* = Octree{
             .allocator = allocator,
             .bounds = bounds,
-            .entities = try ArrayList(EntityId).initCapacity(allocator, 16),
+            .entities = blk: {
+                var list = ArrayList(EntityId).init(allocator);
+                try list.ensureTotalCapacity(16);
+                break :blk list;
+            },
             .children = [_]?*Octree{null} ** 8,
             .max_entities = max_entities,
             .max_depth = max_depth,
