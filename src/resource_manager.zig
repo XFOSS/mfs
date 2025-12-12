@@ -43,9 +43,9 @@ pub const ResourceManager = struct {
         // ownership is shared with their respective subsystems and will be
         // cleaned up when their ref-count drops to zero.  For the prototype we
         // simply clear the hash-maps.
-        self.textures.deinit(self.allocator);
-        self.models.deinit(self.allocator);
-        self.sounds.deinit(self.allocator);
+        self.textures.deinit();
+        self.models.deinit();
+        self.sounds.deinit();
         self.allocator.destroy(self);
     }
 

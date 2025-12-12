@@ -324,7 +324,7 @@ pub const PhysicsEngine = struct {
 
                 // Narrow phase collision detection
                 if (try self.narrowPhaseCollision(obj_a, obj_b, pair[0], pair[1])) {
-                    try self.collision_pairs.append(self.allocator, CollisionPair{
+                    try self.collision_pairs.append(CollisionPair{
                         .body_a = pair[0],
                         .body_b = pair[1],
                         .collision_time = 0, // TODO: calculate actual collision time
@@ -379,7 +379,7 @@ pub const PhysicsEngine = struct {
                     },
                 };
 
-                try self.contact_manifolds.append(self.allocator, manifold);
+                try self.contact_manifolds.append(manifold);
                 return true;
             }
 

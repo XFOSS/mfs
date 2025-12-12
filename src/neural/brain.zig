@@ -1003,13 +1003,13 @@ pub const NeuralBrain = struct {
     pub fn deinit(self: *Self) void {
         // Clean up networks
         for (self.networks.items) |network| {
-            network.deinit(self.allocator);
+            network.deinit();
         }
         self.networks.deinit();
 
         // Clean up agents
         for (self.agents.items) |agent| {
-            agent.deinit(self.allocator);
+            agent.deinit();
         }
         self.agents.deinit();
 
@@ -1029,12 +1029,12 @@ pub const NeuralBrain = struct {
 
         // Clean up subsystems
         if (self.ai_thread_pool) |pool| {
-            pool.deinit(self.allocator);
+            pool.deinit();
         }
 
-        self.experience_buffer.deinit(self.allocator);
-        self.memory_bank.deinit(self.allocator);
-        self.inference_engine.deinit(self.allocator);
+        self.experience_buffer.deinit();
+        self.memory_bank.deinit();
+        self.inference_engine.deinit();
 
         if (self.trainer) |trainer| {
             self.allocator.destroy(trainer);

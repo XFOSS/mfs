@@ -90,11 +90,11 @@ pub const Scene = struct {
     pub fn deinit(self: *Scene) void {
         var entity_iter = self.entities.iterator();
         while (entity_iter.next()) |entry| {
-            entry.value_ptr.deinit(self.allocator);
+            entry.value_ptr.deinit();
         }
         self.entities.deinit();
 
-        self.systems.deinit(self.allocator);
+        self.systems.deinit();
 
         if (self.octree) |octree| {
             octree.deinit();
@@ -102,7 +102,7 @@ pub const Scene = struct {
 
         var event_iter = self.event_handlers.iterator();
         while (event_iter.next()) |entry| {
-            entry.value_ptr.deinit(self.allocator);
+            entry.value_ptr.deinit();
         }
         self.event_handlers.deinit();
 
@@ -138,7 +138,7 @@ pub const Scene = struct {
                 self.destroyEntity(child_id);
             }
 
-            entity.deinit(self.allocator);
+            entity.deinit();
         }
     }
 
@@ -160,7 +160,7 @@ pub const Scene = struct {
         var entity_iter = self.entities.iterator();
         while (entity_iter.next()) |entry| {
             if (std.mem.eql(u8, entry.value_ptr.tag, tag)) {
-                try results.append(allocator, entry.key_ptr.*);
+                try results.append(entry.key_ptr.*);
             }
         }
     }
@@ -170,7 +170,7 @@ pub const Scene = struct {
         self.next_system_id += 1;
 
         const system = System.init(system_id, name, priority, update_fn);
-        try self.systems.append(self.allocator, system);
+        try self.systems.append(system);
 
         // Sort systems by priority
         std.sort.heap(System, self.systems.items, {}, systemCompare);
@@ -209,10 +209,10 @@ pub const Scene = struct {
         const key = try self.allocator.dupe(u8, event_name);
 
         if (self.event_handlers.getPtr(key)) |handlers| {
-            try handlers.append(self.allocator, handler);
+            try handlers.append(handler);
         } else {
             var handlers = try ArrayList(*const fn (*Scene, []const u8, ?*anyopaque) void).initCapacity(self.allocator, 4);
-            try handlers.append(self.allocator, handler);
+            try handlers.append(handler);
             try self.event_handlers.put(key, handlers);
         }
     }

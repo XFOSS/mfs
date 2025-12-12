@@ -30,7 +30,7 @@ pub const AudioSystem = struct {
     }
 
     pub fn deinit(self: *AudioSystem) void {
-        self.active_sources.deinit(self.allocator);
+        self.active_sources.deinit();
     }
 
     pub fn update(self: *AudioSystem) !void {

@@ -701,7 +701,7 @@ pub const ThreadPool = struct {
 
         // Cleanup
         self.threads.deinit();
-        self.task_queue.deinit(self.allocator);
+        self.task_queue.deinit();
 
         self.* = undefined;
     }

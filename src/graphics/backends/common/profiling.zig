@@ -48,7 +48,7 @@ pub const PerformanceMarker = struct {
 
     pub fn deinit(self: *PerformanceMarker, allocator: std.mem.Allocator) void {
         for (self.children.items) |child| {
-            child.deinit(allocator);
+            child.deinit();
         }
         self.children.deinit();
         allocator.destroy(self);
@@ -78,7 +78,7 @@ pub const GpuProfiler = struct {
 
     pub fn deinit(self: *GpuProfiler) void {
         if (self.root_marker) |root| {
-            root.deinit(self.allocator);
+            root.deinit();
         }
         self.frame_metrics.deinit();
         self.active_markers.deinit();
@@ -87,7 +87,7 @@ pub const GpuProfiler = struct {
     pub fn beginFrame(self: *GpuProfiler) !void {
         // Clean up previous frame
         if (self.root_marker) |root| {
-            root.deinit(self.allocator);
+            root.deinit();
         }
 
         // Create new root marker

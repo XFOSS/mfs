@@ -33,7 +33,7 @@ pub const Octree = struct {
     }
 
     pub fn deinit(self: *Octree) void {
-        self.entities.deinit(self.allocator);
+        self.entities.deinit();
         for (self.children) |child| {
             if (child) |c| {
                 c.deinit();

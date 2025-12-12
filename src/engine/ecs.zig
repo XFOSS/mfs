@@ -164,7 +164,7 @@ pub const World = struct {
 /// Generic component pool
 pub const ComponentPool = struct {
     allocator: std.mem.Allocator,
-    components: std.HashMap(EntityId, *anyopaque, std.hash_map.DefaultContext(EntityId), std.hash_map.default_max_load_percentage),
+    components: std.AutoHashMap(EntityId, *anyopaque),
     component_size: usize,
 
     const Self = @This();

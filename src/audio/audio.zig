@@ -431,8 +431,8 @@ pub const AudioEngine = struct {
         }
 
         pub fn deinit(self: *StreamingSource, allocator: std.mem.Allocator) void {
-            self.buffers[0].deinit(allocator);
-            self.buffers[1].deinit(allocator);
+            self.buffers[0].deinit();
+            self.buffers[1].deinit();
             self.decoder.deinit();
             allocator.free(self.file_path);
             allocator.destroy(self);
@@ -806,7 +806,7 @@ pub const AudioEngine = struct {
 
         pub fn deinit(self: *AudioSynthesizer) void {
             for (self.oscillators.items) |osc| {
-                osc.deinit(self.allocator);
+                osc.deinit();
             }
             self.oscillators.deinit();
             self.allocator.destroy(self);
@@ -1075,13 +1075,13 @@ pub const AudioEngine = struct {
 
         // Clean up buffers
         for (self.buffers.items) |buffer| {
-            buffer.deinit(self.allocator);
+            buffer.deinit();
         }
         self.buffers.deinit();
 
         // Clean up streaming sources
         for (self.streaming_sources.items) |source| {
-            source.deinit(self.allocator);
+            source.deinit();
         }
         self.streaming_sources.deinit();
 
@@ -1094,9 +1094,9 @@ pub const AudioEngine = struct {
         // Clean up subsystems
         self.effect_chain.deinit();
         self.synthesizer.deinit();
-        self.audio_queue.deinit(self.allocator);
-        self.audio_context.deinit(self.allocator);
-        self.audio_device.deinit(self.allocator);
+        self.audio_queue.deinit();
+        self.audio_context.deinit();
+        self.audio_device.deinit();
 
         self.allocator.destroy(self);
     }

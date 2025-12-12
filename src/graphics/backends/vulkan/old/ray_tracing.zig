@@ -208,7 +208,7 @@ pub const VulkanRayTracingPipeline = struct {
         self.miss_shaders.deinit();
         self.hit_groups.deinit();
         self.callable_shaders.deinit();
-        self.sbt.deinit(allocator);
+        self.sbt.deinit();
         allocator.destroy(self);
     }
 };
@@ -445,12 +445,12 @@ pub const VulkanRayTracingContext = struct {
     pub fn deinit(self: *Self) void {
         // Clean up resources
         for (self.acceleration_structures.items) |as| {
-            as.deinit(self.allocator);
+            as.deinit();
         }
         self.acceleration_structures.deinit();
 
         for (self.pipelines.items) |pipeline| {
-            pipeline.deinit(self.allocator);
+            pipeline.deinit();
         }
         self.pipelines.deinit();
 
