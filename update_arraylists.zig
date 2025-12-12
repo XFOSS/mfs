@@ -64,11 +64,7 @@ fn discoverFiles(dir_path: []const u8, files: *std.array_list.Managed([]const u8
                 const full_path = try std.fs.path.join(allocator, &.{ ".", file_path });
                 defer allocator.free(full_path);
 
-                const file = std.fs.cwd().openFile(full_path, .{}) catch continue;
-                defer file.close();
-
-                const stat = file.stat() catch continue;
-                const content = file.reader().readAllAlloc(allocator, stat.size + 1) catch continue;
+                const content = std.fs.cwd().readFileAlloc(file_path, allocator, .unlimited) catch continue;
                 defer allocator.free(content);
 
                 if (std.mem.indexOf(u8, content, "std.ArrayList") != null) {
@@ -82,14 +78,10 @@ fn discoverFiles(dir_path: []const u8, files: *std.array_list.Managed([]const u8
 }
 
 fn updateFile(file_path: []const u8, allocator: std.mem.Allocator) !bool {
-    const file = std.fs.cwd().openFile(file_path, .{ .read = true }) catch |err| {
-        std.log.warn("  Could not open {s}: {}", .{ file_path, err });
+    const content = std.fs.cwd().readFileAlloc(file_path, allocator, .unlimited) catch |err| {
+        std.log.warn("  Could not read {s}: {}", .{ file_path, err });
         return false;
     };
-    defer file.close();
-
-    const stat = try file.stat();
-    const content = try file.reader().readAllAlloc(allocator, stat.size + 1);
     defer allocator.free(content);
 
     // Check if file actually contains std.ArrayList (not just in comments)
