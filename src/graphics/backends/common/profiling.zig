@@ -33,7 +33,7 @@ pub const PerformanceMarker = struct {
     name: []const u8,
     start_time: u64,
     parent: ?*PerformanceMarker = null,
-    children: std.array_list.Managed(*PerformanceMarker),
+    children: std.ArrayList(*PerformanceMarker),
     metrics: GpuMetrics = .{},
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) !*PerformanceMarker {
@@ -41,7 +41,7 @@ pub const PerformanceMarker = struct {
         marker.* = .{
             .name = name,
             .start_time = 0,
-            .children = std.array_list.Managed(*PerformanceMarker).init(allocator),
+            .children = std.ArrayList(*PerformanceMarker).init(allocator),
         };
         return marker;
     }
@@ -64,15 +64,15 @@ pub const PerformanceMarker = struct {
 pub const GpuProfiler = struct {
     allocator: std.mem.Allocator,
     current_frame: u64 = 0,
-    frame_metrics: std.array_list.Managed(GpuMetrics),
-    active_markers: std.array_list.Managed(*PerformanceMarker),
+    frame_metrics: std.ArrayList(GpuMetrics),
+    active_markers: std.ArrayList(*PerformanceMarker),
     root_marker: ?*PerformanceMarker = null,
 
     pub fn init(allocator: std.mem.Allocator) !GpuProfiler {
         return GpuProfiler{
             .allocator = allocator,
-            .frame_metrics = std.array_list.Managed(GpuMetrics).init(allocator),
-            .active_markers = std.array_list.Managed(*PerformanceMarker).init(allocator),
+            .frame_metrics = std.ArrayList(GpuMetrics).init(allocator),
+            .active_markers = std.ArrayList(*PerformanceMarker).init(allocator),
         };
     }
 

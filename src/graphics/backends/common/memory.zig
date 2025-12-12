@@ -79,7 +79,7 @@ pub const Allocator = struct {
     strategy: AllocStrategy,
     total_size: usize,
     used_size: usize,
-    blocks: std.array_list.Managed(MemoryBlock),
+    blocks: std.ArrayList(MemoryBlock),
 
     pub fn init(allocator: std.mem.Allocator, strategy: AllocStrategy, size: usize) !Allocator {
         return Allocator{
@@ -87,7 +87,7 @@ pub const Allocator = struct {
             .strategy = strategy,
             .total_size = size,
             .used_size = 0,
-            .blocks = std.array_list.Managed(MemoryBlock).init(allocator),
+            .blocks = std.ArrayList(MemoryBlock).init(allocator),
         };
     }
 
@@ -150,7 +150,7 @@ pub const MemoryPool = struct {
     allocator: std.mem.Allocator,
     block_size: usize,
     capacity: usize,
-    free_list: std.array_list.Managed(usize),
+    free_list: std.ArrayList(usize),
     memory: []u8,
 
     pub fn init(allocator: std.mem.Allocator, block_size: usize, capacity: usize) !MemoryPool {
@@ -158,7 +158,7 @@ pub const MemoryPool = struct {
             .allocator = allocator,
             .block_size = block_size,
             .capacity = capacity,
-            .free_list = std.array_list.Managed(usize).init(allocator),
+            .free_list = std.ArrayList(usize).init(allocator),
             .memory = try allocator.alloc(u8, block_size * capacity),
         };
 

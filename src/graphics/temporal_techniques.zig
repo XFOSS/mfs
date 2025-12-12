@@ -330,7 +330,7 @@ pub const TemporalTechniques = struct {
         // Prepare neural network inputs
         const neural_start = std.time.nanoTimestamp();
 
-        var inputs = std.array_list.Managed(f32).init(self.allocator);
+        var inputs = std.ArrayList(f32).init(self.allocator);
         defer inputs.deinit();
 
         try self.prepareNeuralInputs(&inputs, low_res_texture, motion_vectors);
@@ -538,7 +538,7 @@ pub const TemporalTechniques = struct {
         // Fallback traditional upscaling (bilinear/bicubic)
     }
 
-    fn prepareNeuralInputs(self: *Self, inputs: *std.array_list.Managed(f32), texture: *types.Texture, motion: *types.Texture) !void {
+    fn prepareNeuralInputs(self: *Self, inputs: *std.ArrayList(f32), texture: *types.Texture, motion: *types.Texture) !void {
         _ = self;
         _ = inputs;
         _ = texture;

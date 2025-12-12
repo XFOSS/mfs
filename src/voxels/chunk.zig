@@ -4,7 +4,7 @@ const VoxelType = @import("./types.zig").VoxelType;
 const VoxelMaterial = @import("./types.zig").VoxelMaterial;
 const math = @import("math");
 const Vec3 = math.Vec3;
-const ArrayList = std.array_list.Managed;
+const ArrayList = std.ArrayList;
 
 pub const VoxelChunk = struct {
     allocator: Allocator,

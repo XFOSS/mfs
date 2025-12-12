@@ -142,8 +142,8 @@ pub const Profiler = struct {
     var zone_stack_depth: AtomicCounter = if (builtin.single_threaded) .{} else .{ .value = 0 };
 
     /// Collected data.
-    var entries: std.array_list.Managed(ProfileEntry) = undefined;
-    var counters: std.array_list.Managed(CounterEntry) = undefined;
+    var entries: std.ArrayList(ProfileEntry) = undefined;
+    var counters: std.ArrayList(CounterEntry) = undefined;
     var mutexes: struct {
         entries: std.Thread.Mutex = .{},
         counters: std.Thread.Mutex = .{},
@@ -163,8 +163,8 @@ pub const Profiler = struct {
         if (is_initialized) return;
 
         allocator = alloc;
-        entries = std.array_list.Managed(ProfileEntry).init(alloc);
-        counters = std.array_list.Managed(CounterEntry).init(alloc);
+        entries = std.ArrayList(ProfileEntry).init(alloc);
+        counters = std.ArrayList(CounterEntry).init(alloc);
         memory_allocations = std.AutoHashMap(*anyopaque, MemoryAllocation).init(alloc);
         total_allocated = 0;
         global_timer = try Timer.start();
@@ -429,7 +429,7 @@ pub const Profiler = struct {
 
     /// Get all current memory allocations.
     pub fn getMemoryAllocations() []MemoryAllocation {
-        var result = std.array_list.Managed(MemoryAllocation).init(std.heap.page_allocator);
+        var result = std.ArrayList(MemoryAllocation).init(std.heap.page_allocator);
         defer result.deinit();
 
         mutexes.memory.lock();
@@ -716,7 +716,7 @@ pub const AdvancedProfiler = struct {
     };
 
     allocator: std.mem.Allocator,
-    frame_history: std.array_list.Managed(FrameMetrics),
+    frame_history: std.ArrayList(FrameMetrics),
     history_capacity: usize,
     current_frame: FrameMetrics,
     timer: std.time.Timer,
@@ -731,7 +731,7 @@ pub const AdvancedProfiler = struct {
     // Bottleneck detection
     current_state: PerformanceState,
     state_stability_frames: u32,
-    optimization_suggestions: std.array_list.Managed(OptimizationSuggestion),
+    optimization_suggestions: std.ArrayList(OptimizationSuggestion),
 
     // Frame pacing analysis
     frame_time_variance: f64,
@@ -745,7 +745,7 @@ pub const AdvancedProfiler = struct {
 
     pub fn init(allocator: std.mem.Allocator, target_fps: f64) !AdvancedProfiler {
         const history_size = @as(usize, @intFromFloat(target_fps * 5.0)); // 5 seconds of history
-        const ring_buffer = std.array_list.Managed(FrameMetrics).init(allocator);
+        const ring_buffer = std.ArrayList(FrameMetrics).init(allocator);
 
         return AdvancedProfiler{
             .allocator = allocator,
@@ -760,7 +760,7 @@ pub const AdvancedProfiler = struct {
             .gpu_warning_threshold_ms = (1000.0 / target_fps) * 0.9,
             .current_state = .optimal,
             .state_stability_frames = 0,
-            .optimization_suggestions = std.array_list.Managed(OptimizationSuggestion).init(allocator),
+            .optimization_suggestions = std.ArrayList(OptimizationSuggestion).init(allocator),
             .frame_time_variance = 0.0,
             .frame_drops = 0,
             .micro_stutters = 0,

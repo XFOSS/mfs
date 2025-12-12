@@ -101,16 +101,16 @@ pub const MemoryStats = struct {
 pub fn Pool(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
-        available: std.array_list.Managed(*T),
-        all_objects: std.array_list.Managed(*T),
+        available: std.ArrayList(*T),
+        all_objects: std.ArrayList(*T),
 
         const Self = @This();
 
         pub fn init(allocator: std.mem.Allocator, initial_capacity: usize) !Self {
             var pool = Self{
                 .allocator = allocator,
-                .available = std.array_list.Managed(*T).init(allocator),
-                .all_objects = std.array_list.Managed(*T).init(allocator),
+                .available = std.ArrayList(*T).init(allocator),
+                .all_objects = std.ArrayList(*T).init(allocator),
             };
 
             // Pre-allocate objects

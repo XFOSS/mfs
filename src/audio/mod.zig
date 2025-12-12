@@ -147,7 +147,7 @@ pub fn deinit(audio_system: *AudioSystem) void {
 
 // Get available audio backends
 pub fn getAvailableBackends(allocator: std.mem.Allocator) ![]AudioBackend {
-    var available = std.array_list.Managed(AudioBackend).init(allocator);
+    var available = std.ArrayList(AudioBackend).init(allocator);
     defer available.deinit();
 
     inline for (std.meta.fields(AudioBackend)) |field| {

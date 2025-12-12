@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const interface = @import("interface.zig");
-const ArrayList = std.array_list.Managed;
+const ArrayList = std.ArrayList;
 
 // Vulkan types and constants
 const vk = struct {

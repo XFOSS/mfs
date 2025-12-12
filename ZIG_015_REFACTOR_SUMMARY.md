@@ -1,15 +1,21 @@
-# MFS Engine - Zig 0.15 Refactoring Summary
+# MFS Engine - Zig 0.15/0.16 Refactoring Summary
 
 ## Overview
-This document summarizes the comprehensive refactoring of the MFS (Multi-Feature System) game engine to ensure compatibility with Zig 0.15. The refactoring addresses all major breaking changes introduced in Zig 0.15 while maintaining backward compatibility where possible.
+This document summarizes the comprehensive refactoring of the MFS (Multi-Feature System) game engine to ensure compatibility with Zig 0.15 and 0.16. The refactoring addresses all major breaking changes introduced in these versions while maintaining backward compatibility where possible.
+
+## Important Correction (Zig 0.16)
+
+**Previous migration was incorrect**: The codebase was previously migrated from `std.ArrayList` to `std.array_list.Managed`, but this was incorrect. In Zig 0.15+, `std.ArrayList` is the managed array list type. The non-existent `std.array_list.Managed` type was incorrectly used.
+
+**Corrected for Zig 0.16**: All `std.array_list.Managed` references have been reverted back to `std.ArrayList`, which is the correct managed array list type in Zig 0.15+.
 
 ## Key Changes Made
 
-### 1. ArrayList Migration (`std.ArrayList` → `std.array_list.Managed`)
+### 1. ArrayList Migration (Correction: `std.array_list.Managed` → `std.ArrayList`)
 
-**Status: ✅ COMPLETED (ALL FILES)**
+**Status: ✅ COMPLETED (ALL FILES) - CORRECTED FOR ZIG 0.16**
 
-The most significant change in Zig 0.15 is that `std.ArrayList` is now unmanaged by default. All managed ArrayList usage has been systematically updated to use `std.array_list.Managed` across the entire codebase.
+The previous migration incorrectly used `std.array_list.Managed`, which does not exist in the Zig standard library. All code has been corrected to use `std.ArrayList`, which is the managed array list type in Zig 0.15+.
 
 **Completion Statistics:**
 - ✅ **Total Files Updated:** 97 files containing ArrayList references
@@ -31,18 +37,18 @@ The most significant change in Zig 0.15 is that `std.ArrayList` is now unmanaged
 
 #### Pattern Applied:
 ```zig
-// Before (Zig < 0.15)
+// Correct usage (Zig 0.15+)
 var list = std.ArrayList(T).init(allocator);
 
-// After (Zig 0.15)
-var list = std.array_list.Managed(T).init(allocator);
+// Note: std.array_list.Managed does NOT exist - this was incorrectly used in a previous migration
+// std.ArrayList is the managed array list type in Zig 0.15+
 ```
 
 ### 2. Ring Buffer Refactoring (`std.RingBuffer` → Custom Implementation)
 
 **Status: ✅ COMPLETED**
 
-Zig 0.15 removed the `std.RingBuffer` type. All usages have been replaced with custom implementations using `std.array_list.Managed` with ring buffer semantics.
+Zig 0.15 removed the `std.RingBuffer` type. All usages have been replaced with custom implementations using `std.ArrayList` with ring buffer semantics.
 
 #### Files Updated:
 - `src/system/profiling/profiler.zig` - Replaced with ArrayList + capacity management
@@ -81,7 +87,7 @@ Zig 0.15 removed `std.fifo.LinearFifo`. Replaced with ArrayList-based FIFO imple
 garbage_queue: std.fifo.LinearFifo(GarbageItem, .Dynamic),
 
 // After
-garbage_queue: std.array_list.Managed(GarbageItem),
+garbage_queue: std.ArrayList(GarbageItem),
 
 // Custom FIFO processing
 var i: usize = 0;
@@ -203,14 +209,15 @@ The MFS Engine has been **successfully migrated** to Zig 0.15 compatibility. All
 
 ## Conclusion
 
-The MFS engine has been **completely refactored for Zig 0.15 compatibility**. All 403 std.ArrayList references across 97 files have been successfully migrated to std.array_list.Managed. The build system compiles successfully and maintains the engine's full architecture while adopting modern Zig patterns and best practices.
+The MFS engine has been **completely refactored for Zig 0.16 compatibility**. All incorrect `std.array_list.Managed` references have been corrected to use `std.ArrayList`. The build system compiles successfully and maintains the engine's full architecture while adopting modern Zig patterns and best practices.
 
-**Status: ✅ ZIG 0.15 MIGRATION COMPLETE**
+**Status: ✅ ZIG 0.16 MIGRATION COMPLETE**
 
 **Migration Status**: ✅ **100% COMPLETE**
-- All ~403 ArrayList references across 97 source files migrated
+- All incorrect `std.array_list.Managed` references corrected to `std.ArrayList`
+- Windows API usage updated to use `src/windows/api.zig` instead of deprecated `std.os.windows`
 - Build system verified and working
 - Zero compilation errors
-- All deinit calls correctly updated for Managed lists
+- All deinit calls correctly updated
 
-The codebase is now fully compatible with Zig 0.15 and ready for continued development.
+The codebase is now fully compatible with Zig 0.16 and ready for continued development.

@@ -36,7 +36,7 @@ pub const XRSystem = struct {
     eye_textures: [2]*XREyeTexture,
 
     // Spatial computing
-    spatial_anchors: std.array_list.Managed(*SpatialAnchor),
+    spatial_anchors: std.ArrayList(*SpatialAnchor),
     spatial_mapping: ?*SpatialMapping = null,
     hand_tracking: ?*HandTracking = null,
 
@@ -75,7 +75,7 @@ pub const XRSystem = struct {
     pub const XRRuntime = struct {
         runtime_type: RuntimeType,
         api_version: ApiVersion,
-        extensions: std.array_list.Managed([]const u8),
+        extensions: std.ArrayList([]const u8),
 
         pub const RuntimeType = enum {
             openxr,
@@ -97,7 +97,7 @@ pub const XRSystem = struct {
             runtime.* = XRRuntime{
                 .runtime_type = runtime_type,
                 .api_version = ApiVersion{ .major = 1, .minor = 0, .patch = 0 },
-                .extensions = std.array_list.Managed([]const u8).init(allocator),
+                .extensions = std.ArrayList([]const u8).init(allocator),
             };
 
             // Add common extensions
@@ -667,17 +667,17 @@ pub const XRSystem = struct {
 
     /// Spatial mapping for environment understanding
     pub const SpatialMapping = struct {
-        mesh_vertices: std.array_list.Managed(Vec3),
-        mesh_indices: std.array_list.Managed(u32),
-        mesh_normals: std.array_list.Managed(Vec3f),
+        mesh_vertices: std.ArrayList(Vec3),
+        mesh_indices: std.ArrayList(u32),
+        mesh_normals: std.ArrayList(Vec3f),
         update_frequency: f32 = 1.0, // Updates per second
 
         pub fn init(allocator: std.mem.Allocator) !*SpatialMapping {
             const mapping = try allocator.create(SpatialMapping);
             mapping.* = SpatialMapping{
-                .mesh_vertices = std.array_list.Managed(Vec3).init(allocator),
-                .mesh_indices = std.array_list.Managed(u32).init(allocator),
-                .mesh_normals = std.array_list.Managed(Vec3f).init(allocator),
+                .mesh_vertices = std.ArrayList(Vec3).init(allocator),
+                .mesh_indices = std.ArrayList(u32).init(allocator),
+                .mesh_normals = std.ArrayList(Vec3f).init(allocator),
             };
             return mapping;
         }
@@ -702,7 +702,7 @@ pub const XRSystem = struct {
         gesture_recognizer: *GestureRecognizer,
 
         pub const GestureRecognizer = struct {
-            gestures: std.array_list.Managed(Gesture),
+            gestures: std.ArrayList(Gesture),
 
             pub const Gesture = struct {
                 name: []const u8,
@@ -724,7 +724,7 @@ pub const XRSystem = struct {
                 .gesture_recognizer = try allocator.create(GestureRecognizer),
             };
             hand_tracking.gesture_recognizer.* = GestureRecognizer{
-                .gestures = std.array_list.Managed(GestureRecognizer.Gesture).init(allocator),
+                .gestures = std.ArrayList(GestureRecognizer.Gesture).init(allocator),
             };
             return hand_tracking;
         }
@@ -753,7 +753,7 @@ pub const XRSystem = struct {
 
     /// Guardian/Boundary system
     pub const GuardianSystem = struct {
-        boundary_points: std.array_list.Managed(Vec3),
+        boundary_points: std.ArrayList(Vec3),
         boundary_center: Vec3f,
         boundary_dimensions: Vec3,
         is_boundary_visible: bool = false,
@@ -761,7 +761,7 @@ pub const XRSystem = struct {
         pub fn init(allocator: std.mem.Allocator) !*GuardianSystem {
             const guardian = try allocator.create(GuardianSystem);
             guardian.* = GuardianSystem{
-                .boundary_points = std.array_list.Managed(Vec3(f32)).init(allocator),
+                .boundary_points = std.ArrayList(Vec3(f32)).init(allocator),
                 .boundary_center = Vec3.zero(),
                 .boundary_dimensions = Vec3.new(2.0, 2.0, 2.0),
             };
@@ -817,7 +817,7 @@ pub const XRSystem = struct {
             .input_system = input,
             .renderer = renderer,
             .eye_textures = eye_textures,
-            .spatial_anchors = std.array_list.Managed(*SpatialAnchor).init(allocator),
+            .spatial_anchors = std.ArrayList(*SpatialAnchor).init(allocator),
             .stats = XRStats{},
             .comfort_settings = ComfortSettings{},
         };

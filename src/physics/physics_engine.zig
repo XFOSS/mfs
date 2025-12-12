@@ -51,7 +51,7 @@ const continuous_collision = @import("continuous_collision.zig");
 /// Provides comprehensive physics simulation including constraints, collision detection, and advanced features
 pub const PhysicsEngine = struct {
     allocator: std.mem.Allocator,
-    objects: std.array_list.Managed(PhysicalObject),
+    objects: std.ArrayList(PhysicalObject),
     rigid_body_manager: rigid_body.RigidBodyManager,
     constraint_manager: ConstraintManager,
     collision_detector: CollisionDetector,
@@ -82,7 +82,7 @@ pub const PhysicsEngine = struct {
     /// Constraint system for connecting rigid bodies
     const ConstraintManager = struct {
         allocator: std.mem.Allocator,
-        constraints: std.array_list.Managed(Constraint),
+        constraints: std.ArrayList(Constraint),
 
         const Constraint = struct {
             constraint_type: ConstraintType,
@@ -153,7 +153,7 @@ pub const PhysicsEngine = struct {
         pub fn init(allocator: std.mem.Allocator) !ConstraintManager {
             return .{
                 .allocator = allocator,
-                .constraints = try std.array_list.Managed(Constraint).initCapacity(allocator, 16),
+                .constraints = try std.ArrayList(Constraint).initCapacity(allocator, 16),
             };
         }
 
@@ -269,8 +269,8 @@ pub const PhysicsEngine = struct {
     /// Advanced collision detection system
     const CollisionDetector = struct {
         allocator: std.mem.Allocator,
-        collision_pairs: std.array_list.Managed(CollisionPair),
-        contact_manifolds: std.array_list.Managed(ContactManifold),
+        collision_pairs: std.ArrayList(CollisionPair),
+        contact_manifolds: std.ArrayList(ContactManifold),
 
         const CollisionPair = struct {
             body_a: usize,
@@ -298,8 +298,8 @@ pub const PhysicsEngine = struct {
         pub fn init(allocator: std.mem.Allocator) !CollisionDetector {
             return .{
                 .allocator = allocator,
-                .collision_pairs = try std.array_list.Managed(CollisionPair).initCapacity(allocator, 32),
-                .contact_manifolds = try std.array_list.Managed(ContactManifold).initCapacity(allocator, 32),
+                .collision_pairs = try std.ArrayList(CollisionPair).initCapacity(allocator, 32),
+                .contact_manifolds = try std.ArrayList(ContactManifold).initCapacity(allocator, 32),
             };
         }
 
@@ -453,7 +453,7 @@ pub const PhysicsEngine = struct {
         const engine = try allocator.create(PhysicsEngine);
         engine.* = .{
             .allocator = allocator,
-            .objects = try std.array_list.Managed(PhysicalObject).initCapacity(allocator, 64),
+            .objects = try std.ArrayList(PhysicalObject).initCapacity(allocator, 64),
             .rigid_body_manager = try rigid_body.RigidBodyManager.init(allocator),
             .constraint_manager = try ConstraintManager.init(allocator),
             .collision_detector = try CollisionDetector.init(allocator),

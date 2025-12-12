@@ -2,7 +2,7 @@ const std = @import("std");
 const Thread = std.Thread;
 const Mutex = std.Thread.Mutex;
 const Condition = std.Thread.Condition;
-const ArrayList = std.array_list.Managed;
+const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 
 // Windows API types

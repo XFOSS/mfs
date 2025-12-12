@@ -29,16 +29,16 @@ pub const ProjectManager = struct {
     allocator: std.mem.Allocator,
     current_project_path: ?[]const u8,
     settings: ?ProjectSettings,
-    files: std.array_list.Managed(ProjectFile),
-    recent_projects: std.array_list.Managed([]const u8),
+    files: std.ArrayList(ProjectFile),
+    recent_projects: std.ArrayList([]const u8),
 
     pub fn init(allocator: std.mem.Allocator) ProjectManager {
         return ProjectManager{
             .allocator = allocator,
             .current_project_path = null,
             .settings = null,
-            .files = std.array_list.Managed(ProjectFile).init(allocator),
-            .recent_projects = std.array_list.Managed([]const u8).init(allocator),
+            .files = std.ArrayList(ProjectFile).init(allocator),
+            .recent_projects = std.ArrayList([]const u8).init(allocator),
         };
     }
 

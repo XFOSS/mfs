@@ -128,13 +128,13 @@ pub const GraphicsSystem = struct {
     const Self = @This();
 
     const BufferManager = struct {
-        buffers: std.array_list.Managed(*Buffer),
+        buffers: std.ArrayList(*Buffer),
         allocator: std.mem.Allocator,
 
         pub fn init(allocator: std.mem.Allocator) !BufferManager {
             return BufferManager{
                 .allocator = allocator,
-                .buffers = try std.array_list.Managed(*Buffer).initCapacity(allocator, 16),
+                .buffers = try std.ArrayList(*Buffer).initCapacity(allocator, 16),
             };
         }
 
@@ -154,13 +154,13 @@ pub const GraphicsSystem = struct {
     };
 
     const TextureManager = struct {
-        textures: std.array_list.Managed(*Texture),
+        textures: std.ArrayList(*Texture),
         allocator: std.mem.Allocator,
 
         pub fn init(allocator: std.mem.Allocator) !TextureManager {
             return TextureManager{
                 .allocator = allocator,
-                .textures = try std.array_list.Managed(*Texture).initCapacity(allocator, 16),
+                .textures = try std.ArrayList(*Texture).initCapacity(allocator, 16),
             };
         }
 
@@ -180,13 +180,13 @@ pub const GraphicsSystem = struct {
     };
 
     const ShaderManager = struct {
-        shaders: std.array_list.Managed(*Shader),
+        shaders: std.ArrayList(*Shader),
         allocator: std.mem.Allocator,
 
         pub fn init(allocator: std.mem.Allocator) !ShaderManager {
             return ShaderManager{
                 .allocator = allocator,
-                .shaders = try std.array_list.Managed(*Shader).initCapacity(allocator, 8),
+                .shaders = try std.ArrayList(*Shader).initCapacity(allocator, 8),
             };
         }
 
@@ -206,13 +206,13 @@ pub const GraphicsSystem = struct {
     };
 
     const PipelineManager = struct {
-        pipelines: std.array_list.Managed(*Pipeline),
+        pipelines: std.ArrayList(*Pipeline),
         allocator: std.mem.Allocator,
 
         pub fn init(allocator: std.mem.Allocator) !PipelineManager {
             return PipelineManager{
                 .allocator = allocator,
-                .pipelines = try std.array_list.Managed(*Pipeline).initCapacity(allocator, 8),
+                .pipelines = try std.ArrayList(*Pipeline).initCapacity(allocator, 8),
             };
         }
 

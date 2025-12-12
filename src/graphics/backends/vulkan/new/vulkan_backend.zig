@@ -393,7 +393,7 @@ pub const VulkanBackend = struct {
             .apiVersion = vk.API_VERSION_1_3,
         };
 
-        var layers = std.array_list.Managed([*:0]const u8).init(allocator);
+        var layers = std.ArrayList([*:0]const u8).init(allocator);
         defer layers.deinit();
 
         if (config.validation.enabled) {
@@ -584,9 +584,9 @@ pub const VulkanBackend = struct {
         const platform = @import("builtin").target.os.tag;
         switch (platform) {
             .windows => {
-                const win32 = @import("std").os.windows;
+                const win32 = @import("../../../../../windows/api.zig");
                 const hwnd = @as(win32.HWND, @ptrCast(window_handle));
-                const hinstance = win32.kernel32.GetModuleHandleW(null);
+                const hinstance = win32.GetModuleHandleW(null) orelse return error.FailedToGetModuleHandle;
 
                 const surface_create_info = vk.Win32SurfaceCreateInfoKHR{
                     .hinstance = hinstance,
@@ -625,7 +625,7 @@ pub const VulkanBackend = struct {
             return error.MissingQueueFamily;
         }
 
-        var unique_queues = std.array_list.Managed(u32).init(std.heap.page_allocator);
+        var unique_queues = std.ArrayList(u32).init(std.heap.page_allocator);
         defer unique_queues.deinit();
 
         // Add required queue families
@@ -647,7 +647,7 @@ pub const VulkanBackend = struct {
         }
 
         // Create queue create infos
-        var queue_create_infos = std.array_list.Managed(vk.DeviceQueueCreateInfo).init(
+        var queue_create_infos = std.ArrayList(vk.DeviceQueueCreateInfo).init(
             std.heap.page_allocator,
         );
         defer queue_create_infos.deinit();

@@ -16,7 +16,7 @@ pub fn main() !void {
     _ = @import("src/engine/core.zig");
 
     // Test ArrayList usage
-    var test_list = std.array_list.Managed(u32).init(allocator);
+    var test_list = std.ArrayList(u32).init(allocator);
     defer test_list.deinit();
 
     try test_list.append(1);

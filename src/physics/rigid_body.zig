@@ -158,13 +158,13 @@ pub const RigidBody = struct {
 /// RigidBodyManager for managing a collection of rigid bodies
 pub const RigidBodyManager = struct {
     allocator: std.mem.Allocator,
-    rigid_bodies: std.array_list.Managed(RigidBody),
+    rigid_bodies: std.ArrayList(RigidBody),
     object_to_rigid_body: std.AutoHashMap(usize, usize),
 
     pub fn init(allocator: std.mem.Allocator) !RigidBodyManager {
         return .{
             .allocator = allocator,
-            .rigid_bodies = try std.array_list.Managed(RigidBody).initCapacity(allocator, 64),
+            .rigid_bodies = try std.ArrayList(RigidBody).initCapacity(allocator, 64),
             .object_to_rigid_body = std.AutoHashMap(usize, usize).init(allocator),
         };
     }

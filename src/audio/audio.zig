@@ -97,15 +97,15 @@ pub const AudioEngine = struct {
     audio_context: *AudioContext,
 
     // Audio sources and buffers
-    sources: std.array_list.Managed(*AudioSource),
-    buffers: std.array_list.Managed(*AudioBuffer),
-    streaming_sources: std.array_list.Managed(*StreamingSource),
+    sources: std.ArrayList(*AudioSource),
+    buffers: std.ArrayList(*AudioBuffer),
+    streaming_sources: std.ArrayList(*StreamingSource),
 
     // 3D Audio and listener
     listener: AudioListener,
 
     // Effects and processing
-    reverb_zones: std.array_list.Managed(*ReverbZone),
+    reverb_zones: std.ArrayList(*ReverbZone),
     effect_chain: *EffectChain,
 
     // Audio synthesis
@@ -705,13 +705,13 @@ pub const AudioEngine = struct {
     /// Audio effects chain processor
     pub const EffectChain = struct {
         allocator: std.mem.Allocator,
-        effects: std.array_list.Managed(*AudioEffect),
+        effects: std.ArrayList(*AudioEffect),
 
         pub fn init(allocator: std.mem.Allocator) !*EffectChain {
             const chain = try allocator.create(EffectChain);
             chain.* = EffectChain{
                 .allocator = allocator,
-                .effects = try std.array_list.Managed(*AudioEffect).initCapacity(allocator, 4),
+                .effects = try std.ArrayList(*AudioEffect).initCapacity(allocator, 4),
             };
             return chain;
         }
@@ -791,14 +791,14 @@ pub const AudioEngine = struct {
     /// Audio synthesizer for procedural sound generation
     pub const AudioSynthesizer = struct {
         allocator: std.mem.Allocator,
-        oscillators: std.array_list.Managed(*Oscillator),
+        oscillators: std.ArrayList(*Oscillator),
         sample_rate: u32,
 
         pub fn init(allocator: std.mem.Allocator, sample_rate: u32) !*AudioSynthesizer {
             const synth = try allocator.create(AudioSynthesizer);
             synth.* = AudioSynthesizer{
                 .allocator = allocator,
-                .oscillators = try std.array_list.Managed(*Oscillator).initCapacity(allocator, 8),
+                .oscillators = try std.ArrayList(*Oscillator).initCapacity(allocator, 8),
                 .sample_rate = sample_rate,
             };
             return synth;
@@ -1035,11 +1035,11 @@ pub const AudioEngine = struct {
             .allocator = allocator,
             .audio_device = try AudioDevice.init(allocator, settings),
             .audio_context = try AudioContext.init(allocator),
-            .sources = try std.array_list.Managed(*AudioSource).initCapacity(allocator, 32),
-            .buffers = try std.array_list.Managed(*AudioBuffer).initCapacity(allocator, 16),
-            .streaming_sources = try std.array_list.Managed(*StreamingSource).initCapacity(allocator, 8),
+            .sources = try std.ArrayList(*AudioSource).initCapacity(allocator, 32),
+            .buffers = try std.ArrayList(*AudioBuffer).initCapacity(allocator, 16),
+            .streaming_sources = try std.ArrayList(*StreamingSource).initCapacity(allocator, 8),
             .listener = AudioListener{},
-            .reverb_zones = try std.array_list.Managed(*ReverbZone).initCapacity(allocator, 4),
+            .reverb_zones = try std.ArrayList(*ReverbZone).initCapacity(allocator, 4),
             .effect_chain = try EffectChain.init(allocator),
             .synthesizer = try AudioSynthesizer.init(allocator, settings.sample_rate),
             .audio_queue = try LockFreeQueue(AudioCommand).init(allocator, 1024),

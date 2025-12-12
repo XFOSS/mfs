@@ -42,8 +42,8 @@ pub const CollaborativeProject = struct {
     owner_id: u64,
     created_at: i64,
     updated_at: i64,
-    members: std.array_list.Managed(ProjectMember),
-    invites: std.array_list.Managed(ProjectInvite),
+    members: std.ArrayList(ProjectMember),
+    invites: std.ArrayList(ProjectInvite),
     is_public: bool = false,
     max_members: u32 = 10,
 };
@@ -58,7 +58,7 @@ pub const CollaborationConfig = struct {
 pub const CollaborationManager = struct {
     allocator: std.mem.Allocator,
     config: CollaborationConfig,
-    projects: std.array_list.Managed(CollaborativeProject),
+    projects: std.ArrayList(CollaborativeProject),
     next_project_id: u64,
     next_invite_id: u64,
 
@@ -66,7 +66,7 @@ pub const CollaborationManager = struct {
         return CollaborationManager{
             .allocator = allocator,
             .config = config,
-            .projects = std.array_list.Managed(CollaborativeProject).init(allocator),
+            .projects = std.ArrayList(CollaborativeProject).init(allocator),
             .next_project_id = 1,
             .next_invite_id = 1,
         };
@@ -81,8 +81,8 @@ pub const CollaborationManager = struct {
             .owner_id = owner_id,
             .created_at = now,
             .updated_at = now,
-            .members = std.array_list.Managed(ProjectMember).init(self.allocator),
-            .invites = std.array_list.Managed(ProjectInvite).init(self.allocator),
+            .members = std.ArrayList(ProjectMember).init(self.allocator),
+            .invites = std.ArrayList(ProjectInvite).init(self.allocator),
         };
         try self.projects.append(project);
         self.next_project_id += 1;
@@ -175,7 +175,7 @@ pub const CollaborationManager = struct {
         return error.MemberNotFound;
     }
 
-    pub fn getUserProjects(self: *const CollaborationManager, user_id: u64, results: *std.array_list.Managed(CollaborativeProject)) !void {
+    pub fn getUserProjects(self: *const CollaborationManager, user_id: u64, results: *std.ArrayList(CollaborativeProject)) !void {
         results.clearRetainingCapacity();
         for (self.projects.items) |project| {
             if (project.owner_id == user_id) {
@@ -197,7 +197,7 @@ pub const CollaborationManager = struct {
         return project.members.items;
     }
 
-    pub fn getPendingInvites(self: *const CollaborationManager, user_email: []const u8, results: *std.array_list.Managed(ProjectInvite)) !void {
+    pub fn getPendingInvites(self: *const CollaborationManager, user_email: []const u8, results: *std.ArrayList(ProjectInvite)) !void {
         results.clearRetainingCapacity();
         for (self.projects.items) |project| {
             for (project.invites.items) |invite| {

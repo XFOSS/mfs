@@ -69,13 +69,13 @@ pub const Benchmarker = struct {
     const Self = @This();
 
     config: BenchmarkConfig,
-    results: std.array_list.Managed(BenchmarkReport),
+    results: std.ArrayList(BenchmarkReport),
     timer: std.time.Timer,
 
     pub fn init(config: BenchmarkConfig) !Self {
         return Self{
             .config = config,
-            .results = std.array_list.Managed(BenchmarkReport).init(config.allocator),
+            .results = std.ArrayList(BenchmarkReport).init(config.allocator),
             .timer = try std.time.Timer.start(),
         };
     }

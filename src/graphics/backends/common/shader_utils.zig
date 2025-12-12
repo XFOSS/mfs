@@ -33,11 +33,11 @@ pub const ShaderCompileOptions = struct {
 
 /// Shader reflection data
 pub const ShaderReflection = struct {
-    uniforms: std.array_list.Managed(UniformInfo),
-    textures: std.array_list.Managed(TextureInfo),
-    inputs: std.array_list.Managed(InputInfo),
-    outputs: std.array_list.Managed(OutputInfo),
-    push_constants: std.array_list.Managed(PushConstantInfo),
+    uniforms: std.ArrayList(UniformInfo),
+    textures: std.ArrayList(TextureInfo),
+    inputs: std.ArrayList(InputInfo),
+    outputs: std.ArrayList(OutputInfo),
+    push_constants: std.ArrayList(PushConstantInfo),
 
     const UniformInfo = struct {
         name: []const u8,
@@ -103,11 +103,11 @@ pub const ShaderReflection = struct {
 
     pub fn init(allocator: std.mem.Allocator) ShaderReflection {
         return ShaderReflection{
-            .uniforms = std.array_list.Managed(UniformInfo).init(allocator),
-            .textures = std.array_list.Managed(TextureInfo).init(allocator),
-            .inputs = std.array_list.Managed(InputInfo).init(allocator),
-            .outputs = std.array_list.Managed(OutputInfo).init(allocator),
-            .push_constants = std.array_list.Managed(PushConstantInfo).init(allocator),
+            .uniforms = std.ArrayList(UniformInfo).init(allocator),
+            .textures = std.ArrayList(TextureInfo).init(allocator),
+            .inputs = std.ArrayList(InputInfo).init(allocator),
+            .outputs = std.ArrayList(OutputInfo).init(allocator),
+            .push_constants = std.ArrayList(PushConstantInfo).init(allocator),
         };
     }
 
@@ -249,8 +249,8 @@ pub const ShaderUtils = struct {
     }
 
     /// Extract shader includes from source code
-    pub fn extractIncludes(allocator: std.mem.Allocator, source: []const u8) !std.array_list.Managed([]const u8) {
-        var includes = std.array_list.Managed([]const u8).init(allocator);
+    pub fn extractIncludes(allocator: std.mem.Allocator, source: []const u8) !std.ArrayList([]const u8) {
+        var includes = std.ArrayList([]const u8).init(allocator);
 
         var lines = std.mem.splitSequence(u8, source, "\n");
         while (lines.next()) |line| {
@@ -296,7 +296,7 @@ pub const ShaderUtils = struct {
             return allocator.dupe(u8, source);
         }
 
-        var result = std.array_list.Managed(u8).init(allocator);
+        var result = std.ArrayList(u8).init(allocator);
         defer result.deinit();
 
         var lines = std.mem.splitSequence(u8, source, "\n");

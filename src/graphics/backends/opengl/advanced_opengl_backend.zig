@@ -261,7 +261,7 @@ pub const OpenGLIndirectRenderer = struct {
     command_buffer: u32,
     command_capacity: u32,
     command_count: u32,
-    indirect_commands: std.array_list.Managed(DrawElementsCommand),
+    indirect_commands: std.ArrayList(DrawElementsCommand),
 
     pub fn init(allocator: Allocator) !OpenGLIndirectRenderer {
         var command_buffer: u32 = undefined;
@@ -278,7 +278,7 @@ pub const OpenGLIndirectRenderer = struct {
             .command_buffer = command_buffer,
             .command_capacity = capacity,
             .command_count = 0,
-            .indirect_commands = std.array_list.Managed(DrawElementsCommand).init(allocator),
+            .indirect_commands = std.ArrayList(DrawElementsCommand).init(allocator),
         };
     }
 

@@ -70,9 +70,9 @@ pub const MarketplaceConfig = struct {
 pub const Marketplace = struct {
     allocator: std.mem.Allocator,
     config: MarketplaceConfig,
-    assets: std.array_list.Managed(AssetListing),
-    purchases: std.array_list.Managed(Purchase),
-    reviews: std.array_list.Managed(Review),
+    assets: std.ArrayList(AssetListing),
+    purchases: std.ArrayList(Purchase),
+    reviews: std.ArrayList(Review),
     next_asset_id: u64,
     next_purchase_id: u64,
     next_review_id: u64,
@@ -81,9 +81,9 @@ pub const Marketplace = struct {
         return Marketplace{
             .allocator = allocator,
             .config = config,
-            .assets = std.array_list.Managed(AssetListing).init(allocator),
-            .purchases = std.array_list.Managed(Purchase).init(allocator),
-            .reviews = std.array_list.Managed(Review).init(allocator),
+            .assets = std.ArrayList(AssetListing).init(allocator),
+            .purchases = std.ArrayList(Purchase).init(allocator),
+            .reviews = std.ArrayList(Review).init(allocator),
             .next_asset_id = 1,
             .next_purchase_id = 1,
             .next_review_id = 1,
@@ -163,7 +163,7 @@ pub const Marketplace = struct {
         return review.id;
     }
 
-    pub fn searchAssets(self: *const Marketplace, query: []const u8, category: ?AssetCategory, results: *std.array_list.Managed(AssetListing)) !void {
+    pub fn searchAssets(self: *const Marketplace, query: []const u8, category: ?AssetCategory, results: *std.ArrayList(AssetListing)) !void {
         results.clearRetainingCapacity();
         for (self.assets.items) |asset| {
             var matches = false;
@@ -186,7 +186,7 @@ pub const Marketplace = struct {
         }
     }
 
-    pub fn getFeaturedAssets(self: *const Marketplace, results: *std.array_list.Managed(AssetListing)) !void {
+    pub fn getFeaturedAssets(self: *const Marketplace, results: *std.ArrayList(AssetListing)) !void {
         results.clearRetainingCapacity();
         for (self.assets.items) |asset| {
             if (asset.featured) {
@@ -195,7 +195,7 @@ pub const Marketplace = struct {
         }
     }
 
-    pub fn getAssetReviews(self: *const Marketplace, asset_id: u64, results: *std.array_list.Managed(Review)) !void {
+    pub fn getAssetReviews(self: *const Marketplace, asset_id: u64, results: *std.ArrayList(Review)) !void {
         results.clearRetainingCapacity();
         for (self.reviews.items) |review| {
             if (review.asset_id == asset_id) {
@@ -204,7 +204,7 @@ pub const Marketplace = struct {
         }
     }
 
-    pub fn getUserPurchases(self: *const Marketplace, user_id: u64, results: *std.array_list.Managed(Purchase)) !void {
+    pub fn getUserPurchases(self: *const Marketplace, user_id: u64, results: *std.ArrayList(Purchase)) !void {
         results.clearRetainingCapacity();
         for (self.purchases.items) |purchase| {
             if (purchase.buyer_id == user_id) {

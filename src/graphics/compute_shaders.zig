@@ -204,13 +204,13 @@ pub const ComputeDispatchParams = struct {
 
 /// Culling result data structure
 pub const CullingResult = struct {
-    visible_objects: std.array_list.Managed(u32),
-    culled_objects: std.array_list.Managed(u32),
+    visible_objects: std.ArrayList(u32),
+    culled_objects: std.ArrayList(u32),
 
     pub fn init(allocator: std.mem.Allocator) CullingResult {
         return CullingResult{
-            .visible_objects = std.array_list.Managed(u32).init(allocator),
-            .culled_objects = std.array_list.Managed(u32).init(allocator),
+            .visible_objects = std.ArrayList(u32).init(allocator),
+            .culled_objects = std.ArrayList(u32).init(allocator),
         };
     }
 

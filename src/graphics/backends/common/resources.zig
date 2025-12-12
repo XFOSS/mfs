@@ -12,7 +12,7 @@ pub const ResourceManager = struct {
     pipelines: std.AutoHashMap(u64, *types.Pipeline),
     render_targets: std.AutoHashMap(u64, *types.RenderTarget),
 
-    memory_blocks: std.array_list.Managed(*memory.MemoryBlock),
+    memory_blocks: std.ArrayList(*memory.MemoryBlock),
 
     pub fn init(allocator: std.mem.Allocator) ResourceManager {
         return ResourceManager{
@@ -22,7 +22,7 @@ pub const ResourceManager = struct {
             .shaders = std.AutoHashMap(u64, *types.Shader).init(allocator),
             .pipelines = std.AutoHashMap(u64, *types.Pipeline).init(allocator),
             .render_targets = std.AutoHashMap(u64, *types.RenderTarget).init(allocator),
-            .memory_blocks = std.array_list.Managed(*memory.MemoryBlock).init(allocator),
+            .memory_blocks = std.ArrayList(*memory.MemoryBlock).init(allocator),
         };
     }
 

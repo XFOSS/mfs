@@ -29,7 +29,7 @@ pub const BackendBase = struct {
     memory_allocator: memory.Allocator,
 
     // Debug information
-    debug_groups: std.array_list.Managed([]const u8),
+    debug_groups: std.ArrayList([]const u8),
 
     const Self = @This();
 
@@ -44,7 +44,7 @@ pub const BackendBase = struct {
             .active_shaders = std.AutoHashMap(u64, *types.Shader).init(allocator),
             .active_pipelines = std.AutoHashMap(u64, *types.Pipeline).init(allocator),
             .memory_allocator = try memory.Allocator.init(allocator, .general, 1024 * 1024 * 64), // 64MB default
-            .debug_groups = std.array_list.Managed([]const u8).init(allocator),
+            .debug_groups = std.ArrayList([]const u8).init(allocator),
         };
     }
 

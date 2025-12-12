@@ -49,7 +49,7 @@ pub const ClientConnection = struct {
 
 pub const NetworkServer = struct {
     socket: std.net.StreamServer,
-    clients: std.array_list.Managed(ClientConnection),
+    clients: std.ArrayList(ClientConnection),
     allocator: std.mem.Allocator,
     port: u16,
     running: bool,
@@ -58,7 +58,7 @@ pub const NetworkServer = struct {
     pub fn init(allocator: std.mem.Allocator, port: u16, max_clients: u32) NetworkServer {
         return NetworkServer{
             .socket = undefined,
-            .clients = std.array_list.Managed(ClientConnection).init(allocator),
+            .clients = std.ArrayList(ClientConnection).init(allocator),
             .allocator = allocator,
             .port = port,
             .running = false,

@@ -15,8 +15,8 @@ pub const VectorContext = struct {
     pixel_ratio: f32,
 
     // Drawing state
-    current_path: std.array_list.Managed(PathCommand),
-    transform_stack: std.array_list.Managed(Transform),
+    current_path: std.ArrayList(PathCommand),
+    transform_stack: std.ArrayList(Transform),
     current_transform: Transform,
 
     const Self = @This();
@@ -28,8 +28,8 @@ pub const VectorContext = struct {
             .width = width,
             .height = height,
             .pixel_ratio = 1.0,
-            .current_path = std.array_list.Managed(PathCommand).init(allocator),
-            .transform_stack = std.array_list.Managed(Transform).init(allocator),
+            .current_path = std.ArrayList(PathCommand).init(allocator),
+            .transform_stack = std.ArrayList(Transform).init(allocator),
             .current_transform = Transform.identity(),
         };
     }

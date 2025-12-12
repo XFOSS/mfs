@@ -89,13 +89,13 @@ pub fn makeError(
 /// Error logger for tracking and reporting graphics errors
 pub const ErrorLogger = struct {
     allocator: std.mem.Allocator,
-    errors: std.array_list.Managed(ErrorContext),
+    errors: std.ArrayList(ErrorContext),
     max_errors: usize = 100,
 
     pub fn init(allocator: std.mem.Allocator) ErrorLogger {
         return ErrorLogger{
             .allocator = allocator,
-            .errors = std.array_list.Managed(ErrorContext).init(allocator),
+            .errors = std.ArrayList(ErrorContext).init(allocator),
         };
     }
 

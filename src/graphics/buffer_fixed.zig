@@ -65,7 +65,7 @@ pub const RingBuffer = struct {
     allocator: Allocator,
     buffer: *Buffer,
     head: usize = 0,
-    frame_allocations: std.AutoHashMap(u64, std.array_list.Managed(BufferRegion)),
+    frame_allocations: std.AutoHashMap(u64, std.ArrayList(BufferRegion)),
     current_frame: u64 = 0,
 
     const Self = @This();
@@ -81,7 +81,7 @@ pub const RingBuffer = struct {
         self.* = Self{
             .allocator = allocator,
             .buffer = buffer,
-            .frame_allocations = std.AutoHashMap(u64, std.array_list.Managed(BufferRegion)).init(allocator),
+            .frame_allocations = std.AutoHashMap(u64, std.ArrayList(BufferRegion)).init(allocator),
         };
 
         return self;
@@ -153,7 +153,7 @@ pub const RingBuffer = struct {
         var frame_list = if (self.frame_allocations.get(self.current_frame)) |list|
             list
         else
-            std.array_list.Managed(BufferRegion).init(self.allocator);
+            std.ArrayList(BufferRegion).init(self.allocator);
 
         try frame_list.append(BufferRegion{ .offset = offset, .size = size });
         try self.frame_allocations.put(self.current_frame, frame_list);
@@ -165,8 +165,8 @@ pub const RingBuffer = struct {
 /// @symbol Buffer pool for resource reuse
 pub const BufferPool = struct {
     allocator: Allocator,
-    buffers: std.array_list.Managed(*Buffer),
-    free_buffers: std.array_list.Managed(*Buffer),
+    buffers: std.ArrayList(*Buffer),
+    free_buffers: std.ArrayList(*Buffer),
     in_use_buffers: std.AutoHashMap(*Buffer, usize),
     buffer_type: BufferType,
     buffer_size: usize,
@@ -182,8 +182,8 @@ pub const BufferPool = struct {
         var self = try allocator.create(Self);
         self.* = Self{
             .allocator = allocator,
-            .buffers = std.array_list.Managed(*Buffer).init(allocator),
-            .free_buffers = std.array_list.Managed(*Buffer).init(allocator),
+            .buffers = std.ArrayList(*Buffer).init(allocator),
+            .free_buffers = std.ArrayList(*Buffer).init(allocator),
             .in_use_buffers = std.AutoHashMap(*Buffer, usize).init(allocator),
             .buffer_type = buffer_type,
             .buffer_size = buffer_size,
@@ -384,7 +384,7 @@ pub const Buffer = struct {
     last_used_frame: u64 = 0,
     // For allocation pools/suballocation
     is_pool: bool = false,
-    free_regions: ?std.array_list.Managed(BufferRegion) = null,
+    free_regions: ?std.ArrayList(BufferRegion) = null,
     allocations: ?std.AutoArrayHashMap(usize, BufferRegion) = null,
     alignment: usize = 4,
 
@@ -418,7 +418,7 @@ pub const Buffer = struct {
         var self = try init(allocator, size, buffer_type, access);
         self.is_pool = true;
         self.alignment = alignment;
-        self.free_regions = std.array_list.Managed(BufferRegion).init(allocator);
+        self.free_regions = std.ArrayList(BufferRegion).init(allocator);
         self.allocations = std.AutoArrayHashMap(usize, BufferRegion).init(allocator);
 
         // Initially the entire buffer is free

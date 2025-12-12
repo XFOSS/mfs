@@ -202,7 +202,7 @@ pub const Plugin = struct {
 /// Enhanced plugin loader with file watching, hot-reloading, and thread safety
 pub const PluginLoader = struct {
     allocator: std.mem.Allocator,
-    plugins: std.array_list.Managed(Plugin),
+    plugins: std.ArrayList(Plugin),
     plugin_map: std.StringHashMap(u32), // path -> plugin index
     next_plugin_id: u32 = 1,
 
@@ -212,7 +212,7 @@ pub const PluginLoader = struct {
     // File watching for hot-reload
     watch_thread: ?std.Thread = null,
     should_stop_watching: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    watch_directories: std.array_list.Managed([]const u8),
+    watch_directories: std.ArrayList([]const u8),
 
     // Engine integration
     engine_api: EngineAPI,
@@ -234,9 +234,9 @@ pub const PluginLoader = struct {
     pub fn init(allocator: std.mem.Allocator, engine_api: EngineAPI, config: LoaderConfig) !Self {
         var loader = Self{
             .allocator = allocator,
-            .plugins = std.array_list.Managed(Plugin).init(allocator),
+            .plugins = std.ArrayList(Plugin).init(allocator),
             .plugin_map = std.StringHashMap(u32).init(allocator),
-            .watch_directories = std.array_list.Managed([]const u8).init(allocator),
+            .watch_directories = std.ArrayList([]const u8).init(allocator),
             .engine_api = engine_api,
             .config = config,
         };

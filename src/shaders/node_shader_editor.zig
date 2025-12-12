@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.array_list.Managed;
+const ArrayList = std.ArrayList;
 const HashMap = std.HashMap;
 const math = @import("math");
 const Vec2 = math.Vec2;

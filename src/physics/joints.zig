@@ -474,12 +474,12 @@ pub const SixDofJoint = struct {
 /// Joint manager for handling collections of joints
 pub const JointManager = struct {
     allocator: std.mem.Allocator,
-    joints: std.array_list.Managed(*Joint),
+    joints: std.ArrayList(*Joint),
 
     pub fn init(allocator: std.mem.Allocator) JointManager {
         return JointManager{
             .allocator = allocator,
-            .joints = std.array_list.Managed(*Joint).init(allocator),
+            .joints = std.ArrayList(*Joint).init(allocator),
         };
     }
 

@@ -174,7 +174,7 @@ pub const AssetProcessingJob = struct {
 
     // Dependencies
     dependencies: []u64 = &.{},
-    dependent_jobs: std.array_list.Managed(u64),
+    dependent_jobs: std.ArrayList(u64),
 
     // Timing
     queued_time: i64,
@@ -210,7 +210,7 @@ pub const AssetProcessingJob = struct {
             .id = id,
             .job_type = job_type,
             .params = params,
-            .dependent_jobs = std.array_list.Managed(u64).init(allocator),
+            .dependent_jobs = std.ArrayList(u64).init(allocator),
             .queued_time = std.time.timestamp(),
         };
     }

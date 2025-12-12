@@ -9,7 +9,7 @@ const Allocator = std.mem.Allocator;
 const Thread = std.Thread;
 const Mutex = std.Thread.Mutex;
 const Atomic = std.atomic.Value;
-const ArrayList = std.array_list.Managed;
+const ArrayList = std.ArrayList;
 const HashMap = std.HashMap;
 const AutoHashMap = std.AutoHashMap;
 

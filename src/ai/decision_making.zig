@@ -7,7 +7,7 @@ const Vec3 = math.Vec3;
 
 pub const DecisionEngine = struct {
     allocator: std.mem.Allocator,
-    decision_makers: std.array_list.Managed(*DecisionMaker),
+    decision_makers: std.ArrayList(*DecisionMaker),
     global_memory: std.HashMap([]const u8, f32, std.hash_map.StringContext, std.hash_map.default_max_load_percentage),
     update_frequency: f32,
     time_accumulator: f32,
@@ -15,7 +15,7 @@ pub const DecisionEngine = struct {
     pub fn init(allocator: std.mem.Allocator) !DecisionEngine {
         return DecisionEngine{
             .allocator = allocator,
-            .decision_makers = std.array_list.Managed(*DecisionMaker).init(allocator),
+            .decision_makers = std.ArrayList(*DecisionMaker).init(allocator),
             .global_memory = std.HashMap([]const u8, f32, std.hash_map.StringContext, std.hash_map.default_max_load_percentage).init(allocator),
             .update_frequency = 0.1, // Update every 100ms
             .time_accumulator = 0.0,
@@ -58,7 +58,7 @@ pub const DecisionEngine = struct {
 
     fn updateGlobalMemory(self: *DecisionEngine, delta_time: f32) !void {
         var iterator = self.global_memory.iterator();
-        var keys_to_remove = std.array_list.Managed([]const u8).init(self.allocator);
+        var keys_to_remove = std.ArrayList([]const u8).init(self.allocator);
         defer keys_to_remove.deinit();
 
         while (iterator.next()) |entry| {
@@ -146,7 +146,7 @@ pub const DecisionMaker = struct {
 
     fn updateLocalMemory(self: *DecisionMaker, delta_time: f32) !void {
         var iterator = self.local_memory.iterator();
-        var keys_to_remove = std.array_list.Managed([]const u8).init(self.allocator);
+        var keys_to_remove = std.ArrayList([]const u8).init(self.allocator);
         defer keys_to_remove.deinit();
 
         while (iterator.next()) |entry| {
@@ -419,7 +419,7 @@ pub const UtilityEvaluator = struct {
     }
 
     fn generatePossibleActions(self: *UtilityEvaluator, context: DecisionContext) ![]ActionType {
-        var actions = std.array_list.Managed(ActionType).init(self.allocator);
+        var actions = std.ArrayList(ActionType).init(self.allocator);
 
         // Always possible actions
         try actions.append(ActionType{ .idle = {} });

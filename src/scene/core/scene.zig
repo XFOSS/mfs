@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.array_list.Managed;
+const ArrayList = std.ArrayList;
 const AutoHashMap = std.AutoHashMap;
 // const math = @import("math");
 const Vec3 = struct {

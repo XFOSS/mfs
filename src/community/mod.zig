@@ -106,7 +106,7 @@ pub const ForumSystem = struct {
     allocator: std.mem.Allocator,
 
     // Forum data
-    categories: std.array_list.Managed(ForumCategory),
+    categories: std.ArrayList(ForumCategory),
     posts: std.HashMap(u32, ForumPost, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage),
     next_post_id: u32 = 1,
 
@@ -119,7 +119,7 @@ pub const ForumSystem = struct {
     pub fn init(allocator: std.mem.Allocator) !Self {
         var forum = Self{
             .allocator = allocator,
-            .categories = std.array_list.Managed(ForumCategory).init(allocator),
+            .categories = std.ArrayList(ForumCategory).init(allocator),
             .posts = std.HashMap(u32, ForumPost, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
         };
 
@@ -167,7 +167,7 @@ pub const ForumSystem = struct {
             .title = try self.allocator.dupe(u8, title),
             .content = try self.allocator.dupe(u8, content),
             .created_at = std.time.timestamp(),
-            .replies = std.array_list.Managed(ForumReply).init(self.allocator),
+            .replies = std.ArrayList(ForumReply).init(self.allocator),
         };
 
         try self.posts.put(post_id, post);
@@ -190,8 +190,8 @@ pub const ForumSystem = struct {
     }
 
     /// Get posts in a category
-    pub fn getPostsInCategory(self: *Self, category_id: u32) std.array_list.Managed(u32) {
-        var result = std.array_list.Managed(u32).init(self.allocator);
+    pub fn getPostsInCategory(self: *Self, category_id: u32) std.ArrayList(u32) {
+        var result = std.ArrayList(u32).init(self.allocator);
 
         var post_iterator = self.posts.iterator();
         while (post_iterator.next()) |entry| {
@@ -238,7 +238,7 @@ pub const AssetMarketplace = struct {
 
     // Asset data
     assets: std.HashMap(u32, MarketplaceAsset, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage),
-    categories: std.array_list.Managed(AssetCategory),
+    categories: std.ArrayList(AssetCategory),
     next_asset_id: u32 = 1,
 
     // Search and filtering
@@ -252,7 +252,7 @@ pub const AssetMarketplace = struct {
         var marketplace = Self{
             .allocator = allocator,
             .assets = std.HashMap(u32, MarketplaceAsset, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
-            .categories = std.array_list.Managed(AssetCategory).init(allocator),
+            .categories = std.ArrayList(AssetCategory).init(allocator),
         };
 
         // Create default asset categories
@@ -332,8 +332,8 @@ pub const AssetMarketplace = struct {
     }
 
     /// Search assets in the marketplace
-    pub fn searchAssets(self: *Self, query: []const u8) !std.array_list.Managed(u32) {
-        var results = std.array_list.Managed(u32).init(self.allocator);
+    pub fn searchAssets(self: *Self, query: []const u8) !std.ArrayList(u32) {
+        var results = std.ArrayList(u32).init(self.allocator);
 
         var asset_iterator = self.assets.iterator();
         while (asset_iterator.next()) |entry| {
@@ -451,8 +451,8 @@ pub const CollaborationTools = struct {
             .name = try self.allocator.dupe(u8, name),
             .description = try self.allocator.dupe(u8, description),
             .creator_id = creator_id,
-            .members = std.array_list.Managed(ProjectMember).init(self.allocator),
-            .tasks = std.array_list.Managed(ProjectTask).init(self.allocator),
+            .members = std.ArrayList(ProjectMember).init(self.allocator),
+            .tasks = std.ArrayList(ProjectTask).init(self.allocator),
             .created_at = std.time.timestamp(),
             .status = .active,
         };
@@ -605,7 +605,7 @@ pub const SocialFeatures = struct {
     allocator: std.mem.Allocator,
 
     // Social data
-    friendships: std.HashMap(u32, std.array_list.Managed(u32), std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage),
+    friendships: std.HashMap(u32, std.ArrayList(u32), std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage),
     groups: std.HashMap(u32, SocialGroup, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage),
     next_group_id: u32 = 1,
 
@@ -614,7 +614,7 @@ pub const SocialFeatures = struct {
     pub fn init(allocator: std.mem.Allocator) !Self {
         return Self{
             .allocator = allocator,
-            .friendships = std.HashMap(u32, std.array_list.Managed(u32), std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
+            .friendships = std.HashMap(u32, std.ArrayList(u32), std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
             .groups = std.HashMap(u32, SocialGroup, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
         };
     }
@@ -644,14 +644,14 @@ pub const SocialFeatures = struct {
         // Add friend to user's list
         const result1 = try self.friendships.getOrPut(user_id);
         if (!result1.found_existing) {
-            result1.value_ptr.* = std.array_list.Managed(u32).init(self.allocator);
+            result1.value_ptr.* = std.ArrayList(u32).init(self.allocator);
         }
         try result1.value_ptr.append(friend_id);
 
         // Add user to friend's list (bidirectional)
         const result2 = try self.friendships.getOrPut(friend_id);
         if (!result2.found_existing) {
-            result2.value_ptr.* = std.array_list.Managed(u32).init(self.allocator);
+            result2.value_ptr.* = std.ArrayList(u32).init(self.allocator);
         }
         try result2.value_ptr.append(user_id);
 
@@ -668,7 +668,7 @@ pub const SocialFeatures = struct {
             .name = try self.allocator.dupe(u8, name),
             .description = try self.allocator.dupe(u8, description),
             .creator_id = creator_id,
-            .members = std.array_list.Managed(u32).init(self.allocator),
+            .members = std.ArrayList(u32).init(self.allocator),
             .created_at = std.time.timestamp(),
             .is_public = true,
         };
@@ -750,7 +750,7 @@ pub const ForumPost = struct {
     title: []const u8,
     content: []const u8,
     created_at: i64,
-    replies: std.array_list.Managed(ForumReply),
+    replies: std.ArrayList(ForumReply),
 
     pub fn deinit(self: *ForumPost) void {
         self.replies.deinit();
@@ -821,8 +821,8 @@ pub const CollaborativeProject = struct {
     name: []const u8,
     description: []const u8,
     creator_id: u32,
-    members: std.array_list.Managed(ProjectMember),
-    tasks: std.array_list.Managed(ProjectTask),
+    members: std.ArrayList(ProjectMember),
+    tasks: std.ArrayList(ProjectTask),
     created_at: i64,
     status: ProjectStatus,
 
@@ -893,7 +893,7 @@ pub const SocialGroup = struct {
     name: []const u8,
     description: []const u8,
     creator_id: u32,
-    members: std.array_list.Managed(u32),
+    members: std.ArrayList(u32),
     created_at: i64,
     is_public: bool,
 

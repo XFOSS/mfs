@@ -11,13 +11,13 @@ pub const PipelineEntry = struct {
 /// Pipeline caching for reuse across backends
 pub const PipelineCache = struct {
     allocator: std.mem.Allocator,
-    entries: std.array_list.Managed(PipelineEntry),
+    entries: std.ArrayList(PipelineEntry),
 
     /// Initialize the pipeline cache
     pub fn init(allocator: std.mem.Allocator) PipelineCache {
         return PipelineCache{
             .allocator = allocator,
-            .entries = std.array_list.Managed(PipelineEntry).init(allocator),
+            .entries = std.ArrayList(PipelineEntry).init(allocator),
         };
     }
 

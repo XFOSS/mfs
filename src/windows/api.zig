@@ -98,3 +98,4 @@ extern "user32" fn LoadCursorW(?HINSTANCE, usize) callconv(.C) HCURSOR;
 extern "user32" fn GetSystemMetrics(i32) callconv(.C) i32;
 extern "user32" fn InvalidateRect(HWND, ?*const RECT, BOOL) callconv(.C) BOOL;
 extern "user32" fn FillRect(HDC, *const RECT, HBRUSH) callconv(.C) i32;
+extern "kernel32" fn GetModuleHandleW(?[*:0]const u16) callconv(.C) ?HINSTANCE;

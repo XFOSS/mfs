@@ -1,6 +1,6 @@
 const std = @import("std");
 
-// Script to update all std.ArrayList usages to std.array_list.Managed for Zig 0.15 compatibility
+// Script to update all std.ArrayList usages to std.ArrayList for Zig 0.15 compatibility
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
@@ -9,7 +9,7 @@ pub fn main() !void {
     std.log.info("Discovering files with std.ArrayList usage...", .{});
 
     // Automatically discover all .zig files containing std.ArrayList
-    var files_to_update = std.array_list.Managed([]const u8).init(allocator);
+    var files_to_update = std.ArrayList([]const u8).init(allocator);
     defer {
         for (files_to_update.items) |path| {
             allocator.free(path);
@@ -42,7 +42,7 @@ pub fn main() !void {
     std.log.info("  Skipped: {} files", .{skipped_count});
 }
 
-fn discoverFiles(dir_path: []const u8, files: *std.array_list.Managed([]const u8), allocator: std.mem.Allocator) !void {
+fn discoverFiles(dir_path: []const u8, files: *std.ArrayList([]const u8), allocator: std.mem.Allocator) !void {
     var dir = std.fs.cwd().openDir(dir_path, .{ .iterate = true }) catch |err| {
         // Directory might not exist, that's okay
         if (err == error.FileNotFound) return;
@@ -97,8 +97,8 @@ fn updateFile(file_path: []const u8, allocator: std.mem.Allocator) !bool {
         return false;
     }
 
-    // Replace std.ArrayList with std.array_list.Managed
-    const updated_content = try std.mem.replaceOwned(u8, allocator, content, "std.ArrayList", "std.array_list.Managed");
+    // Replace std.ArrayList with std.ArrayList
+    const updated_content = try std.mem.replaceOwned(u8, allocator, content, "std.ArrayList", "std.ArrayList");
     defer allocator.free(updated_content);
 
     // Only update if content actually changed

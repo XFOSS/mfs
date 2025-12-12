@@ -449,12 +449,12 @@ pub const AngleConstraint = struct {
 /// ConstraintManager for handling various constraint types
 pub const ConstraintManager = struct {
     allocator: std.mem.Allocator,
-    constraints: std.array_list.Managed(Constraint),
+    constraints: std.ArrayList(Constraint),
 
     pub fn init(allocator: std.mem.Allocator) ConstraintManager {
         return ConstraintManager{
             .allocator = allocator,
-            .constraints = std.array_list.Managed(Constraint).init(allocator),
+            .constraints = std.ArrayList(Constraint).init(allocator),
         };
     }
 

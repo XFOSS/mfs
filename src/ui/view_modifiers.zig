@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.array_list.Managed;
+const ArrayList = std.ArrayList;
 const math = @import("math");
 const Vec4 = math.Vec4;
 const color = @import("color.zig");
