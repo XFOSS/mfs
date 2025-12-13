@@ -42,7 +42,7 @@ pub fn main() !void {
     // Prepare CSV report
     const csv_file = try fs.cwd().createFile("build_report.csv", .{ .truncate = true });
     defer csv_file.close();
-    
+
     var buffer: [4096]u8 = undefined;
     const writer = csv_file.writer(&buffer);
     try writer.print("test,success\n", .{});

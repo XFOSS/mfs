@@ -548,10 +548,9 @@ const AssetProcessor = struct {
             .assets = assets_list.items,
         };
 
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        defer buffer.deinit();
-        try std.json.stringify(database, .{ .whitespace = .indent_2 }, buffer.writer());
-        try file.writeAll(buffer.items);
+        var buffer: [8192]u8 = undefined;
+        const writer = file.writer(&buffer);
+        try std.json.stringify(database, .{ .whitespace = .indent_2 }, writer);
 
         // Clean up allocated strings
         for (assets_list.items) |asset| {
