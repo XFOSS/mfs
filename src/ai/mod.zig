@@ -3,17 +3,18 @@
 //! Provides comprehensive AI capabilities for modern game development
 
 const std = @import("std");
+
 const math = @import("../math/mod.zig");
 const Vec3 = math.Vec3;
 const Mat4 = math.Mat4;
+pub const behavior = @import("behavior_trees.zig");
+pub const decision_making = @import("decision_making.zig");
+pub const ml_features = @import("ml_features.zig");
+pub const neural = @import("neural/mod.zig");
+pub const neural_networks = @import("neural_networks.zig");
+pub const pathfinding = @import("pathfinding.zig");
 
 // Re-export AI modules
-pub const neural_networks = @import("neural_networks.zig");
-pub const neural = @import("neural/mod.zig");
-pub const behavior = @import("behavior_trees.zig");
-pub const pathfinding = @import("pathfinding.zig");
-pub const ml_features = @import("ml_features.zig");
-pub const decision_making = @import("decision_making.zig");
 
 /// AI System Manager - coordinates all AI subsystems
 pub const AISystem = struct {
@@ -186,7 +187,11 @@ pub const AIEntity = struct {
         // Update neural network
         if (self.neural_network) |nn| {
             const inputs = try self.gatherInputs();
+            defer self.allocator.free(inputs);
+
             const outputs = try nn.forward(inputs);
+            defer self.allocator.free(outputs);
+
             try self.processNeuralOutputs(outputs);
         }
 
@@ -245,8 +250,14 @@ pub const AIEntity = struct {
     }
 
     fn gatherInputs(self: *Self) ![]f32 {
+        const input_size = if (self.neural_network) |nn|
+            if (nn.layers.items.len > 0) nn.layers.items[0].input_size else 10
+        else
+            10;
+
         // Gather sensory inputs for neural network
-        var inputs = try self.allocator.alloc(f32, 10);
+        var inputs = try self.allocator.alloc(f32, input_size);
+        @memset(inputs, 0.0);
 
         // Position
         inputs[0] = self.position.x;

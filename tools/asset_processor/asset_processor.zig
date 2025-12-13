@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+
 // Remove zigimg dependency for now as it's not in the project
 // const zigimg = @import("zigimg");
 
@@ -547,9 +548,10 @@ const AssetProcessor = struct {
             .assets = assets_list.items,
         };
 
-        var buffer: [8192]u8 = undefined;
-        const writer = file.writer(&buffer);
-        try std.json.stringify(database, .{ .whitespace = .indent_2 }, writer);
+        var buffer = std.ArrayList(u8).init(self.allocator);
+        defer buffer.deinit();
+        try std.json.stringify(database, .{ .whitespace = .indent_2 }, buffer.writer());
+        try file.writeAll(buffer.items);
 
         // Clean up allocated strings
         for (assets_list.items) |asset| {

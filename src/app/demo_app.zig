@@ -93,7 +93,7 @@ pub const DemoApp = struct {
         };
 
         // Main render loop
-        self.last_time = @intCast(std.time.milliTimestamp());
+        self.last_time = @intCast(@divFloor(std.time.nanoTimestamp(), std.time.ns_per_ms));
 
         while (self.running and self.frame_count < 1000) { // Run for 1000 frames max
             try self.update();
@@ -307,7 +307,7 @@ pub const DemoApp = struct {
     // =============================
     /// Update FPS statistics and print to log
     fn updateFPS(self: *Self) void {
-        const current_time = @as(u64, @intCast(std.time.milliTimestamp()));
+        const current_time = @as(u64, @intCast(@divFloor(std.time.nanoTimestamp(), std.time.ns_per_ms)));
         const delta_time = current_time - self.last_time;
 
         if (delta_time > 0) {
