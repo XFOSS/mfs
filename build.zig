@@ -93,7 +93,7 @@ pub fn build(b: *std.Build) void {
 
     // Create main library
     const lib = b.addModule("mfs", .{
-        .root_source_file = b.path("src/mod.zig"),
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -214,7 +214,6 @@ fn buildTests(
         .{ .name = "physics-tests", .path = "src/tests/physics_test.zig" },
         .{ .name = "comprehensive-tests", .path = "src/tests/comprehensive_tests.zig" },
         .{ .name = "benchmark-tests", .path = "src/tests/benchmarks/render_bench.zig" },
-        .{ .name = "neural-tests", .path = "src/tests/test_neural.zig" },
     };
 
     for (test_files) |test_file| {

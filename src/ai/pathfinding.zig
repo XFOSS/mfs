@@ -347,7 +347,9 @@ pub const PathfindingSystem = struct {
     }
 
     fn findPathAStar(self: *PathfindingSystem, grid: *PathfindingGrid, start: *GridNode, end: *GridNode) !?[]*GridNode {
-        var open_set = std.PriorityQueue(*GridNode, void, PathfindingSystem.compareNodes).init(self.allocator, {});
+        _ = self;
+
+        var open_set = std.PriorityQueue(*GridNode, void, compareNodes).init(self.allocator, {});
         defer open_set.deinit();
 
         var closed_set = std.ArrayList(*GridNode).init(self.allocator);

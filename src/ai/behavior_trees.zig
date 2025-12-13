@@ -25,7 +25,7 @@ pub const BehaviorManager = struct {
         self.trees.deinit();
     }
 
-    pub fn update(_: *BehaviorManager, delta_time: f32) !void {
+    pub fn update(self: *BehaviorManager, delta_time: f32) !void {
         _ = delta_time;
         // Trees are updated individually by their owners
     }
@@ -329,7 +329,7 @@ pub const DecoratorType = enum {
 
 /// Leaf nodes (Actions and Conditions)
 pub const LeafNode = struct {
-    action_fn: ?*const fn (*Blackboard) anyerror!NodeStatus,
+    action_fn: ?*const fn (*Blackboard) !NodeStatus,
     condition_fn: ?*const fn (*Blackboard) bool,
     leaf_type: LeafType,
 
@@ -346,7 +346,7 @@ pub const LeafNode = struct {
         _ = self;
     }
 
-    pub fn setAction(self: *LeafNode, action: *const fn (*Blackboard) anyerror!NodeStatus) void {
+    pub fn setAction(self: *LeafNode, action: *const fn (*Blackboard) !NodeStatus) void {
         self.action_fn = action;
     }
 
