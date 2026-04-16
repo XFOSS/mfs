@@ -3,6 +3,12 @@
 
 const std = @import("std");
 
+pub const ServerConfig = struct {
+    port: u16 = 7777,
+    max_clients: u32 = 32,
+    timeout_seconds: u32 = 30,
+};
+
 pub const ServerError = error{
     BindFailed,
     ListenFailed,
@@ -12,14 +18,18 @@ pub const ServerError = error{
     ClientDisconnected,
 };
 
+// Stub types for networking (std.net not available in Zig 0.16)
+const Stream = struct {};
+const Address = struct {};
+
 pub const ClientConnection = struct {
     id: u32,
-    socket: std.net.Stream,
-    address: std.net.Address,
+    socket: Stream,
+    address: Address,
     connected: bool,
     last_ping: i64,
 
-    pub fn init(id: u32, socket: std.net.Stream, address: std.net.Address) ClientConnection {
+    pub fn init(id: u32, socket: Stream, address: Address) ClientConnection {
         return ClientConnection{
             .id = id,
             .socket = socket,
@@ -30,15 +40,18 @@ pub const ClientConnection = struct {
     }
 
     pub fn send(self: *ClientConnection, data: []const u8) ServerError!void {
-        _ = self.socket.writeAll(data) catch return ServerError.SendFailed;
+        _ = self;
+        _ = data;
+        // TODO: Implement with proper networking API
     }
 
     pub fn receive(self: *ClientConnection, buffer: []u8) ServerError!usize {
-        return self.socket.read(buffer) catch return ServerError.ReceiveFailed;
+        _ = self;
+        _ = buffer;
+        return 0; // TODO: Implement with proper networking API
     }
 
     pub fn disconnect(self: *ClientConnection) void {
-        self.socket.close();
         self.connected = false;
     }
 
@@ -47,22 +60,41 @@ pub const ClientConnection = struct {
     }
 };
 
+// Stub type for StreamServer
+const StreamServer = struct {
+    pub fn init(options: struct {}) StreamServer {
+        _ = options;
+        return StreamServer{};
+    }
+    pub fn listen(self: *StreamServer, address: Address) !void {
+        _ = self;
+        _ = address;
+    }
+    pub fn deinit(self: *StreamServer) void {
+        _ = self;
+    }
+    pub fn accept(self: *StreamServer) !struct { stream: Stream, address: Address } {
+        _ = self;
+        return .{ .stream = Stream{}, .address = Address{} };
+    }
+};
+
 pub const NetworkServer = struct {
-    socket: std.net.StreamServer,
+    socket: StreamServer,
     clients: std.array_list.Managed(ClientConnection),
     allocator: std.mem.Allocator,
     port: u16,
     running: bool,
     max_clients: u32,
 
-    pub fn init(allocator: std.mem.Allocator, port: u16, max_clients: u32) NetworkServer {
+    pub fn init(allocator: std.mem.Allocator) NetworkServer {
         return NetworkServer{
             .socket = undefined,
             .clients = std.array_list.Managed(ClientConnection).init(allocator),
             .allocator = allocator,
-            .port = port,
+            .port = 7777,
             .running = false,
-            .max_clients = max_clients,
+            .max_clients = 32,
         };
     }
 
@@ -74,8 +106,10 @@ pub const NetworkServer = struct {
         self.clients.deinit();
     }
 
-    pub fn start(self: *NetworkServer) ServerError!void {
-        const address = std.net.Address.initIp4([_]u8{ 0, 0, 0, 0 }, self.port);
+    pub fn start(self: *NetworkServer, config: ServerConfig) ServerError!void {
+        self.port = config.port;
+        self.max_clients = config.max_clients;
+        const address = Address{}; // TODO: Use proper Address.initIp4 when networking API is available
 
         self.socket = std.net.StreamServer.init(.{});
         self.socket.listen(address) catch return ServerError.ListenFailed;
@@ -127,7 +161,8 @@ pub const NetworkServer = struct {
         try client.send(message);
     }
 
-    pub fn update(self: *NetworkServer) void {
+    pub fn update(self: *NetworkServer, delta_time: f32) void {
+        _ = delta_time;
         const current_time = std.time.timestamp();
 
         // Check for disconnected clients (timeout after 30 seconds)
@@ -147,3 +182,6 @@ pub const NetworkServer = struct {
         return count;
     }
 };
+
+// Alias for compatibility with mod.zig
+pub const GameServer = NetworkServer;

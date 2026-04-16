@@ -179,10 +179,38 @@ fn runTestSuite(allocator: std.mem.Allocator, suite: TestSuite, verbose: bool, m
 
     try child.spawn();
 
-    const stdout = try child.stdout.?.readToEndAlloc(allocator, std.math.maxInt(usize));
+    // Read stdout in chunks
+    var stdout_list = std.array_list.Managed(u8).init(allocator);
+    defer stdout_list.deinit();
+    var stdout_buffer: [4096]u8 = undefined;
+    if (child.stdout) |stdout_pipe| {
+        while (true) {
+            const bytes_read = stdout_pipe.read(stdout_buffer[0..]) catch |err| {
+                if (err == error.EndOfStream) break;
+                return err;
+            };
+            if (bytes_read == 0) break;
+            try stdout_list.appendSlice(stdout_buffer[0..bytes_read]);
+        }
+    }
+    const stdout = try stdout_list.toOwnedSlice();
     defer allocator.free(stdout);
 
-    const stderr = try child.stderr.?.readToEndAlloc(allocator, std.math.maxInt(usize));
+    // Read stderr in chunks
+    var stderr_list = std.array_list.Managed(u8).init(allocator);
+    defer stderr_list.deinit();
+    var stderr_buffer: [4096]u8 = undefined;
+    if (child.stderr) |stderr_pipe| {
+        while (true) {
+            const bytes_read = stderr_pipe.read(stderr_buffer[0..]) catch |err| {
+                if (err == error.EndOfStream) break;
+                return err;
+            };
+            if (bytes_read == 0) break;
+            try stderr_list.appendSlice(stderr_buffer[0..bytes_read]);
+        }
+    }
+    const stderr = try stderr_list.toOwnedSlice();
     defer allocator.free(stderr);
 
     const result = try child.wait();

@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+
 // Remove zigimg dependency for now as it's not in the project
 // const zigimg = @import("zigimg");
 
@@ -459,8 +460,10 @@ const AssetProcessor = struct {
         };
         defer file.close();
 
-        const metadata_json = try file.readToEndAlloc(self.allocator, 10 * 1024 * 1024);
+        const file_size = try file.getEndPos();
+        const metadata_json = try self.allocator.alloc(u8, file_size);
         defer self.allocator.free(metadata_json);
+        _ = try file.readAll(metadata_json);
 
         const parsed = std.json.parseFromSlice(AssetDatabase, self.allocator, metadata_json, .{}) catch |err| {
             std.log.warn("Failed to parse metadata file: {}", .{err});
@@ -545,7 +548,9 @@ const AssetProcessor = struct {
             .assets = assets_list.items,
         };
 
-        try std.json.stringify(database, .{ .whitespace = .indent_2 }, file.writer());
+        var buffer: [8192]u8 = undefined;
+        const writer = file.writer(&buffer);
+        try std.json.stringify(database, .{ .whitespace = .indent_2 }, writer);
 
         // Clean up allocated strings
         for (assets_list.items) |asset| {
@@ -722,8 +727,10 @@ test "basic asset processing" {
     const result_file = try std.fs.openFileAbsolute(processed_path, .{});
     defer result_file.close();
 
-    const content = try result_file.readToEndAlloc(std.testing.allocator, 1024);
+    const file_size = try result_file.getEndPos();
+    const content = try std.testing.allocator.alloc(u8, file_size);
     defer std.testing.allocator.free(content);
+    _ = try result_file.readAll(content);
 
     try std.testing.expectEqualStrings("test content", content);
 

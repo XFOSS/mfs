@@ -3,8 +3,10 @@
 //! Handles command-line arguments and initializes the engine
 
 const std = @import("std");
+
 const mfs = @import("mfs");
 const engine = mfs.engine;
+
 const build_options = @import("../build_options.zig");
 
 // =============================================================================

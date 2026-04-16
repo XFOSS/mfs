@@ -110,13 +110,13 @@ pub const SecurityConfig = struct {
 pub const SecurityManager = struct {
     allocator: std.mem.Allocator,
     config: SecurityConfig,
-    request_counts: std.HashMap(u32, u32, std.hash_map.DefaultContext(u32), std.hash_map.default_max_load_percentage),
+    request_counts: std.HashMap(u32, u32, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage),
 
     pub fn init(allocator: std.mem.Allocator, config: SecurityConfig) !SecurityManager {
         return SecurityManager{
             .allocator = allocator,
             .config = config,
-            .request_counts = std.HashMap(u32, u32, std.hash_map.DefaultContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
+            .request_counts = std.HashMap(u32, u32, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
         };
     }
 

@@ -3,6 +3,12 @@
 
 const std = @import("std");
 
+pub const P2PConfig = struct {
+    port: u16 = 7778,
+    max_peers: u32 = 16,
+    discovery_enabled: bool = true,
+};
+
 pub const P2PError = error{
     ConnectionFailed,
     PeerNotFound,
@@ -10,12 +16,15 @@ pub const P2PError = error{
     NetworkTimeout,
 };
 
+// Stub type for Address
+const Address = struct {};
+
 pub const PeerConnection = struct {
     id: u32,
-    address: std.net.Address,
+    address: Address,
     connected: bool,
 
-    pub fn init(id: u32, address: std.net.Address) PeerConnection {
+    pub fn init(id: u32, address: Address) PeerConnection {
         return PeerConnection{
             .id = id,
             .address = address,
@@ -71,4 +80,19 @@ pub const P2PManager = struct {
         // TODO: Implement message sending
         _ = message;
     }
+
+    pub fn start(self: *P2PManager, config: P2PConfig) P2PError!void {
+        _ = self;
+        _ = config;
+        // TODO: Implement P2P start with config
+    }
+
+    pub fn update(self: *P2PManager, delta_time: f32) void {
+        _ = self;
+        _ = delta_time;
+        // TODO: Implement P2P update
+    }
 };
+
+// Alias for compatibility with mod.zig
+pub const P2PNode = P2PManager;

@@ -3,18 +3,18 @@
 //! Provides comprehensive AI capabilities for modern game development
 
 const std = @import("std");
+
 const math = @import("../math/mod.zig");
 const Vec3 = math.Vec3;
 const Mat4 = math.Mat4;
+pub const behavior = @import("behavior_trees.zig");
+pub const decision_making = @import("decision_making.zig");
+pub const ml_features = @import("ml_features.zig");
+pub const neural = @import("neural/mod.zig");
+pub const neural_networks = @import("neural_networks.zig");
+pub const pathfinding = @import("pathfinding.zig");
 
 // Re-export AI modules
-pub const neural_networks = @import("neural_networks.zig");
-pub const neural = @import("neural/mod.zig");
-pub const behavior = @import("behavior_trees.zig");
-pub const pathfinding = @import("pathfinding.zig");
-pub const ml_features = @import("ml_features.zig");
-pub const decision_making = @import("decision_making.zig");
-
 /// AI System Manager - coordinates all AI subsystems
 pub const AISystem = struct {
     allocator: std.mem.Allocator,
@@ -258,7 +258,7 @@ pub const AIEntity = struct {
 
         // Target distance
         if (self.target_position) |target| {
-            const distance = self.position.distance(target);
+            const distance = self.position.distanceTo(target);
             inputs[4] = distance;
         } else {
             inputs[4] = 0.0;
@@ -301,7 +301,7 @@ pub const AIEntity = struct {
     fn followPath(self: *Self, path: []Vec3, delta_time: f32) !void {
         if (path.len > 0) {
             const target = path[0];
-            const direction = target.subtract(self.position).normalize();
+            const direction = target.sub(self.position).normalize();
             const speed = 5.0; // units per second
 
             self.position = self.position.add(direction.scale(speed * delta_time));
